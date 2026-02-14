@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+*.pyo
+.env
+database/bmad_transform.db
+.DS_Store
+*.zip

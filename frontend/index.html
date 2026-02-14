@@ -1,0 +1,2793 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BMAD Business Transformation Tool</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0f172a; color: #e2e8f0; min-height: 100vh; }
+
+        /* Layout */
+        .app { display: flex; min-height: 100vh; }
+        .sidebar { width: 280px; background: #1e293b; border-right: 1px solid #334155; padding: 20px 0; flex-shrink: 0; }
+        .main { flex: 1; padding: 32px; overflow-y: auto; }
+
+        /* Sidebar */
+        .logo { padding: 0 20px 24px; border-bottom: 1px solid #334155; margin-bottom: 16px; }
+        .logo h1 { font-size: 20px; color: #38bdf8; }
+        .logo p { font-size: 12px; color: #94a3b8; margin-top: 4px; }
+
+        .nav-item { display: flex; align-items: center; padding: 12px 20px; cursor: pointer; transition: all 0.2s; gap: 12px; }
+        .nav-item:hover { background: #334155; }
+        .nav-item.active { background: #0ea5e9; color: white; }
+        .nav-item .step-num { width: 28px; height: 28px; border-radius: 50%; background: #334155; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600; flex-shrink: 0; }
+        .nav-item.active .step-num { background: rgba(255,255,255,0.2); }
+        .nav-item .step-label { font-size: 13px; line-height: 1.3; }
+        .nav-item .gate-status { margin-left: auto; font-size: 11px; padding: 2px 8px; border-radius: 10px; background: #334155; }
+        .nav-item .gate-status.approved { background: #065f46; color: #6ee7b7; }
+
+        /* Header */
+        .page-header { margin-bottom: 28px; }
+        .page-header h2 { font-size: 24px; color: #f1f5f9; }
+        .page-header p { color: #94a3b8; margin-top: 6px; font-size: 14px; }
+
+        /* Cards */
+        .card { background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 24px; margin-bottom: 20px; }
+        .card h3 { font-size: 16px; color: #f1f5f9; margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; }
+
+        /* Forms */
+        .form-row { display: flex; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+        .form-group { flex: 1; min-width: 200px; }
+        .form-group label { display: block; font-size: 12px; color: #94a3b8; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+        input, select, textarea { width: 100%; padding: 10px 12px; background: #0f172a; border: 1px solid #334155; border-radius: 8px; color: #e2e8f0; font-size: 14px; }
+        input:focus, select:focus, textarea:focus { outline: none; border-color: #0ea5e9; }
+        textarea { resize: vertical; min-height: 80px; }
+
+        /* Buttons */
+        .btn { padding: 10px 20px; border-radius: 8px; border: none; cursor: pointer; font-size: 14px; font-weight: 500; transition: all 0.2s; }
+        .btn-primary { background: #0ea5e9; color: white; }
+        .btn-primary:hover { background: #0284c7; }
+        .btn-success { background: #059669; color: white; }
+        .btn-success:hover { background: #047857; }
+        .btn-danger { background: #dc2626; color: white; font-size: 12px; padding: 4px 10px; }
+        .btn-danger:hover { background: #b91c1c; }
+        .btn-sm { padding: 6px 14px; font-size: 13px; }
+
+        /* Tables */
+        table { width: 100%; border-collapse: collapse; }
+        th { text-align: left; padding: 10px 12px; font-size: 12px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid #334155; }
+        td { padding: 10px 12px; font-size: 14px; border-bottom: 1px solid #1e293b; }
+        tr:hover td { background: #1e293b; }
+
+        /* RICE score badge */
+        .rice-badge { display: inline-block; padding: 2px 10px; border-radius: 12px; font-weight: 600; font-size: 13px; }
+        .rice-high { background: #065f46; color: #6ee7b7; }
+        .rice-mid { background: #713f12; color: #fbbf24; }
+        .rice-low { background: #7f1d1d; color: #fca5a5; }
+
+        /* Status badges */
+        .status { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 12px; }
+        .status-pending { background: #334155; color: #94a3b8; }
+        .status-approved { background: #065f46; color: #6ee7b7; }
+        .status-active, .status-in_progress { background: #1e3a5f; color: #7dd3fc; }
+        .status-draft { background: #334155; color: #cbd5e1; }
+        .status-done, .status-completed, .status-achieved { background: #065f46; color: #6ee7b7; }
+        .status-blocked, .status-at_risk { background: #7f1d1d; color: #fca5a5; }
+
+        /* Gate approval */
+        .gate-card { display: flex; align-items: center; justify-content: space-between; padding: 16px; background: #0f172a; border-radius: 8px; margin-bottom: 10px; }
+        .gate-card .gate-info { flex: 1; }
+        .gate-card .gate-name { font-weight: 500; }
+        .gate-card .gate-desc { font-size: 13px; color: #94a3b8; margin-top: 2px; }
+
+        /* Toast */
+        .toast { position: fixed; bottom: 24px; right: 24px; background: #065f46; color: #6ee7b7; padding: 12px 24px; border-radius: 8px; font-size: 14px; opacity: 0; transition: opacity 0.3s; z-index: 100; }
+        .toast.show { opacity: 1; }
+
+        /* Empty state */
+        .empty { text-align: center; padding: 40px; color: #64748b; }
+        .empty p { margin-top: 8px; font-size: 14px; }
+
+        /* Loading spinner */
+        .spinner { display: inline-block; width: 20px; height: 20px; border: 3px solid #334155; border-top-color: #0ea5e9; border-radius: 50%; animation: spin 0.8s linear infinite; vertical-align: middle; margin-right: 8px; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .loading-overlay { text-align: center; padding: 60px 20px; }
+        .loading-overlay .spinner { width: 40px; height: 40px; border-width: 4px; }
+        .loading-overlay p { margin-top: 16px; color: #94a3b8; font-size: 14px; }
+        .progress-msg { margin-top: 8px; color: #64748b; font-size: 13px; }
+
+        /* Org setup form */
+        .org-setup { max-width: 520px; margin: 40px auto; }
+        .org-setup h3 { margin-bottom: 20px; font-size: 20px; color: #f1f5f9; text-align: center; }
+
+        /* Analysis dashboard */
+        .analysis-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .analysis-grid .card { margin-bottom: 0; }
+        .chart-container { position: relative; height: 220px; display: flex; align-items: flex-end; gap: 6px; padding: 10px 0; }
+        .chart-bar { flex: 1; background: linear-gradient(to top, #0ea5e9, #38bdf8); border-radius: 4px 4px 0 0; position: relative; min-width: 20px; transition: height 0.5s ease; }
+        .chart-bar:hover { opacity: 0.85; }
+        .chart-bar .bar-label { position: absolute; bottom: -22px; left: 50%; transform: translateX(-50%); font-size: 10px; color: #94a3b8; white-space: nowrap; }
+        .chart-bar .bar-value { position: absolute; top: -20px; left: 50%; transform: translateX(-50%); font-size: 11px; color: #e2e8f0; white-space: nowrap; }
+
+        /* SWOT grid */
+        .swot-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .swot-quad { padding: 16px; border-radius: 8px; }
+        .swot-quad h4 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; }
+        .swot-quad.strengths { background: #064e3b; }
+        .swot-quad.strengths h4 { color: #6ee7b7; }
+        .swot-quad.weaknesses { background: #7f1d1d; }
+        .swot-quad.weaknesses h4 { color: #fca5a5; }
+        .swot-quad.opportunities { background: #1e3a5f; }
+        .swot-quad.opportunities h4 { color: #7dd3fc; }
+        .swot-quad.threats { background: #713f12; }
+        .swot-quad.threats h4 { color: #fbbf24; }
+        .swot-quad li { font-size: 13px; margin-bottom: 6px; color: #e2e8f0; list-style: none; padding-left: 12px; position: relative; }
+        .swot-quad li::before { content: ""; position: absolute; left: 0; top: 7px; width: 5px; height: 5px; border-radius: 50%; background: currentColor; opacity: 0.5; }
+
+        /* Metric cards */
+        .metric-row { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+        .metric-card { flex: 1; min-width: 120px; background: #0f172a; padding: 14px; border-radius: 8px; text-align: center; }
+        .metric-card .metric-val { font-size: 22px; font-weight: 700; color: #38bdf8; }
+        .metric-card .metric-label { font-size: 11px; color: #94a3b8; margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+
+        /* Phase tabs */
+        .phase-tabs { display: flex; gap: 8px; margin-bottom: 20px; }
+        .phase-tab { padding: 8px 18px; border-radius: 8px; background: #334155; color: #94a3b8; cursor: pointer; font-size: 13px; font-weight: 500; border: none; transition: all 0.2s; }
+        .phase-tab.active { background: #0ea5e9; color: white; }
+        .phase-tab:hover:not(.active) { background: #475569; color: #e2e8f0; }
+
+        /* Comparison table */
+        .comparison-table { width: 100%; border-collapse: collapse; }
+        .comparison-table th { text-align: left; padding: 10px 12px; font-size: 12px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid #334155; }
+        .comparison-table td { padding: 10px 12px; font-size: 14px; border-bottom: 1px solid #1e293b; }
+        .comparison-table .best { color: #6ee7b7; font-weight: 600; }
+        .comparison-table .worst { color: #fca5a5; }
+
+        /* Grouped bar chart */
+        .grouped-chart { display: flex; align-items: flex-end; gap: 16px; padding: 10px 0; height: 240px; overflow-x: auto; }
+        .bar-group { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+        .bar-group-bars { display: flex; align-items: flex-end; gap: 3px; height: 200px; }
+        .bar-group-label { font-size: 10px; color: #94a3b8; }
+        .g-bar { width: 24px; border-radius: 3px 3px 0 0; position: relative; min-height: 4px; transition: height 0.5s ease; }
+        .g-bar:hover { opacity: 0.8; }
+        .g-bar .g-val { position: absolute; top: -18px; left: 50%; transform: translateX(-50%); font-size: 9px; color: #e2e8f0; white-space: nowrap; }
+
+        /* Chart legend */
+        .chart-legend { display: flex; gap: 16px; margin-top: 8px; justify-content: center; }
+        .chart-legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #94a3b8; }
+        .chart-legend-dot { width: 10px; height: 10px; border-radius: 2px; }
+
+        /* Value Stream Flow Diagram */
+        .vs-flow { display: flex; align-items: center; overflow-x: auto; padding: 20px 0; gap: 0; }
+        .vs-flow-step { flex-shrink: 0; width: 150px; padding: 14px 10px; border-radius: 10px; background: #1e293b; border: 2px solid #334155; text-align: center; position: relative; }
+        .vs-flow-step .step-title { font-size: 13px; font-weight: 600; color: #f1f5f9; margin-bottom: 6px; }
+        .vs-flow-step .step-times { font-size: 11px; }
+        .vs-flow-step .step-times .pt { color: #6ee7b7; }
+        .vs-flow-step .step-times .wt { color: #fbbf24; }
+        .vs-flow-step.type-trigger { border-color: #22c55e; border-style: dashed; }
+        .vs-flow-step.type-delivery { border-color: #3b82f6; border-style: dashed; }
+        .vs-flow-step.type-decision { border-radius: 0; transform: rotate(0deg); border-color: #a78bfa; }
+        .vs-flow-step.bottleneck { background: #7c2d12; border-color: #f97316; }
+        .vs-flow-arrow { flex-shrink: 0; display: flex; flex-direction: column; align-items: center; width: 60px; }
+        .vs-flow-arrow .arrow-line { width: 100%; height: 2px; background: #475569; position: relative; }
+        .vs-flow-arrow .arrow-line::after { content: ""; position: absolute; right: -1px; top: -5px; border: 6px solid transparent; border-left-color: #475569; }
+        .vs-flow-arrow .arrow-wait { font-size: 10px; color: #fbbf24; margin-top: 4px; }
+        .vs-metrics-bar { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 16px; padding: 14px; background: #0f172a; border-radius: 8px; }
+        .vs-metrics-bar .vm-item { flex: 1; min-width: 100px; text-align: center; }
+        .vs-metrics-bar .vm-val { font-size: 18px; font-weight: 700; color: #38bdf8; }
+        .vs-metrics-bar .vm-label { font-size: 11px; color: #94a3b8; margin-top: 2px; text-transform: uppercase; }
+        .vs-metrics-bar .vm-val.warn { color: #fbbf24; }
+        .vs-metrics-bar .vm-val.good { color: #6ee7b7; }
+
+        /* Editable table cell */
+        .edit-cell { cursor: pointer; padding: 2px 4px; border-radius: 4px; }
+        .edit-cell:hover { background: #334155; }
+        .edit-cell input, .edit-cell select { width: 100%; padding: 4px 6px; background: #0f172a; border: 1px solid #0ea5e9; border-radius: 4px; color: #e2e8f0; font-size: 13px; }
+
+        /* Strategy layer colors */
+        .layer-business { background: #064e3b; color: #6ee7b7; }
+        .layer-digital { background: #1e3a5f; color: #7dd3fc; }
+        .layer-data { background: #713f12; color: #fbbf24; }
+        .layer-gen_ai { background: #581c87; color: #c4b5fd; }
+        .strategy-card { border-left: 4px solid #334155; padding: 16px; background: #0f172a; border-radius: 8px; margin-bottom: 12px; }
+        .strategy-card.business { border-left-color: #059669; }
+        .strategy-card.digital { border-left-color: #2563eb; }
+        .strategy-card.data { border-left-color: #d97706; }
+        .strategy-card.gen_ai { border-left-color: #7c3aed; }
+        .roadmap-phase { padding: 20px; border-radius: 12px; margin-bottom: 20px; }
+        .roadmap-phase.quick-wins { background: #064e3b22; border: 1px solid #065f46; }
+        .roadmap-phase.strategic { background: #1e3a5f22; border: 1px solid #1e40af; }
+        .roadmap-phase.long-term { background: #713f1222; border: 1px solid #92400e; }
+        .layer-badge { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+        .data-source-card { display: inline-flex; align-items: center; gap: 8px; padding: 10px 16px; border-radius: 8px; background: #0f172a; border: 1px solid #334155; font-size: 13px; }
+        .data-source-card .dot { width: 10px; height: 10px; border-radius: 50%; }
+        .data-source-card .dot.active { background: #22c55e; }
+        .data-source-card .dot.inactive { background: #475569; }
+        .roadmap-item { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; background: #1e293b; border-radius: 8px; margin-bottom: 8px; }
+        .roadmap-item .ri-name { font-size: 14px; font-weight: 500; flex: 1; }
+        .roadmap-item .ri-meta { display: flex; gap: 12px; align-items: center; font-size: 12px; color: #94a3b8; }
+
+        /* Risk levels */
+        .risk-low { color: #6ee7b7; }
+        .risk-medium { color: #fbbf24; }
+        .risk-high { color: #f97316; }
+        .risk-critical { color: #fca5a5; font-weight: 600; }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .app { flex-direction: column; }
+            .sidebar { width: 100%; }
+            .form-row { flex-direction: column; }
+            .form-group { min-width: 100%; }
+            .analysis-grid { grid-template-columns: 1fr; }
+            .swot-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="app">
+    <nav class="sidebar">
+        <div class="logo">
+            <h1>BMAD Transform</h1>
+            <p>Business Transformation Tool</p>
+        </div>
+        <div class="nav-item active" onclick="showStep(1)">
+            <span class="step-num">1</span>
+            <span class="step-label">Performance Dashboard</span>
+        </div>
+        <div class="nav-item" onclick="showStep(2)">
+            <span class="step-num">2</span>
+            <span class="step-label">Value Stream Analysis</span>
+        </div>
+        <div class="nav-item" onclick="showStep(3)">
+            <span class="step-num">3</span>
+            <span class="step-label">SWOT / TOWS Engine</span>
+        </div>
+        <div class="nav-item" onclick="showStep(4)">
+            <span class="step-num">4</span>
+            <span class="step-label">Strategy & OKRs</span>
+        </div>
+        <div class="nav-item" onclick="showStep(5)">
+            <span class="step-num">5</span>
+            <span class="step-label">Initiatives & RICE</span>
+        </div>
+        <div class="nav-item" onclick="showStep(6)">
+            <span class="step-num">6</span>
+            <span class="step-label">Epics & Roadmap</span>
+        </div>
+        <div class="nav-item" onclick="showStep(7)">
+            <span class="step-num">7</span>
+            <span class="step-label">Features & Roadmap</span>
+        </div>
+    </nav>
+
+    <main class="main" id="main-content">
+        <!-- Content loaded dynamically -->
+    </main>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const API = '/api';
+let currentStep = 1;
+
+// --- Utility ---
+function toast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+async function api(path, method = 'GET', body = null) {
+    const opts = { method, headers: { 'Content-Type': 'application/json' } };
+    if (body) opts.body = JSON.stringify(body);
+    const res = await fetch(API + path, opts);
+    return res.json();
+}
+
+async function apiUpload(path, formData) {
+    const res = await fetch(API + path, { method: 'POST', body: formData });
+    return res.json();
+}
+
+function riceClass(score) {
+    if (score >= 5) return 'rice-high';
+    if (score >= 2) return 'rice-mid';
+    return 'rice-low';
+}
+
+function statusHtml(status) {
+    return `<span class="status status-${status}">${status}</span>`;
+}
+
+// --- Navigation ---
+function showStep(n) {
+    currentStep = n;
+    document.querySelectorAll('.nav-item').forEach((el, i) => {
+        el.classList.toggle('active', i === n - 1);
+    });
+    const loaders = [null, loadStep1, loadStep2, loadStep3, loadStep4, loadStep5, loadStep6, loadStep7];
+    loaders[n]();
+}
+
+// ===================== STEP 1: Performance Dashboard =====================
+let step1Phase = 'data'; // 'setup', 'data', 'analysis'
+
+async function loadStep1() {
+    const org = await api('/step1/organization');
+    if (!org) {
+        step1Phase = 'setup';
+        renderStep1Setup();
+    } else {
+        if (step1Phase === 'setup') step1Phase = 'data';
+        if (step1Phase === 'analysis') {
+            renderStep1Analysis();
+        } else {
+            renderStep1Data(org);
+        }
+    }
+}
+
+function renderStep1Setup() {
+    const industries = ['Technology','Healthcare','Financial Services','Consumer Goods','Energy','Industrials','Materials','Telecommunications','Utilities','Real Estate','Retail','Automotive','Aerospace & Defense','Media & Entertainment','Other'];
+    document.getElementById('main-content').innerHTML = `
+        <div class="page-header">
+            <h2>Step 1: Business Performance Dashboard</h2>
+            <p>Set up your organization to auto-fetch financial data and competitor analysis.</p>
+        </div>
+        <div class="org-setup">
+            <div class="card">
+                <h3 style="justify-content:center;">Organization Setup</h3>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Organization Name</label>
+                        <input type="text" id="org-name" placeholder="e.g. Apple, Microsoft, Tesla" />
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Industry Type</label>
+                        <select id="org-industry">
+                            ${industries.map(i => `<option value="${i}">${i}</option>`).join('')}
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Competitor 1</label>
+                        <input type="text" id="org-comp1" placeholder="e.g. Microsoft" />
+                    </div>
+                    <div class="form-group">
+                        <label>Competitor 2</label>
+                        <input type="text" id="org-comp2" placeholder="e.g. Google" />
+                    </div>
+                </div>
+                <div style="margin-top: 20px; text-align: center;">
+                    <button class="btn btn-primary" onclick="submitOrganization()" style="padding: 12px 32px; font-size: 15px;">Submit & Fetch Data</button>
+                </div>
+                <p style="text-align: center; margin-top: 12px; font-size: 12px; color: #64748b;">Enter a publicly traded company name for best results. Data is fetched from Finnhub & Alpha Vantage APIs.</p>
+            </div>
+        </div>
+        <div id="step1-gates" style="margin-top:20px;"></div>
+    `;
+    renderStepGates(1, 'step1-gates');
+}
+
+async function submitOrganization() {
+    const name = document.getElementById('org-name').value.trim();
+    const industry = document.getElementById('org-industry').value;
+    const competitor_1_name = document.getElementById('org-comp1')?.value.trim() || '';
+    const competitor_2_name = document.getElementById('org-comp2')?.value.trim() || '';
+    if (!name) { alert('Please enter an organization name.'); return; }
+
+    // Save organization
+    await api('/step1/organization', 'POST', { name, industry, competitor_1_name, competitor_2_name });
+
+    // Show loading state
+    document.getElementById('main-content').innerHTML = `
+        <div class="page-header">
+            <h2>Step 1: Business Performance Dashboard</h2>
+        </div>
+        <div class="loading-overlay">
+            <div class="spinner"></div>
+            <p id="ingest-status">Searching for ${name}...</p>
+            <p class="progress-msg" id="ingest-progress">This may take 15-30 seconds</p>
+        </div>
+    `;
+
+    // Trigger ingestion
+    const result = await api('/step1/ingest', 'POST');
+
+    if (result.error) {
+        document.getElementById('ingest-status').textContent = 'Ingestion issue';
+        document.getElementById('ingest-progress').textContent = result.error;
+        setTimeout(() => { step1Phase = 'data'; loadStep1(); }, 2000);
+        return;
+    }
+
+    const s = result.summary || {};
+    document.getElementById('ingest-status').textContent = 'Data fetched successfully!';
+    document.getElementById('ingest-progress').innerHTML =
+        `Ticker: <strong>${s.ticker || 'N/A'}</strong> | Revenue periods: <strong>${s.financials || 0}</strong> | Ops metrics: <strong>${s.ops_metrics || 0}</strong> | Competitors: <strong>${s.competitors || 0}</strong>`;
+
+    toast('Data ingestion complete');
+    setTimeout(() => { step1Phase = 'data'; loadStep1(); }, 1500);
+}
+
+async function renderStep1Data(org) {
+    const [units, revenue, ops, competitors] = await Promise.all([
+        api('/step1/business-units'),
+        api('/step1/revenue-splits'),
+        api('/step1/ops-efficiency'),
+        api('/step1/competitors'),
+    ]);
+
+    document.getElementById('main-content').innerHTML = `
+        <div class="page-header">
+            <h2>Step 1: Business Performance Dashboard</h2>
+            <p>${org.name}${org.ticker ? ' (' + org.ticker + ')' : ''} — ${org.industry}${org.country ? ' | ' + org.country : ''}</p>
+        </div>
+
+        <div class="phase-tabs">
+            <button class="phase-tab" onclick="step1Phase='setup'; renderStep1Setup()">Org Setup</button>
+            <button class="phase-tab active">Data Tables</button>
+            <button class="phase-tab" onclick="step1Phase='analysis'; renderStep1Analysis()">Analysis Dashboard</button>
+            <button class="btn btn-primary btn-sm" onclick="reingestData()" style="margin-left: auto;">Re-fetch Data</button>
+        </div>
+
+        <div class="card">
+            <h3>Business Units <button class="btn btn-primary btn-sm" onclick="addBusinessUnit()">+ Add</button></h3>
+            ${units.length ? `<table>
+                <tr><th>Name</th><th>Description</th><th></th></tr>
+                ${units.map(u => `<tr>
+                    <td>${u.name}</td><td>${u.description || '-'}</td>
+                    <td><button class="btn btn-danger" onclick="deleteBusinessUnit(${u.id})">Delete</button></td>
+                </tr>`).join('')}
+            </table>` : '<div class="empty"><p>No business units yet. Add one to get started.</p></div>'}
+        </div>
+
+        <div class="card">
+            <h3>Revenue Splits <button class="btn btn-primary btn-sm" onclick="addRevenueSplit()">+ Add</button></h3>
+            ${revenue.length ? `<table>
+                <tr><th>Business Unit</th><th>Dimension</th><th>Value</th><th>Revenue</th><th>Period</th></tr>
+                ${revenue.map(r => `<tr>
+                    <td>${r.business_unit_name}</td><td>${r.dimension}</td><td>${r.dimension_value}</td>
+                    <td>$${Number(r.revenue).toLocaleString()}</td><td>${r.period}</td>
+                </tr>`).join('')}
+            </table>` : '<div class="empty"><p>No revenue data yet.</p></div>'}
+        </div>
+
+        <div class="card">
+            <h3>Ops Efficiency <button class="btn btn-primary btn-sm" onclick="addOpsMetric()">+ Add</button></h3>
+            ${ops.length ? `<table>
+                <tr><th>Business Unit</th><th>Metric</th><th>Value</th><th>Target</th><th>Period</th></tr>
+                ${ops.map(o => `<tr>
+                    <td>${o.business_unit_name}</td><td>${o.metric_name}</td>
+                    <td>${o.metric_value}</td><td>${o.target_value || '-'}</td><td>${o.period}</td>
+                </tr>`).join('')}
+            </table>` : '<div class="empty"><p>No ops metrics yet.</p></div>'}
+        </div>
+
+        <div class="card">
+            <h3>Competitors <button class="btn btn-primary btn-sm" onclick="addCompetitor()">+ Add</button></h3>
+            ${competitors.length ? `<table>
+                <tr><th>Name</th><th>Market Share</th><th>Strengths</th><th>Weaknesses</th></tr>
+                ${competitors.map(c => `<tr>
+                    <td>${c.name}</td><td>${c.market_share ? c.market_share + '%' : '-'}</td>
+                    <td>${c.strengths || '-'}</td><td>${c.weaknesses || '-'}</td>
+                </tr>`).join('')}
+            </table>` : '<div class="empty"><p>No competitor data yet.</p></div>'}
+        </div>
+        <div id="step1-gates" style="margin-top:20px;"></div>
+    `;
+    renderStepGates(1, 'step1-gates');
+}
+
+async function reingestData() {
+    if (!confirm('Re-fetch data from APIs? This will add new data without removing existing entries.')) return;
+    document.getElementById('main-content').innerHTML = `
+        <div class="loading-overlay">
+            <div class="spinner"></div>
+            <p>Re-fetching data...</p>
+        </div>
+    `;
+    await api('/step1/ingest', 'POST');
+    toast('Data re-fetched');
+    step1Phase = 'data';
+    loadStep1();
+}
+
+function fmtRevenue(v) {
+    if (v == null) return '-';
+    if (v >= 1e12) return '$' + (v / 1e12).toFixed(1) + 'T';
+    if (v >= 1e9) return '$' + (v / 1e9).toFixed(1) + 'B';
+    if (v >= 1e6) return '$' + (v / 1e6).toFixed(0) + 'M';
+    return '$' + Number(v).toLocaleString();
+}
+
+function fmtMetric(name, val) {
+    if (val == null) return '-';
+    if (name.includes('Margin') || name.includes('Return')) return (val * 100).toFixed(1) + '%';
+    if (name.includes('Revenue') || name.includes('Market Cap')) return fmtRevenue(val);
+    return Number(val).toFixed(2);
+}
+
+async function renderStep1Analysis() {
+    document.getElementById('main-content').innerHTML = `
+        <div class="loading-overlay"><div class="spinner"></div><p>Loading analysis...</p></div>
+    `;
+
+    const data = await api('/step1/analysis');
+    const org = data.organization || {};
+    const swot = data.swot || { strengths: [], weaknesses: [], opportunities: [], threats: [] };
+    const compComparison = data.competitor_comparison || [];
+    const revComparison = data.revenue_comparison || { org: [], competitors: [] };
+
+    // --- Revenue Comparison Chart (grouped bars) ---
+    // Collect all periods across org + competitors
+    const allPeriods = new Set();
+    revComparison.org.forEach(r => allPeriods.add(r.period));
+    revComparison.competitors.forEach(c => c.data.forEach(r => allPeriods.add(r.period)));
+    const periods = [...allPeriods].sort();
+
+    // Build lookup maps
+    const orgRevMap = {};
+    revComparison.org.forEach(r => { orgRevMap[r.period] = r.revenue; });
+    const compRevMaps = revComparison.competitors.map(c => {
+        const m = {}; c.data.forEach(r => { m[r.period] = r.revenue; }); return { name: c.name, map: m };
+    });
+
+    const colors = ['#0ea5e9', '#22c55e', '#f97316', '#a78bfa'];
+    let allRevVals = revComparison.org.map(r => r.revenue || 0);
+    revComparison.competitors.forEach(c => c.data.forEach(r => allRevVals.push(r.revenue || 0)));
+    const maxRev = Math.max(...allRevVals, 1);
+
+    let revenueChartHtml = '';
+    if (periods.length) {
+        const barsHtml = periods.map(p => {
+            const orgVal = orgRevMap[p] || 0;
+            const bars = [`<div class="g-bar" style="height:${(orgVal/maxRev*100).toFixed(0)}%;background:${colors[0]}" title="${org.name}: ${fmtRevenue(orgVal)}"><span class="g-val">${fmtRevenue(orgVal)}</span></div>`];
+            compRevMaps.forEach((c, i) => {
+                const v = c.map[p] || 0;
+                bars.push(`<div class="g-bar" style="height:${(v/maxRev*100).toFixed(0)}%;background:${colors[i+1]}" title="${c.name}: ${fmtRevenue(v)}"><span class="g-val">${fmtRevenue(v)}</span></div>`);
+            });
+            return `<div class="bar-group"><div class="bar-group-bars">${bars.join('')}</div><div class="bar-group-label">${p}</div></div>`;
+        }).join('');
+
+        const legendItems = [`<div class="chart-legend-item"><div class="chart-legend-dot" style="background:${colors[0]}"></div>${org.name || 'Org'}</div>`];
+        compRevMaps.forEach((c, i) => {
+            legendItems.push(`<div class="chart-legend-item"><div class="chart-legend-dot" style="background:${colors[i+1]}"></div>${c.name}</div>`);
+        });
+
+        revenueChartHtml = `<div class="grouped-chart">${barsHtml}</div><div class="chart-legend">${legendItems.join('')}</div>`;
+    } else {
+        revenueChartHtml = '<div class="empty"><p>No revenue data</p></div>';
+    }
+
+    // --- Financial Metrics Comparison Table ---
+    const metricNames = ['Profit Margin', 'Operating Margin', 'Return on Equity', 'Return on Assets', 'PE Ratio', 'EPS', 'Revenue (TTM)', 'Market Cap'];
+    let metricsTableHtml = '';
+    if (compComparison.length) {
+        const orgMetrics = org.metrics || {};
+        // Add Revenue TTM and Market Cap to org metrics for comparison
+        const orgRevTTM = (data.ops_metrics || []).find(m => m.metric_name === 'Revenue (TTM)');
+        if (!orgMetrics['Revenue (TTM)']) {
+            const latestRev = revComparison.org.length ? revComparison.org[revComparison.org.length - 1].revenue : null;
+            if (latestRev) orgMetrics['Revenue (TTM)'] = latestRev;
+        }
+        if (!orgMetrics['Market Cap'] && org.market_cap) orgMetrics['Market Cap'] = org.market_cap * 1e6; // market_cap is in millions
+
+        const headerCols = [`<th>Metric</th><th>${org.name || 'Org'}</th>`];
+        compComparison.forEach(c => headerCols.push(`<th>${c.name}</th>`));
+
+        const rows = metricNames.map(metric => {
+            const orgVal = orgMetrics[metric];
+            const compVals = compComparison.map(c => c.metrics[metric]);
+            const allVals = [orgVal, ...compVals].filter(v => v != null);
+
+            // Determine best/worst (higher is better for most metrics, lower PE is better)
+            const higherBetter = metric !== 'PE Ratio';
+            const best = allVals.length ? (higherBetter ? Math.max(...allVals) : Math.min(...allVals)) : null;
+            const worst = allVals.length ? (higherBetter ? Math.min(...allVals) : Math.max(...allVals)) : null;
+
+            function cellClass(v) {
+                if (v == null || allVals.length < 2) return '';
+                if (v === best) return 'best';
+                if (v === worst) return 'worst';
+                return '';
+            }
+
+            let cells = `<td>${metric}</td>`;
+            cells += `<td class="${cellClass(orgVal)}">${fmtMetric(metric, orgVal)}</td>`;
+            compComparison.forEach(c => {
+                const v = c.metrics[metric];
+                cells += `<td class="${cellClass(v)}">${fmtMetric(metric, v)}</td>`;
+            });
+            return `<tr>${cells}</tr>`;
+        }).join('');
+
+        metricsTableHtml = `<table class="comparison-table"><tr>${headerCols.join('')}</tr>${rows}</table>`;
+    } else {
+        // Fallback: show org metrics only
+        const opsHtml = (data.ops_metrics || [])
+            .filter(m => m.business_unit_name === org.name)
+            .map(m => {
+                const val = fmtMetric(m.metric_name, m.metric_value);
+                return `<div class="metric-card"><div class="metric-val">${val}</div><div class="metric-label">${m.metric_name}</div></div>`;
+            }).join('');
+        metricsTableHtml = `<div class="metric-row" style="flex-wrap:wrap">${opsHtml || '<div class="empty" style="width:100%"><p>No metrics available</p></div>'}</div>`;
+    }
+
+    document.getElementById('main-content').innerHTML = `
+        <div class="page-header">
+            <h2>Step 1: Analysis Dashboard</h2>
+            <p>${org.name ? org.name + (org.ticker ? ' (' + org.ticker + ')' : '') + ' — ' + org.industry : 'Organization analysis'}${compComparison.length ? ' vs ' + compComparison.map(c=>c.name).join(', ') : ''}</p>
+        </div>
+
+        <div class="phase-tabs">
+            <button class="phase-tab" onclick="step1Phase='setup'; renderStep1Setup()">Org Setup</button>
+            <button class="phase-tab" onclick="step1Phase='data'; loadStep1()">Data Tables</button>
+            <button class="phase-tab active">Analysis Dashboard</button>
+        </div>
+
+        ${org.market_cap ? `<div class="metric-row">
+            <div class="metric-card"><div class="metric-val">$${org.market_cap >= 1000 ? (org.market_cap/1000).toFixed(0) + 'B' : org.market_cap.toFixed(0) + 'M'}</div><div class="metric-label">Market Cap</div></div>
+            <div class="metric-card"><div class="metric-val">${org.ticker || 'N/A'}</div><div class="metric-label">Ticker</div></div>
+            <div class="metric-card"><div class="metric-val">${org.country || 'N/A'}</div><div class="metric-label">Country</div></div>
+            <div class="metric-card"><div class="metric-val">${org.currency || 'N/A'}</div><div class="metric-label">Currency</div></div>
+        </div>` : ''}
+
+        <div class="card">
+            <h3>Revenue Comparison${compComparison.length ? '' : ' Trend'}</h3>
+            ${revenueChartHtml}
+        </div>
+
+        <div class="card" style="margin-top: 20px;">
+            <h3>${compComparison.length ? 'Financial Metrics Comparison' : 'Key Financial Metrics'}</h3>
+            ${metricsTableHtml}
+        </div>
+
+        <div class="card" style="margin-top: 20px;">
+            <h3>Auto-Generated SWOT Analysis
+                <button class="btn btn-success btn-sm" onclick="saveSwotToStep3()">Save to Step 3</button>
+            </h3>
+            <div class="swot-grid">
+                <div class="swot-quad strengths">
+                    <h4>Strengths</h4>
+                    <ul>${swot.strengths.map(s => `<li>${s}</li>`).join('')}</ul>
+                </div>
+                <div class="swot-quad weaknesses">
+                    <h4>Weaknesses</h4>
+                    <ul>${swot.weaknesses.map(w => `<li>${w}</li>`).join('')}</ul>
+                </div>
+                <div class="swot-quad opportunities">
+                    <h4>Opportunities</h4>
+                    <ul>${swot.opportunities.map(o => `<li>${o}</li>`).join('')}</ul>
+                </div>
+                <div class="swot-quad threats">
+                    <h4>Threats</h4>
+                    <ul>${swot.threats.map(t => `<li>${t}</li>`).join('')}</ul>
+                </div>
+            </div>
+        </div>
+        <div id="step1-gates" style="margin-top:20px;"></div>
+    `;
+    renderStepGates(1, 'step1-gates');
+}
+
+async function saveSwotToStep3() {
+    const data = await api('/step1/analysis');
+    const swot = data.swot;
+    const entries = [];
+    swot.strengths.forEach(s => entries.push({ category: 'strength', description: s }));
+    swot.weaknesses.forEach(w => entries.push({ category: 'weakness', description: w }));
+    swot.opportunities.forEach(o => entries.push({ category: 'opportunity', description: o }));
+    swot.threats.forEach(t => entries.push({ category: 'threat', description: t }));
+    const result = await api('/step1/analysis/save-swot', 'POST', { entries });
+    toast(`${result.saved || 0} SWOT entries saved to Step 3`);
+}
+
+async function addBusinessUnit() {
+    const name = prompt('Business Unit name:');
+    if (!name) return;
+    const description = prompt('Description (optional):');
+    await api('/step1/business-units', 'POST', { name, description });
+    toast('Business Unit added');
+    loadStep1();
+}
+
+async function deleteBusinessUnit(id) {
+    if (!confirm('Delete this business unit?')) return;
+    await api(`/step1/business-units/${id}`, 'DELETE');
+    toast('Deleted');
+    loadStep1();
+}
+
+async function addRevenueSplit() {
+    const units = await api('/step1/business-units');
+    if (!units.length) { alert('Add a business unit first.'); return; }
+    const buId = prompt('Business Unit ID (' + units.map(u => u.id + '=' + u.name).join(', ') + '):');
+    const dimension = prompt('Dimension (product/region/segment):');
+    const dimension_value = prompt('Dimension value:');
+    const revenue = prompt('Revenue amount:');
+    const period = prompt('Period (e.g. 2026-Q1):');
+    await api('/step1/revenue-splits', 'POST', { business_unit_id: +buId, dimension, dimension_value, revenue: +revenue, period });
+    toast('Revenue split added');
+    loadStep1();
+}
+
+async function addOpsMetric() {
+    const units = await api('/step1/business-units');
+    if (!units.length) { alert('Add a business unit first.'); return; }
+    const buId = prompt('Business Unit ID (' + units.map(u => u.id + '=' + u.name).join(', ') + '):');
+    const metric_name = prompt('Metric name:');
+    const metric_value = prompt('Current value:');
+    const target_value = prompt('Target value (optional):');
+    const period = prompt('Period:');
+    await api('/step1/ops-efficiency', 'POST', { business_unit_id: +buId, metric_name, metric_value: +metric_value, target_value: target_value ? +target_value : null, period });
+    toast('Ops metric added');
+    loadStep1();
+}
+
+async function addCompetitor() {
+    const name = prompt('Competitor name:');
+    if (!name) return;
+    const market_share = prompt('Market share % (optional):');
+    const strengths = prompt('Strengths (optional):');
+    const weaknesses = prompt('Weaknesses (optional):');
+    await api('/step1/competitors', 'POST', { name, market_share: market_share ? +market_share : null, strengths, weaknesses });
+    toast('Competitor added');
+    loadStep1();
+}
+
+// ===================== STEP 2: Value Streams =====================
+let step2Phase = 'input';
+let step2SelectedVs = null;
+
+async function loadStep2() {
+    if (step2Phase === 'edit' && step2SelectedVs) { renderStep2Edit(); return; }
+    if (step2Phase === 'visual' && step2SelectedVs) { renderStep2Visual(); return; }
+    renderStep2Input();
+}
+
+async function renderStep2Input() {
+    step2Phase = 'input';
+    const units = await api('/step1/business-units');
+    const streams = await api('/step2/value-streams');
+
+    document.getElementById('main-content').innerHTML = `
+        <div class="page-header">
+            <h2>Step 2: Value Stream Analysis</h2>
+            <p>Generate lean value stream maps with AI, or upload existing data.</p>
+        </div>
+
+        <div class="phase-tabs">
+            <button class="phase-tab active">Input</button>
+            <button class="phase-tab" onclick="step2Phase='edit'; step2SelectedVs=null; renderStep2EditList()">Data & Edit</button>
+            <button class="phase-tab" onclick="step2Phase='visual'; step2SelectedVs=null; renderStep2VisualList()">Visual Map</button>
+        </div>
+
+        <div class="card">
+            <h3>Generate Value Stream with AI</h3>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Business Segment Name</label>
+                    <input type="text" id="vs-segment" placeholder="e.g. Loan Processing, Claims Management, Order Fulfillment" />
+                </div>
+                <div class="form-group">
+                    <label>Business Unit</label>
+                    <select id="vs-bu">
+                        ${units.length ? units.map(u => `<option value="${u.id}">${u.name}</option>`).join('') : '<option value="">No business units — add one in Step 1</option>'}
+                    </select>
+                </div>
+            </div>
+            <button class="btn btn-primary" onclick="generateValueStream()" ${!units.length ? 'disabled' : ''}>Generate Value Stream</button>
+            <p style="font-size:12px;color:#64748b;margin-top:8px;">Uses OpenAI GPT-4o-mini to generate lean process steps, metrics, and competitor benchmarks.</p>
+        </div>
+
+        <div class="card">
+            <h3>Upload Value Stream Data</h3>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Business Unit</label>
+                    <select id="vs-upload-bu">
+                        ${units.length ? units.map(u => `<option value="${u.id}">${u.name}</option>`).join('') : '<option value="">No business units</option>'}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>CSV or JSON File</label>
+                    <input type="file" id="vs-file" accept=".csv,.json" style="padding:8px;" />
+                </div>
+            </div>
+            <button class="btn btn-success" onclick="uploadValueStream()" ${!units.length ? 'disabled' : ''}>Upload File</button>
+            <p style="font-size:12px;color:#64748b;margin-top:8px;">CSV columns: step_order, step_name, description, step_type, process_time_hours, wait_time_hours, resources, is_bottleneck, notes</p>
+        </div>
+
+        <div class="card">
+            <h3>Pull from Sources</h3>
+            <p style="font-size:13px;color:#94a3b8;margin-bottom:12px;">Aggregate data from multiple internal and external sources to build an enriched value stream.</p>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Business Segment Name</label>
+                    <input type="text" id="vs-pull-segment" placeholder="e.g. Loan Processing, Claims Management" />
+                </div>
+                <div class="form-group">
+                    <label>Business Unit</label>
+                    <select id="vs-pull-bu">
+                        ${units.length ? units.map(u => `<option value="${u.id}">${u.name}</option>`).join('') : '<option value="">No business units</option>'}
+                    </select>
+                </div>
+            </div>
+            <div class="form-row" style="gap:24px;">
+                <div style="flex:1;">
+                    <label style="font-weight:600;font-size:13px;color:#94a3b8;margin-bottom:8px;display:block;">Internal Sources</label>
+                    <label style="display:flex;align-items:center;gap:6px;margin-bottom:6px;font-size:13px;cursor:pointer;">
+                        <input type="checkbox" class="pull-source-cb" value="app_data" checked /> App Data (existing records)
+                    </label>
+                    <label style="display:flex;align-items:center;gap:6px;margin-bottom:6px;font-size:13px;cursor:pointer;">
+                        <input type="checkbox" class="pull-source-cb" value="erp_simulation" checked /> ERP/CRM Simulation
+                    </label>
+                    <label style="display:flex;align-items:center;gap:6px;margin-bottom:6px;font-size:13px;cursor:pointer;">
+                        <input type="checkbox" class="pull-source-cb" value="industry_benchmarks" checked /> Industry Benchmarks
+                    </label>
+                </div>
+                <div style="flex:1;">
+                    <label style="font-weight:600;font-size:13px;color:#94a3b8;margin-bottom:8px;display:block;">External Sources</label>
+                    <label style="display:flex;align-items:center;gap:6px;margin-bottom:6px;font-size:13px;cursor:pointer;">
+                        <input type="checkbox" class="pull-source-cb" value="finnhub" /> Finnhub / Alpha Vantage
+                    </label>
+                    <label style="display:flex;align-items:center;gap:6px;margin-bottom:6px;font-size:13px;cursor:pointer;">
+                        <input type="checkbox" class="pull-source-cb" value="web_search" /> Web Search References
+                    </label>
+                    <label style="display:flex;align-items:center;gap:6px;margin-bottom:6px;font-size:13px;cursor:pointer;">
+                        <input type="checkbox" class="pull-source-cb" value="openai_research" /> OpenAI Research (GPT)
+                    </label>
+                </div>
+            </div>
+            <button class="btn" style="background:#7c3aed;color:#fff;margin-top:8px;" onclick="pullFromSources()" ${!units.length ? 'disabled' : ''}>Pull &amp; Generate</button>
+            <p style="font-size:12px;color:#64748b;margin-top:8px;">Gathers data from selected sources, then synthesizes into a comprehensive value stream with metrics and benchmarks.</p>
+        </div>
+
+        ${streams.length ? `<div class="card">
+            <h3>Existing Value Streams</h3>
+            <table>
+                <tr><th>Name</th><th>Business Unit</th><th>Description</th><th></th><th></th></tr>
+                ${streams.map(s => `<tr>
+                    <td><a href="#" onclick="step2SelectedVs=${s.id}; step2Phase='edit'; renderStep2Edit(); return false;" style="color:#38bdf8;">${s.name}</a></td>
+                    <td>${s.business_unit_name}</td>
+                    <td>${s.description || '-'}</td>
+                    <td><button class="btn btn-sm" style="background:#334155;color:#e2e8f0" onclick="step2SelectedVs=${s.id}; step2Phase='visual'; renderStep2Visual();">View Map</button></td>
+                    <td><button class="btn btn-danger" onclick="deleteVs(${s.id})">Delete</button></td>
+                </tr>`).join('')}
+            </table>
+        </div>` : ''}
+        <div id="step2-gates" style="margin-top:20px;"></div>
+    `;
+    renderStepGates(2, 'step2-gates');
+}
+
+async function generateValueStream() {
+    const segment = document.getElementById('vs-segment').value.trim();
+    const buId = document.getElementById('vs-bu').value;
+    if (!segment) { alert('Enter a business segment name.'); return; }
+    if (!buId) { alert('Select a business unit.'); return; }
+
+    document.getElementById('main-content').innerHTML = `
+        <div class="page-header"><h2>Step 2: Value Stream Analysis</h2></div>
+        <div class="loading-overlay">
+            <div class="spinner"></div>
+            <p>Generating value stream for "${segment}"...</p>
+            <p class="progress-msg">AI is analyzing lean metrics, this may take 15-30 seconds</p>
+        </div>
+    `;
+
+    const result = await api('/step2/generate', 'POST', { segment_name: segment, business_unit_id: +buId });
+
+    if (result.error) {
+        toast(result.error);
+        if (result.id) {
+            step2SelectedVs = result.id;
+            step2Phase = 'edit';
+            renderStep2Edit();
+        } else {
+            renderStep2Input();
+        }
+        return;
+    }
+
+    toast(`Generated ${result.steps} steps with ${result.benchmarks} competitor benchmarks`);
+    step2SelectedVs = result.id;
+    step2Phase = 'edit';
+    renderStep2Edit();
+}
+
+async function uploadValueStream() {
+    const buId = document.getElementById('vs-upload-bu').value;
+    const fileInput = document.getElementById('vs-file');
+    if (!buId) { alert('Select a business unit.'); return; }
+    if (!fileInput.files.length) { alert('Select a file to upload.'); return; }
+
+    const formData = new FormData();
+    formData.append('file', fileInput.files[0]);
+
+    const result = await apiUpload(`/step2/upload?business_unit_id=${buId}`, formData);
+
+    if (result.error) { alert(result.error); return; }
+    toast(`Uploaded ${result.steps} steps`);
+    step2SelectedVs = result.id;
+    step2Phase = 'edit';
+    renderStep2Edit();
+}
+
+async function pullFromSources() {
+    const segment = document.getElementById('vs-pull-segment').value.trim();
+    const buId = document.getElementById('vs-pull-bu').value;
+    if (!segment) { alert('Enter a business segment name.'); return; }
+    if (!buId) { alert('Select a business unit.'); return; }
+
+    const checkboxes = document.querySelectorAll('.pull-source-cb:checked');
+    const sources = Array.from(checkboxes).map(cb => cb.value);
+    if (!sources.length) { alert('Select at least one source.'); return; }
+
+    const sourceLabels = {
+        app_data: 'App Data', erp_simulation: 'ERP/CRM', industry_benchmarks: 'Benchmarks',
+        finnhub: 'Finnhub', web_search: 'Web Search', openai_research: 'OpenAI'
+    };
+    const progressItems = sources.map(s =>
+        `<div id="pull-status-${s}" style="display:flex;align-items:center;gap:8px;margin:4px 0;font-size:13px;">
+            <span class="spinner" style="width:14px;height:14px;border-width:2px;"></span>
+            <span>${sourceLabels[s] || s}</span>
+            <span style="color:#64748b;">gathering...</span>
+        </div>`
+    ).join('');
+
+    document.getElementById('main-content').innerHTML = `
+        <div class="page-header"><h2>Step 2: Value Stream Analysis</h2></div>
+        <div class="loading-overlay">
+            <div class="spinner"></div>
+            <p>Pulling from ${sources.length} source${sources.length > 1 ? 's' : ''} for "${segment}"...</p>
+            <div style="margin-top:12px;text-align:left;max-width:300px;">${progressItems}</div>
+            <p class="progress-msg" style="margin-top:12px;">This may take 15-60 seconds depending on sources selected</p>
+        </div>
+    `;
+
+    const result = await api('/step2/pull-sources', 'POST', {
+        segment_name: segment,
+        business_unit_id: +buId,
+        sources: sources
+    });
+
+    if (result.error) {
+        alert(result.error);
+        renderStep2Input();
+        return;
+    }
+
+    const srcSummary = Object.entries(result.sources_used || {}).map(([k, v]) => `${sourceLabels[k] || k}: ${v}`).join(', ');
+    toast(`Generated ${result.steps} steps, ${result.benchmarks} benchmarks (${result.synthesis_method}). Sources: ${srcSummary}`);
+    step2SelectedVs = result.id;
+    step2Phase = 'edit';
+    renderStep2Edit();
+}
+
+async function deleteVs(id) {
+    if (!confirm('Delete this value stream and all its data?')) return;
+    await api(`/step2/value-streams/${id}`, 'DELETE');
+    toast('Value stream deleted');
+    step2SelectedVs = null;
+    renderStep2Input();
+}
+
+// --- Data & Edit Phase ---
+async function renderStep2EditList() {
+    const streams = await api('/step2/value-streams');
+    if (streams.length === 1) { step2SelectedVs = streams[0].id; renderStep2Edit(); return; }
+
+    document.getElementById('main-content').innerHTML = `
+        <div class="page-header"><h2>Step 2: Value Stream Analysis</h2><p>Select a value stream to edit.</p></div>
+        <div class="phase-tabs">
+            <button class="phase-tab" onclick="renderStep2Input()">Input</button>
+            <button class="phase-tab active">Data & Edit</button>
+            <button class="phase-tab" onclick="step2Phase='visual'; step2SelectedVs=null; renderStep2VisualList()">Visual Map</button>
+        </div>
+        ${streams.length ? streams.map(s => `<div class="card" style="cursor:pointer;" onclick="step2SelectedVs=${s.id}; renderStep2Edit();">
+            <h3>${s.name} <span style="font-size:13px;color:#64748b;font-weight:400;">${s.business_unit_name}</span></h3>
+            <p style="color:#94a3b8;font-size:13px;">${s.description || 'No description'}</p>
+        </div>`).join('') : '<div class="empty"><p>No value streams yet. Go to Input tab to create one.</p></div>'}
+        <div id="step2-gates" style="margin-top:20px;"></div>
+    `;
+    renderStepGates(2, 'step2-gates');
+}
+
+async function renderStep2Edit() {
+    step2Phase = 'edit';
+    if (!step2SelectedVs) { renderStep2EditList(); return; }
+
+    const detail = await api(`/step2/value-streams/${step2SelectedVs}/detail`);
+    if (detail.error) { toast(detail.error); renderStep2EditList(); return; }
+
+    const vs = detail.value_stream;
+    const steps = detail.steps || [];
+    const m = detail.metrics || {};
+    const benchmarks = detail.benchmarks || [];
+
+    const flowEff = m.flow_efficiency || 0;
+    const effClass = flowEff >= 25 ? 'good' : flowEff >= 10 ? '' : 'warn';
+
+    document.getElementById('main-content').innerHTML = `
+        <div class="page-header">
+            <h2>${vs.name}</h2>
+            <p>${vs.business_unit_name} — ${vs.description || ''}</p>
+        </div>
+
+        <div class="phase-tabs">
+            <button class="phase-tab" onclick="renderStep2Input()">Input</button>
+            <button class="phase-tab active">Data & Edit</button>
+            <button class="phase-tab" onclick="step2Phase='visual'; renderStep2Visual();">Visual Map</button>
+            <button class="btn btn-sm" style="margin-left:auto;background:#334155;color:#e2e8f0;" onclick="step2SelectedVs=null; renderStep2EditList();">All Streams</button>
+        </div>
+
+        ${m.total_lead_time_hours != null ? `<div class="vs-metrics-bar">
+            <div class="vm-item"><div class="vm-val">${Number(m.total_lead_time_hours).toFixed(1)}h</div><div class="vm-label">Total Lead Time</div></div>
+            <div class="vm-item"><div class="vm-val good">${Number(m.total_process_time_hours).toFixed(1)}h</div><div class="vm-label">Process Time</div></div>
+            <div class="vm-item"><div class="vm-val warn">${Number(m.total_wait_time_hours).toFixed(1)}h</div><div class="vm-label">Wait Time</div></div>
+            <div class="vm-item"><div class="vm-val ${effClass}">${flowEff.toFixed(1)}%</div><div class="vm-label">Flow Efficiency</div></div>
+            <div class="vm-item"><div class="vm-val" style="font-size:14px;color:#f97316;">${m.bottleneck_step || '-'}</div><div class="vm-label">Bottleneck</div></div>
+            <div class="vm-item"><div class="vm-val" style="font-size:11px;color:#94a3b8;">${m.data_source || '-'}</div><div class="vm-label">Source</div></div>
+        </div>` : ''}
+
+        <div class="card" style="margin-top:16px;">
+            <h3>Process Steps
+                <span>
+                    <button class="btn btn-primary btn-sm" onclick="addVsStep(${vs.id})">+ Add Step</button>
+                    <button class="btn btn-success btn-sm" onclick="recalcVs(${vs.id})">Recalculate Metrics</button>
+                </span>
+            </h3>
+            ${steps.length ? `<table>
+                <tr><th>#</th><th>Name</th><th>Type</th><th>Process Time (h)</th><th>Wait Time (h)</th><th>Lead Time</th><th>Resources</th><th>Bottleneck</th><th></th></tr>
+                ${steps.map(s => `<tr${s.is_bottleneck ? ' style="background:#7c2d1233;"' : ''}>
+                    <td>${s.step_order}</td>
+                    <td class="edit-cell" onclick="inlineEdit(this, ${vs.id}, ${s.id}, 'step_name', '${esc(s.step_name)}')">${s.step_name}</td>
+                    <td class="edit-cell" onclick="inlineEditSelect(this, ${vs.id}, ${s.id}, 'step_type', '${s.step_type}', ['trigger','process','decision','delivery'])">${s.step_type}</td>
+                    <td class="edit-cell" onclick="inlineEdit(this, ${vs.id}, ${s.id}, 'process_time_hours', '${s.process_time_hours}')">${Number(s.process_time_hours).toFixed(1)}</td>
+                    <td class="edit-cell" onclick="inlineEdit(this, ${vs.id}, ${s.id}, 'wait_time_hours', '${s.wait_time_hours}')">${Number(s.wait_time_hours).toFixed(1)}</td>
+                    <td>${Number(s.lead_time_hours).toFixed(1)}</td>
+                    <td class="edit-cell" onclick="inlineEdit(this, ${vs.id}, ${s.id}, 'resources', '${esc(s.resources || '')}')">${s.resources || '-'}</td>
+                    <td>${s.is_bottleneck ? '<span style="color:#f97316;font-weight:600;">Yes</span>' : '-'}</td>
+                    <td><button class="btn btn-danger" onclick="deleteVsStep(${vs.id}, ${s.id})">Del</button></td>
+                </tr>`).join('')}
+            </table>` : '<div class="empty"><p>No steps yet. Generate or add steps manually.</p></div>'}
+        </div>
+
+        ${benchmarks.length ? `<div class="card">
+            <h3>Competitor Benchmarks</h3>
+            <table class="comparison-table">
+                <tr><th>Company</th><th>Lead Time (h)</th><th>Process Time (h)</th><th>Flow Efficiency</th><th>Bottleneck</th><th>Notes</th></tr>
+                <tr style="background:#0ea5e911;">
+                    <td><strong>${vs.name} (Org)</strong></td>
+                    <td>${Number(m.total_lead_time_hours || 0).toFixed(1)}</td>
+                    <td>${Number(m.total_process_time_hours || 0).toFixed(1)}</td>
+                    <td>${flowEff.toFixed(1)}%</td>
+                    <td>${m.bottleneck_step || '-'}</td>
+                    <td>-</td>
+                </tr>
+                ${benchmarks.map(b => `<tr>
+                    <td>${b.competitor_name}</td>
+                    <td>${b.total_lead_time_hours != null ? Number(b.total_lead_time_hours).toFixed(1) : '-'}</td>
+                    <td>${b.total_process_time_hours != null ? Number(b.total_process_time_hours).toFixed(1) : '-'}</td>
+                    <td>${b.flow_efficiency != null ? Number(b.flow_efficiency).toFixed(1) + '%' : '-'}</td>
+                    <td>${b.bottleneck_step || '-'}</td>
+                    <td>${b.notes || '-'}</td>
+                </tr>`).join('')}
+            </table>
+        </div>` : ''}
+        <div id="step2-gates" style="margin-top:20px;"></div>
+    `;
+    renderStepGates(2, 'step2-gates');
+}
+
+function esc(s) { return String(s).replace(/'/g, "\\'").replace(/"/g, '&quot;'); }
+
+function inlineEdit(cell, vsId, stepId, field, currentVal) {
+    if (cell.querySelector('input')) return;
+    const orig = cell.textContent;
+    cell.innerHTML = `<input type="text" value="${currentVal}" onblur="saveInline(this, ${vsId}, ${stepId}, '${field}')" onkeydown="if(event.key==='Enter')this.blur();if(event.key==='Escape'){this.dataset.cancel='1';this.blur();}" autofocus />`;
+    cell.querySelector('input').focus();
+}
+
+function inlineEditSelect(cell, vsId, stepId, field, currentVal, options) {
+    if (cell.querySelector('select')) return;
+    cell.innerHTML = `<select onchange="saveInline(this, ${vsId}, ${stepId}, '${field}')" onblur="saveInline(this, ${vsId}, ${stepId}, '${field}')">
+        ${options.map(o => `<option value="${o}" ${o === currentVal ? 'selected' : ''}>${o}</option>`).join('')}
+    </select>`;
+    cell.querySelector('select').focus();
+}
+
+async function saveInline(input, vsId, stepId, field) {
+    if (input.dataset.cancel) { renderStep2Edit(); return; }
+    let val = input.value;
+    if (['process_time_hours', 'wait_time_hours', 'step_order'].includes(field)) val = parseFloat(val) || 0;
+    await api(`/step2/value-streams/${vsId}/steps/${stepId}`, 'PUT', { [field]: val });
+    renderStep2Edit();
+}
+
+async function addVsStep(vsId) {
+    const name = prompt('Step name:');
+    if (!name) return;
+    const type = prompt('Step type (trigger/process/decision/delivery):') || 'process';
+    const pt = prompt('Process time (hours):') || '0';
+    const wt = prompt('Wait time (hours):') || '0';
+    const order = prompt('Step order:') || '99';
+    await api(`/step2/value-streams/${vsId}/steps`, 'POST', {
+        step_name: name, step_type: type,
+        process_time_hours: +pt, wait_time_hours: +wt, step_order: +order
+    });
+    toast('Step added');
+    renderStep2Edit();
+}
+
+async function deleteVsStep(vsId, stepId) {
+    if (!confirm('Delete this step?')) return;
+    await api(`/step2/value-streams/${vsId}/steps/${stepId}`, 'DELETE');
+    toast('Step deleted');
+    renderStep2Edit();
+}
+
+async function recalcVs(vsId) {
+    const result = await api(`/step2/value-streams/${vsId}/recalculate`, 'POST');
+    toast(`Recalculated: Flow efficiency ${result.flow_efficiency}%`);
+    renderStep2Edit();
+}
+
+// --- Visual Map Phase ---
+async function renderStep2VisualList() {
+    const streams = await api('/step2/value-streams');
+    if (streams.length === 1) { step2SelectedVs = streams[0].id; renderStep2Visual(); return; }
+
+    document.getElementById('main-content').innerHTML = `
+        <div class="page-header"><h2>Step 2: Value Stream Analysis</h2><p>Select a value stream to visualize.</p></div>
+        <div class="phase-tabs">
+            <button class="phase-tab" onclick="renderStep2Input()">Input</button>
+            <button class="phase-tab" onclick="step2Phase='edit'; step2SelectedVs=null; renderStep2EditList()">Data & Edit</button>
+            <button class="phase-tab active">Visual Map</button>
+        </div>
+        ${streams.length ? streams.map(s => `<div class="card" style="cursor:pointer;" onclick="step2SelectedVs=${s.id}; renderStep2Visual();">
+            <h3>${s.name} <span style="font-size:13px;color:#64748b;font-weight:400;">${s.business_unit_name}</span></h3>
+        </div>`).join('') : '<div class="empty"><p>No value streams yet.</p></div>'}
+        <div id="step2-gates" style="margin-top:20px;"></div>
+    `;
+    renderStepGates(2, 'step2-gates');
+}
+
+async function renderStep2Visual() {
+    step2Phase = 'visual';
+    if (!step2SelectedVs) { renderStep2VisualList(); return; }
+
+    const detail = await api(`/step2/value-streams/${step2SelectedVs}/detail`);
+    if (detail.error) { toast(detail.error); renderStep2VisualList(); return; }
+
+    const vs = detail.value_stream;
+    const steps = detail.steps || [];
+    const m = detail.metrics || {};
+    const benchmarks = detail.benchmarks || [];
+    const flowEff = m.flow_efficiency || 0;
+    const effClass = flowEff >= 25 ? 'good' : flowEff >= 10 ? '' : 'warn';
+
+    // Build flow diagram
+    let flowHtml = '';
+    steps.forEach((s, i) => {
+        const classes = ['vs-flow-step', `type-${s.step_type}`];
+        if (s.is_bottleneck) classes.push('bottleneck');
+
+        flowHtml += `<div class="${classes.join(' ')}">
+            <div class="step-title">${s.step_name}</div>
+            <div class="step-times">
+                <span class="pt">${Number(s.process_time_hours).toFixed(1)}h proc</span><br/>
+                <span class="wt">${Number(s.wait_time_hours).toFixed(1)}h wait</span>
+            </div>
+        </div>`;
+
+        if (i < steps.length - 1) {
+            flowHtml += `<div class="vs-flow-arrow">
+                <div class="arrow-line"></div>
+                <div class="arrow-wait">${Number(steps[i+1].wait_time_hours).toFixed(1)}h wait</div>
+            </div>`;
+        }
+    });
+
+    // Build competitor comparison
+    let compHtml = '';
+    if (benchmarks.length) {
+        const allEntries = [
+            { name: vs.name + ' (Org)', lt: m.total_lead_time_hours, pt: m.total_process_time_hours, fe: flowEff, bn: m.bottleneck_step, isOrg: true },
+            ...benchmarks.map(b => ({ name: b.competitor_name, lt: b.total_lead_time_hours, pt: b.total_process_time_hours, fe: b.flow_efficiency, bn: b.bottleneck_step, isOrg: false }))
+        ];
+        // Find best values for highlighting
+        const validLt = allEntries.filter(e => e.lt != null).map(e => e.lt);
+        const validFe = allEntries.filter(e => e.fe != null).map(e => e.fe);
+        const bestLt = validLt.length ? Math.min(...validLt) : null;
+        const bestFe = validFe.length ? Math.max(...validFe) : null;
+
+        compHtml = `<div class="card">
+            <h3>Competitor Comparison</h3>
+            <table class="comparison-table">
+                <tr><th>Company</th><th>Lead Time (h)</th><th>Process Time (h)</th><th>Flow Efficiency</th><th>Bottleneck</th></tr>
+                ${allEntries.map(e => `<tr${e.isOrg ? ' style="background:#0ea5e911;"' : ''}>
+                    <td>${e.isOrg ? '<strong>' + e.name + '</strong>' : e.name}</td>
+                    <td class="${e.lt === bestLt ? 'best' : ''}">${e.lt != null ? Number(e.lt).toFixed(1) : '-'}</td>
+                    <td>${e.pt != null ? Number(e.pt).toFixed(1) : '-'}</td>
+                    <td class="${e.fe === bestFe ? 'best' : ''}">${e.fe != null ? Number(e.fe).toFixed(1) + '%' : '-'}</td>
+                    <td>${e.bn || '-'}</td>
+                </tr>`).join('')}
+            </table>
+        </div>`;
+    }
+
+    document.getElementById('main-content').innerHTML = `
+        <div class="page-header">
+            <h2>${vs.name} — Value Stream Map</h2>
+            <p>${vs.business_unit_name}</p>
+        </div>
+
+        <div class="phase-tabs">
+            <button class="phase-tab" onclick="renderStep2Input()">Input</button>
+            <button class="phase-tab" onclick="step2Phase='edit'; renderStep2Edit();">Data & Edit</button>
+            <button class="phase-tab active">Visual Map</button>
+            <button class="btn btn-sm" style="margin-left:auto;background:#334155;color:#e2e8f0;" onclick="step2SelectedVs=null; renderStep2VisualList();">All Streams</button>
+        </div>
+
+        <div class="card">
+            <h3>Flow Diagram</h3>
+            ${steps.length ? `<div class="vs-flow">${flowHtml}</div>` : '<div class="empty"><p>No steps to visualize.</p></div>'}
+        </div>
+
+        <div class="vs-metrics-bar">
+            <div class="vm-item"><div class="vm-val">${Number(m.total_lead_time_hours || 0).toFixed(1)}h</div><div class="vm-label">Total Lead Time</div></div>
+            <div class="vm-item"><div class="vm-val good">${Number(m.total_process_time_hours || 0).toFixed(1)}h</div><div class="vm-label">Process Time</div></div>
+            <div class="vm-item"><div class="vm-val warn">${Number(m.total_wait_time_hours || 0).toFixed(1)}h</div><div class="vm-label">Wait Time</div></div>
+            <div class="vm-item"><div class="vm-val ${effClass}">${flowEff.toFixed(1)}%</div><div class="vm-label">Flow Efficiency</div></div>
+            <div class="vm-item"><div class="vm-val" style="font-size:14px;color:#f97316;">${m.bottleneck_step || '-'}</div><div class="vm-label">Bottleneck</div></div>
+        </div>
+
+        ${compHtml}
+        <div id="step2-gates" style="margin-top:20px;"></div>
+    `;
+    renderStepGates(2, 'step2-gates');
+}
+
+// Legacy lever support
+async function addLever() {
+    const streams = await api('/step2/value-streams');
+    if (!streams.length) { alert('Add a value stream first.'); return; }
+    const vsId = prompt('Value Stream ID (' + streams.map(s => s.id + '=' + s.name).join(', ') + '):');
+    const lever_type = prompt('Lever type (growth/efficiency/experience/effectiveness):');
+    const opportunity = prompt('Opportunity description:');
+    const current_state = prompt('Current state (optional):');
+    const target_state = prompt('Target state (optional):');
+    const impact_estimate = prompt('Impact (low/medium/high):');
+    await api('/step2/levers', 'POST', { value_stream_id: +vsId, lever_type, opportunity, current_state, target_state, impact_estimate });
+    toast('Lever added');
+    loadStep2();
+}
+
+// ===================== STEP 3: SWOT/TOWS =====================
+let step3Phase = 'generate';
+
+async function loadStep3() {
+    if (step3Phase === 'swot') { renderStep3Swot(); return; }
+    if (step3Phase === 'tows') { renderStep3Tows(); return; }
+    renderStep3Generate();
+}
+
+async function renderStep3Generate() {
+    step3Phase = 'generate';
+    const [org, streams, swot] = await Promise.all([
+        api('/step1/organization'),
+        api('/step2/value-streams'),
+        api('/step3/swot'),
+    ]);
+
+    const hasOrg = !!org;
+    const hasStreams = streams.length > 0;
+    const autoEntries = swot.filter(s => (s.data_source || '').startsWith('Auto-generated'));
+    const hasAuto = autoEntries.length > 0;
+
+    // Get first business unit for auto-generate
+    const units = await api('/step1/business-units');
+    const defaultBuId = units.length ? units[0].id : null;
+
+    document.getElementById('main-content').innerHTML = `
+        <div class="page-header">
+            <h2>Step 3: SWOT to TOWS Action Engine</h2>
+            <p>Auto-generate SWOT analysis from financial performance and value stream data, then create TOWS strategic actions.</p>
+        </div>
+
+        <div class="phase-tabs">
+            <button class="phase-tab active">Auto-Generate</button>
+            <button class="phase-tab" onclick="step3Phase='swot'; renderStep3Swot()">SWOT Grid</button>
+            <button class="phase-tab" onclick="step3Phase='tows'; renderStep3Tows()">TOWS Actions</button>
+        </div>
+
+        <div class="card">
+            <h3>Data Source Status</h3>
+            <div style="display: flex; gap: 16px; flex-wrap: wrap;">
+                <div style="flex:1; min-width:200px; padding: 16px; border-radius: 8px; background: ${hasOrg ? '#064e3b' : '#334155'}; border: 1px solid ${hasOrg ? '#065f46' : '#475569'};">
+                    <div style="font-size: 14px; font-weight: 600; color: ${hasOrg ? '#6ee7b7' : '#94a3b8'};">${hasOrg ? 'Ready' : 'Not Available'}</div>
+                    <div style="font-size: 13px; color: #94a3b8; margin-top: 4px;">Step 1: Financial Performance</div>
+                    <div style="font-size: 12px; color: #64748b; margin-top: 2px;">${hasOrg ? org.name + (org.ticker ? ' (' + org.ticker + ')' : '') : 'Set up organization in Step 1'}</div>
+                </div>
+                <div style="flex:1; min-width:200px; padding: 16px; border-radius: 8px; background: ${hasStreams ? '#064e3b' : '#334155'}; border: 1px solid ${hasStreams ? '#065f46' : '#475569'};">
+                    <div style="font-size: 14px; font-weight: 600; color: ${hasStreams ? '#6ee7b7' : '#94a3b8'};">${hasStreams ? 'Ready' : 'Not Available'}</div>
+                    <div style="font-size: 13px; color: #94a3b8; margin-top: 4px;">Step 2: Value Stream Analysis</div>
+                    <div style="font-size: 12px; color: #64748b; margin-top: 2px;">${hasStreams ? streams.length + ' value stream(s): ' + streams.map(s => s.name).join(', ') : 'Create value streams in Step 2'}</div>
+                </div>
+            </div>
+        </div>
+
+        ${hasAuto ? `<div style="background: #713f12; border: 1px solid #92400e; border-radius: 8px; padding: 12px 16px; margin-bottom: 20px; font-size: 13px; color: #fbbf24;">
+            ${autoEntries.length} auto-generated entries exist. Re-generating will replace them. Manual entries will be preserved.
+        </div>` : ''}
+
+        <div class="card" id="generate-card">
+            <h3>Auto-Generate SWOT & TOWS</h3>
+            <p style="color: #94a3b8; font-size: 13px; margin-bottom: 16px;">
+                Analyzes financial metrics, competitor benchmarks, value stream flow efficiency, bottlenecks, and improvement levers to generate comprehensive SWOT entries and TOWS strategic actions.
+            </p>
+            ${defaultBuId ? `
+                <button class="btn btn-primary" onclick="runAutoGenerate(${defaultBuId})" style="padding: 12px 28px; font-size: 15px;" ${!hasOrg && !hasStreams ? 'disabled' : ''}>
+                    Auto-Generate SWOT & TOWS
+                </button>
+                ${!hasOrg && !hasStreams ? '<p style="color: #fca5a5; font-size: 12px; margin-top: 8px;">Complete Step 1 or Step 2 first to enable auto-generation.</p>' : ''}
+            ` : '<p style="color: #fca5a5; font-size: 13px;">No business units found. Set up your organization in Step 1 first.</p>'}
+        </div>
+
+        ${swot.length ? `<div class="card">
+            <h3>Current SWOT Preview (${swot.length} entries)</h3>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                ${['strength', 'weakness', 'opportunity', 'threat'].map(cat => {
+                    const items = swot.filter(s => s.category === cat);
+                    return `<span style="font-size: 12px; padding: 4px 10px; border-radius: 12px; background: #334155; color: #94a3b8;">${cat}s: ${items.length}</span>`;
+                }).join('')}
+            </div>
+        </div>` : ''}
+        <div id="step3-gates" style="margin-top:20px;"></div>
+    `;
+    renderStepGates(3, 'step3-gates');
+}
+
+async function runAutoGenerate(buId) {
+    const card = document.getElementById('generate-card');
+    card.innerHTML = `
+        <div class="loading-overlay" style="padding: 40px;">
+            <div class="spinner"></div>
+            <p>Generating SWOT entries from Step 1 & Step 2 data...</p>
+            <p class="progress-msg">Analyzing financial metrics, value streams, and benchmarks</p>
+        </div>
+    `;
+
+    const result = await api('/step3/auto-generate', 'POST', { business_unit_id: buId });
+
+    if (result.error) {
+        card.innerHTML = `<h3>Error</h3><p style="color: #fca5a5;">${result.error}</p>`;
+        return;
+    }
+
+    card.innerHTML = `
+        <h3 style="color: #6ee7b7;">Generation Complete</h3>
+        <div class="vs-metrics-bar" style="margin-top: 12px;">
+            <div class="vm-item"><div class="vm-val good">${result.swot_generated}</div><div class="vm-label">SWOT Entries</div></div>
+            <div class="vm-item"><div class="vm-val good">${result.tows_generated}</div><div class="vm-label">TOWS Actions</div></div>
+            <div class="vm-item"><div class="vm-val">${result.sources.step1}</div><div class="vm-label">From Step 1</div></div>
+            <div class="vm-item"><div class="vm-val">${result.sources.step2}</div><div class="vm-label">From Step 2</div></div>
+        </div>
+        <div style="margin-top: 16px;">
+            <button class="btn btn-primary" onclick="step3Phase='swot'; renderStep3Swot();">View SWOT Grid</button>
+            <button class="btn btn-sm" style="background:#334155;color:#e2e8f0;margin-left:8px;" onclick="step3Phase='tows'; renderStep3Tows();">View TOWS Actions</button>
+        </div>
+    `;
+    toast(`Generated ${result.swot_generated} SWOT entries and ${result.tows_generated} TOWS actions`);
+}
+
+async function renderStep3Swot() {
+    step3Phase = 'swot';
+    const swot = await api('/step3/swot');
+    const grouped = { strength: [], weakness: [], opportunity: [], threat: [] };
+    swot.forEach(s => grouped[s.category]?.push(s));
+
+    const units = await api('/step1/business-units');
+
+    document.getElementById('main-content').innerHTML = `
+        <div class="page-header">
+            <h2>Step 3: SWOT Analysis Grid</h2>
+            <p>Review and manage SWOT entries from auto-generation and manual input.</p>
+        </div>
+
+        <div class="phase-tabs">
+            <button class="phase-tab" onclick="step3Phase='generate'; renderStep3Generate()">Auto-Generate</button>
+            <button class="phase-tab active">SWOT Grid</button>
+            <button class="phase-tab" onclick="step3Phase='tows'; renderStep3Tows()">TOWS Actions</button>
+        </div>
+
+        <div style="display: flex; gap: 8px; margin-bottom: 16px;">
+            <button class="btn btn-primary btn-sm" onclick="addSwot()">+ Add Manual Entry</button>
+            <button class="btn btn-sm" style="background:#334155;color:#e2e8f0;" onclick="step3Phase='generate'; renderStep3Generate()">Regenerate</button>
+        </div>
+
+        <div class="swot-grid">
+            ${[
+                { key: 'strength', label: 'Strengths', cls: 'strengths' },
+                { key: 'weakness', label: 'Weaknesses', cls: 'weaknesses' },
+                { key: 'opportunity', label: 'Opportunities', cls: 'opportunities' },
+                { key: 'threat', label: 'Threats', cls: 'threats' },
+            ].map(q => `
+                <div class="swot-quad ${q.cls}">
+                    <h4>${q.label} (${grouped[q.key].length})</h4>
+                    <ul>
+                        ${grouped[q.key].length ? grouped[q.key].map(s => `
+                            <li style="display: flex; align-items: flex-start; gap: 6px; margin-bottom: 8px;">
+                                <span style="flex:1;">${s.description}
+                                    ${s.data_source ? `<span style="font-size:10px; color:#94a3b8; display:block; margin-top:2px;">${s.data_source}</span>` : ''}
+                                </span>
+                                <button class="btn btn-danger" style="flex-shrink:0; padding:2px 6px; font-size:11px;" onclick="deleteSwot(${s.id})">x</button>
+                            </li>
+                        `).join('') : '<li style="color: #94a3b8;">No entries yet</li>'}
+                    </ul>
+                </div>
+            `).join('')}
+        </div>
+        <div id="step3-gates" style="margin-top:20px;"></div>
+    `;
+    renderStepGates(3, 'step3-gates');
+}
+
+async function renderStep3Tows() {
+    step3Phase = 'tows';
+    const tows = await api('/step3/tows');
+
+    const grouped = { SO: [], WO: [], ST: [], WT: [] };
+    tows.forEach(t => grouped[t.strategy_type]?.push(t));
+
+    const typeLabels = {
+        SO: { name: 'SO: Strength-Opportunity', desc: 'Leverage strengths to capitalize on opportunities', color: '#064e3b', border: '#065f46' },
+        WO: { name: 'WO: Weakness-Opportunity', desc: 'Address weaknesses by leveraging opportunities', color: '#1e3a5f', border: '#1e40af' },
+        ST: { name: 'ST: Strength-Threat', desc: 'Use strengths to counter threats', color: '#713f12', border: '#92400e' },
+        WT: { name: 'WT: Weakness-Threat', desc: 'Minimize threats while addressing weaknesses', color: '#7f1d1d', border: '#991b1b' },
+    };
+
+    document.getElementById('main-content').innerHTML = `
+        <div class="page-header">
+            <h2>Step 3: TOWS Strategic Actions</h2>
+            <p>Cross-referenced strategies generated from SWOT analysis.</p>
+        </div>
+
+        <div class="phase-tabs">
+            <button class="phase-tab" onclick="step3Phase='generate'; renderStep3Generate()">Auto-Generate</button>
+            <button class="phase-tab" onclick="step3Phase='swot'; renderStep3Swot()">SWOT Grid</button>
+            <button class="phase-tab active">TOWS Actions</button>
+        </div>
+
+        ${tows.length ? Object.entries(typeLabels).map(([type, info]) => {
+            const items = grouped[type] || [];
+            return `<div class="card" style="border-left: 3px solid ${info.border};">
+                <h3>${info.name} <span style="font-size:12px; color:#94a3b8; font-weight:400;">(${items.length} actions)</span></h3>
+                <p style="font-size: 12px; color: #64748b; margin-bottom: 12px;">${info.desc}</p>
+                ${items.length ? `<table>
+                    <tr><th>Action</th><th>SWOT Pairing</th><th>Priority</th></tr>
+                    ${items.map(t => `<tr>
+                        <td>${t.action_description}</td>
+                        <td style="font-size: 12px; color: #94a3b8; max-width: 300px;">
+                            <span style="color:#6ee7b7;">${t.swot_1_cat}:</span> ${(t.swot_1 || '').substring(0, 50)}${(t.swot_1 || '').length > 50 ? '...' : ''}
+                            <br/><span style="color:#7dd3fc;">${t.swot_2_cat}:</span> ${(t.swot_2 || '').substring(0, 50)}${(t.swot_2 || '').length > 50 ? '...' : ''}
+                        </td>
+                        <td>${statusHtml(t.priority || 'medium')}</td>
+                    </tr>`).join('')}
+                </table>` : '<p style="color: #64748b; font-size: 13px;">No actions in this category</p>'}
+            </div>`;
+        }).join('') : `
+            <div class="empty" style="padding: 60px 20px;">
+                <p style="font-size: 16px; color: #94a3b8;">No TOWS actions generated yet</p>
+                <p style="margin-top: 12px;">
+                    <button class="btn btn-primary" onclick="step3Phase='generate'; renderStep3Generate();">Go to Auto-Generate</button>
+                </p>
+            </div>
+        `}
+        <div id="step3-gates" style="margin-top:20px;"></div>
+    `;
+    renderStepGates(3, 'step3-gates');
+}
+
+async function addSwot() {
+    const units = await api('/step1/business-units');
+    if (!units.length) { alert('Add a business unit in Step 1 first.'); return; }
+    const buId = units.length === 1 ? units[0].id : prompt('Business Unit ID (' + units.map(u => u.id + '=' + u.name).join(', ') + '):');
+    if (!buId) return;
+    const category = prompt('Category (strength/weakness/opportunity/threat):');
+    if (!category) return;
+    const description = prompt('Description:');
+    if (!description) return;
+    await api('/step3/swot', 'POST', { business_unit_id: +buId, category, description, data_source: 'Manual entry' });
+    toast('SWOT entry added');
+    renderStep3Swot();
+}
+
+async function deleteSwot(id) {
+    if (!confirm('Delete this SWOT entry? Related TOWS actions will also be removed.')) return;
+    await api(`/step3/swot/${id}`, 'DELETE');
+    toast('SWOT entry deleted');
+    renderStep3Swot();
+}
+
+async function addTows() {
+    const strategy_type = prompt('Strategy type (SO/WO/ST/WT):');
+    const swot_entry_1_id = prompt('First SWOT entry ID:');
+    const swot_entry_2_id = prompt('Second SWOT entry ID:');
+    const action_description = prompt('Action description:');
+    const priority = prompt('Priority (low/medium/high/critical):');
+    await api('/step3/tows', 'POST', { strategy_type, swot_entry_1_id: +swot_entry_1_id, swot_entry_2_id: +swot_entry_2_id, action_description, priority });
+    toast('TOWS action added');
+    renderStep3Tows();
+}
+
+// ===================== STEP 4: Strategy & OKRs =====================
+let step4Phase = 'inputs';
+
+function layerBadge(layer) {
+    const colors = { business: '#059669', digital: '#2563eb', data: '#d97706', gen_ai: '#7c3aed' };
+    const bg = { business: '#064e3b', digital: '#1e3a5f', data: '#713f12', gen_ai: '#581c87' };
+    return `<span class="layer-badge" style="background:${bg[layer] || '#334155'};color:${colors[layer] || '#94a3b8'}">${layer}</span>`;
+}
+
+async function loadStep4() {
+    const mc = document.getElementById('main-content');
+    mc.innerHTML = `
+        <div class="page-header">
+            <h2>Step 4: Four-Layer Strategy & OKRs</h2>
+            <p>Define Business, Digital, Data, and Gen AI strategies with auto-generated OKRs and Key Results.</p>
+        </div>
+        <div class="phase-tabs">
+            <button class="phase-tab ${step4Phase==='inputs'?'active':''}" onclick="step4Phase='inputs';loadStep4()">1. Inputs</button>
+            <button class="phase-tab ${step4Phase==='generate'?'active':''}" onclick="step4Phase='generate';loadStep4()">2. Generate</button>
+            <button class="phase-tab ${step4Phase==='review'?'active':''}" onclick="step4Phase='review';loadStep4()">3. Review</button>
+            <button class="phase-tab ${step4Phase==='initiatives'?'active':''}" onclick="step4Phase='initiatives';loadStep4()">4. Initiatives</button>
+            <button class="phase-tab ${step4Phase==='roadmap'?'active':''}" onclick="step4Phase='roadmap';loadStep4()">5. Roadmap</button>
+        </div>
+        <div id="step4-content"></div>
+        <div id="step4-gates" style="margin-top:20px;"></div>
+    `;
+    const renderers = { inputs: renderStep4Inputs, generate: renderStep4Generate, review: renderStep4Review, initiatives: renderStep4Initiatives, roadmap: renderStep4Roadmap };
+    await renderers[step4Phase]();
+    renderStepGates(4, 'step4-gates');
+}
+
+async function renderStep4Inputs() {
+    const [sources, inputs] = await Promise.all([api('/step4/data-sources'), api('/step4/inputs')]);
+    const inputsByType = {};
+    inputs.forEach(inp => { if (!inputsByType[inp.input_type]) inputsByType[inp.input_type] = []; inputsByType[inp.input_type].push(inp); });
+
+    const getVal = (type) => (inputsByType[type] && inputsByType[type][0]) ? inputsByType[type][0].content : '';
+
+    document.getElementById('step4-content').innerHTML = `
+        <div class="card">
+            <h3>Data Source Availability</h3>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;">
+                <div class="data-source-card"><span class="dot ${sources.organization?'active':'inactive'}"></span>Step 1: Financial (${sources.counts.organization})</div>
+                <div class="data-source-card"><span class="dot ${sources.value_streams?'active':'inactive'}"></span>Step 2: Value Streams (${sources.counts.value_streams})</div>
+                <div class="data-source-card"><span class="dot ${sources.swot?'active':'inactive'}"></span>Step 3: SWOT (${sources.counts.swot})</div>
+                <div class="data-source-card"><span class="dot ${sources.tows?'active':'inactive'}"></span>Step 3: TOWS (${sources.counts.tows})</div>
+                <div class="data-source-card"><span class="dot ${sources.user_inputs?'active':'inactive'}"></span>User Inputs (${sources.counts.inputs})</div>
+                <div class="data-source-card"><span class="dot ${(inputsByType['document_reference']||[]).length>0?'active':'inactive'}"></span>Documents (${(inputsByType['document_reference']||[]).length})</div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3>Strategy Context (Your Input)</h3>
+            <p style="font-size:13px;color:#94a3b8;margin-bottom:16px;">Provide strategic direction for each layer. These inputs guide the auto-generation engine.</p>
+            ${['business', 'digital', 'data', 'gen_ai'].map(layer => `
+                <div style="margin-bottom:16px;">
+                    <label style="display:block;font-size:12px;color:#94a3b8;margin-bottom:4px;text-transform:uppercase;">${layerBadge(layer)} ${layer.replace('_',' ')} Strategy Context</label>
+                    <textarea id="input-${layer}" rows="3" placeholder="Describe your ${layer.replace('_',' ')} strategy priorities...">${getVal(layer+'_strategy')}</textarea>
+                    <button class="btn btn-primary btn-sm" style="margin-top:6px;" onclick="saveStrategyInput('${layer}_strategy', document.getElementById('input-${layer}').value)">Save</button>
+                </div>
+            `).join('')}
+        </div>
+
+        <div class="card">
+            <h3>Additional Context</h3>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Competitor Strategy</label>
+                    <textarea id="input-competitor" rows="2" placeholder="Key competitor moves or strategies...">${getVal('competitor_strategy')}</textarea>
+                    <button class="btn btn-primary btn-sm" style="margin-top:6px;" onclick="saveStrategyInput('competitor_strategy', document.getElementById('input-competitor').value)">Add</button>
+                </div>
+                <div class="form-group">
+                    <label>Ongoing Initiatives</label>
+                    <textarea id="input-ongoing" rows="2" placeholder="Current initiatives to consider...">${getVal('ongoing_initiatives')}</textarea>
+                    <button class="btn btn-primary btn-sm" style="margin-top:6px;" onclick="saveStrategyInput('ongoing_initiatives', document.getElementById('input-ongoing').value)">Save</button>
+                </div>
+            </div>
+            <div style="margin-top:16px;">
+                <label style="display:block;font-size:12px;color:#94a3b8;margin-bottom:4px;text-transform:uppercase;">Document Reference</label>
+                <div class="form-row">
+                    <div class="form-group" style="max-width:200px;">
+                        <input id="doc-filename" placeholder="File name" />
+                    </div>
+                    <div class="form-group">
+                        <input id="doc-summary" placeholder="Summary of document content" />
+                    </div>
+                    <button class="btn btn-primary btn-sm" style="align-self:flex-end;" onclick="saveDocRef()">Add Doc</button>
+                </div>
+            </div>
+        </div>
+
+        ${inputs.length ? `<div class="card">
+            <h3>Saved Inputs</h3>
+            <table>
+                <tr><th>Type</th><th>Content</th><th>File</th><th></th></tr>
+                ${inputs.map(inp => `<tr>
+                    <td><span class="status status-active" style="font-size:11px;">${inp.input_type}</span></td>
+                    <td style="max-width:400px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${inp.content}</td>
+                    <td>${inp.file_name || '-'}</td>
+                    <td><button class="btn btn-danger" onclick="deleteStrategyInput(${inp.id})">Delete</button></td>
+                </tr>`).join('')}
+            </table>
+        </div>` : ''}
+    `;
+}
+
+async function saveStrategyInput(type, content) {
+    if (!content || !content.trim()) { alert('Please enter some content.'); return; }
+    await api('/step4/inputs', 'POST', { input_type: type, content: content.trim() });
+    toast('Input saved');
+    renderStep4Inputs();
+}
+
+async function saveDocRef() {
+    const fileName = document.getElementById('doc-filename').value.trim();
+    const summary = document.getElementById('doc-summary').value.trim();
+    if (!summary) { alert('Please enter a document summary.'); return; }
+    await api('/step4/inputs', 'POST', { input_type: 'document_reference', content: summary, file_name: fileName || null });
+    toast('Document reference added');
+    renderStep4Inputs();
+}
+
+async function deleteStrategyInput(id) {
+    if (!confirm('Delete this input?')) return;
+    await api(`/step4/inputs/${id}`, 'DELETE');
+    toast('Input deleted');
+    renderStep4Inputs();
+}
+
+async function renderStep4Generate() {
+    const sources = await api('/step4/data-sources');
+    const totalData = sources.counts.organization + sources.counts.value_streams + sources.counts.swot + sources.counts.tows + sources.counts.inputs;
+
+    document.getElementById('step4-content').innerHTML = `
+        <div class="card" style="text-align:center;padding:40px;">
+            <h3 style="justify-content:center;">Auto-Generate Strategies & OKRs</h3>
+            <div class="metric-row" style="justify-content:center;margin:20px 0;">
+                <div class="metric-card"><div class="metric-val">${sources.counts.organization}</div><div class="metric-label">Org Records</div></div>
+                <div class="metric-card"><div class="metric-val">${sources.counts.value_streams}</div><div class="metric-label">Value Streams</div></div>
+                <div class="metric-card"><div class="metric-val">${sources.counts.tows}</div><div class="metric-label">TOWS Actions</div></div>
+                <div class="metric-card"><div class="metric-val">${sources.counts.inputs}</div><div class="metric-label">User Inputs</div></div>
+            </div>
+            <p style="color:#94a3b8;margin-bottom:20px;">The engine will generate 4-layer strategies (Business, Digital, Data, Gen AI) with OKRs and Key Results based on all available upstream data${totalData === 0 ? '. <strong style="color:#fbbf24">Warning: No upstream data found. Add data in Steps 1-3 or provide user inputs first.</strong>' : '.'}</p>
+            <button class="btn btn-primary" style="padding:14px 40px;font-size:16px;" onclick="runAutoGenerate()" id="btn-generate">Generate Strategies & OKRs</button>
+            <div id="generate-result" style="margin-top:20px;"></div>
+        </div>
+    `;
+}
+
+async function runAutoGenerate() {
+    const btn = document.getElementById('btn-generate');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Generating...';
+    document.getElementById('generate-result').innerHTML = '';
+
+    const result = await api('/step4/auto-generate', 'POST');
+
+    document.getElementById('generate-result').innerHTML = `
+        <div style="padding:16px;background:#064e3b;border-radius:8px;color:#6ee7b7;">
+            Generated <strong>${result.strategies}</strong> strategies, <strong>${result.okrs}</strong> OKRs, and <strong>${result.key_results}</strong> key results.
+        </div>
+    `;
+    btn.innerHTML = 'Generate Strategies & OKRs';
+    btn.disabled = false;
+    toast('Strategies generated successfully');
+    setTimeout(() => { step4Phase = 'review'; loadStep4(); }, 1500);
+}
+
+async function renderStep4Review() {
+    const strategies = await api('/step4/strategies-full');
+    const layers = ['business', 'digital', 'data', 'gen_ai'];
+    const layerNames = { business: 'Business', digital: 'Digital', data: 'Data', gen_ai: 'Gen AI' };
+    const allApproved = strategies.length > 0 && strategies.every(s => s.approved);
+
+    let html = `
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+            <div>
+                <span style="font-size:14px;color:#94a3b8;">${strategies.length} strategies | ${allApproved ? '<span style="color:#6ee7b7">All Approved</span>' : '<span style="color:#fbbf24">Pending Approval</span>'}</span>
+            </div>
+            <div style="display:flex;gap:8px;">
+                <button class="btn btn-primary btn-sm" onclick="addManualStrategy()">+ Add Manual Strategy</button>
+                <button class="btn btn-success" onclick="approveAllStrategies()" ${allApproved ? 'disabled style="opacity:0.5"' : ''}>Approve All Strategies</button>
+            </div>
+        </div>
+    `;
+
+    for (const layer of layers) {
+        const layerStrats = strategies.filter(s => s.layer === layer);
+        if (!layerStrats.length) continue;
+
+        html += `<div style="margin-bottom:24px;">
+            <h3 style="margin-bottom:12px;">${layerBadge(layer)} ${layerNames[layer]} Layer (${layerStrats.length})</h3>`;
+
+        for (const s of layerStrats) {
+            html += `<div class="strategy-card ${layer}">
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
+                    <div style="flex:1;">
+                        <strong style="font-size:15px;cursor:pointer;" onclick="editStrategyName(${s.id}, this)" title="Click to edit">${s.name}</strong>
+                        <span class="status ${s.approved ? 'status-approved' : 'status-pending'}" style="margin-left:8px;">${s.approved ? 'Approved' : 'Pending'}</span>
+                    </div>
+                    <button class="btn btn-danger" onclick="deleteStrategy(${s.id})">Delete</button>
+                </div>
+                <p style="font-size:13px;color:#94a3b8;margin-bottom:12px;cursor:pointer;" onclick="editStrategyDesc(${s.id}, this)" title="Click to edit">${s.description || 'No description'}</p>
+                ${s.tows_action_id ? `<span style="font-size:11px;color:#64748b;">TOWS Action #${s.tows_action_id}</span>` : ''}`;
+
+            // OKRs
+            if (s.okrs && s.okrs.length) {
+                for (const okr of s.okrs) {
+                    html += `<div style="margin-top:12px;padding:12px;background:#1e293b;border-radius:8px;">
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                            <strong style="font-size:13px;cursor:pointer;" onclick="editOkrObjective(${okr.id}, this)" title="Click to edit">OKR: ${okr.objective}</strong>
+                            <div>
+                                <span style="font-size:11px;color:#64748b;margin-right:8px;">${okr.time_horizon || ''} ${statusHtml(okr.status)}</span>
+                                <button class="btn btn-danger" onclick="deleteOkr(${okr.id})">Del</button>
+                            </div>
+                        </div>`;
+
+                    if (okr.key_results && okr.key_results.length) {
+                        html += `<table style="margin-top:6px;">
+                            <tr><th>Key Result</th><th>Metric</th><th>Current</th><th>Target</th><th>Unit</th><th></th></tr>
+                            ${okr.key_results.map(kr => `<tr>
+                                <td style="font-size:13px;">${kr.key_result}</td>
+                                <td style="font-size:13px;">${kr.metric || '-'}</td>
+                                <td style="font-size:13px;">${kr.current_value}</td>
+                                <td style="font-size:13px;">${kr.target_value}</td>
+                                <td style="font-size:13px;">${kr.unit || '-'}</td>
+                                <td><button class="btn btn-danger" onclick="deleteKeyResult(${okr.id}, ${kr.id})">X</button></td>
+                            </tr>`).join('')}
+                        </table>`;
+                    }
+
+                    html += `<button class="btn btn-sm" style="background:#334155;color:#e2e8f0;margin-top:8px;font-size:12px;" onclick="addKeyResult(${okr.id})">+ Key Result</button>
+                    </div>`;
+                }
+            }
+
+            html += `<button class="btn btn-sm" style="background:#334155;color:#e2e8f0;margin-top:10px;font-size:12px;" onclick="addOkrToStrategy(${s.id})">+ Add OKR</button>
+            </div>`;
+        }
+        html += `</div>`;
+    }
+
+    if (allApproved) {
+        html += `<div style="text-align:center;padding:20px;">
+            <button class="btn btn-primary" style="padding:14px 40px;font-size:16px;" onclick="step4Phase='initiatives';loadStep4()">Define Digital Initiatives &rarr;</button>
+        </div>`;
+    }
+
+    document.getElementById('step4-content').innerHTML = html;
+}
+
+async function addManualStrategy() {
+    const layer = prompt('Layer (business/digital/data/gen_ai):');
+    if (!layer || !['business','digital','data','gen_ai'].includes(layer)) { alert('Invalid layer.'); return; }
+    const name = prompt('Strategy name:');
+    if (!name) return;
+    const description = prompt('Description (optional):');
+    await api('/step4/strategies', 'POST', { layer, name, description });
+    toast('Strategy added');
+    renderStep4Review();
+}
+
+async function editStrategyName(id, el) {
+    const newName = prompt('Edit strategy name:', el.textContent);
+    if (newName && newName !== el.textContent) {
+        await api(`/step4/strategies/${id}`, 'PUT', { name: newName });
+        toast('Updated');
+        renderStep4Review();
+    }
+}
+
+async function editStrategyDesc(id, el) {
+    const newDesc = prompt('Edit description:', el.textContent);
+    if (newDesc !== null && newDesc !== el.textContent) {
+        await api(`/step4/strategies/${id}`, 'PUT', { description: newDesc });
+        toast('Updated');
+        renderStep4Review();
+    }
+}
+
+async function deleteStrategy(id) {
+    if (!confirm('Delete this strategy and all its OKRs?')) return;
+    await api(`/step4/strategies/${id}`, 'DELETE');
+    toast('Strategy deleted');
+    renderStep4Review();
+}
+
+async function editOkrObjective(id, el) {
+    const current = el.textContent.replace('OKR: ', '');
+    const newObj = prompt('Edit objective:', current);
+    if (newObj && newObj !== current) {
+        await api(`/step4/okrs/${id}`, 'PUT', { objective: newObj });
+        toast('Updated');
+        renderStep4Review();
+    }
+}
+
+async function deleteOkr(id) {
+    if (!confirm('Delete this OKR and its key results?')) return;
+    await api(`/step4/okrs/${id}`, 'DELETE');
+    toast('OKR deleted');
+    renderStep4Review();
+}
+
+async function addOkrToStrategy(strategyId) {
+    const objective = prompt('Objective:');
+    if (!objective) return;
+    const time_horizon = prompt('Time horizon (e.g. 12 months):') || '12 months';
+    await api('/step4/okrs', 'POST', { strategy_id: strategyId, objective, time_horizon });
+    toast('OKR added');
+    renderStep4Review();
+}
+
+async function addKeyResult(okrId) {
+    const key_result = prompt('Key result description:');
+    if (!key_result) return;
+    const metric = prompt('Metric name (optional):');
+    const target_value = prompt('Target value:') || '0';
+    const unit = prompt('Unit (optional):');
+    await api(`/step4/okrs/${okrId}/key-results`, 'POST', { key_result, metric, target_value: +target_value, unit });
+    toast('Key result added');
+    renderStep4Review();
+}
+
+async function deleteKeyResult(okrId, krId) {
+    await api(`/step4/okrs/${okrId}/key-results/${krId}`, 'DELETE');
+    toast('Key result deleted');
+    renderStep4Review();
+}
+
+async function approveAllStrategies() {
+    if (!confirm('Approve all strategies? This enables initiative generation.')) return;
+    const result = await api('/step4/approve-all', 'POST');
+    toast(`${result.approved} strategies approved`);
+    renderStep4Review();
+}
+
+async function renderStep4Initiatives() {
+    document.getElementById('step4-content').innerHTML = `
+        <div class="card" style="text-align:center;padding:40px;">
+            <h3 style="justify-content:center;">Define Digital Initiatives from Strategies</h3>
+            <p style="color:#94a3b8;margin-bottom:20px;">This will create product groups, digital products, and initiatives from your approved strategies and OKRs.</p>
+            <button class="btn btn-primary" style="padding:14px 40px;font-size:16px;" onclick="runInitiativeGenerate()" id="btn-init-generate">Define Digital Initiatives & OKRs</button>
+            <div id="init-generate-result" style="margin-top:20px;"></div>
+        </div>
+    `;
+}
+
+async function runInitiativeGenerate() {
+    const btn = document.getElementById('btn-init-generate');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Generating...';
+    document.getElementById('init-generate-result').innerHTML = '';
+
+    const result = await api('/step5/auto-generate', 'POST');
+
+    if (result.error) {
+        document.getElementById('init-generate-result').innerHTML = `<div style="padding:16px;background:#7f1d1d;border-radius:8px;color:#fca5a5;">${result.error}</div>`;
+        btn.innerHTML = 'Define Digital Initiatives & OKRs';
+        btn.disabled = false;
+        return;
+    }
+
+    document.getElementById('init-generate-result').innerHTML = `
+        <div style="padding:16px;background:#064e3b;border-radius:8px;color:#6ee7b7;">
+            Created <strong>${result.initiatives}</strong> initiatives, <strong>${result.products}</strong> products, <strong>${result.groups}</strong> product groups.
+        </div>
+        <button class="btn btn-primary" style="margin-top:16px;" onclick="step4Phase='roadmap';loadStep4()">View Roadmap &rarr;</button>
+    `;
+    btn.innerHTML = 'Define Digital Initiatives & OKRs';
+    btn.disabled = false;
+    toast('Initiatives generated');
+}
+
+async function renderStep4Roadmap() {
+    await renderRoadmapView('step4-content');
+}
+
+async function renderRoadmapView(containerId) {
+    const roadmap = await api('/step5/roadmap');
+    const phaseConfig = [
+        { key: 'quick_wins', label: 'Quick Wins', css: 'quick-wins', color: '#6ee7b7', desc: 'High RICE, low effort' },
+        { key: 'strategic', label: 'Strategic', css: 'strategic', color: '#7dd3fc', desc: 'Medium-high value' },
+        { key: 'long_term', label: 'Long-term', css: 'long-term', color: '#fbbf24', desc: 'High effort investments' },
+    ];
+
+    let html = `
+        <div class="metric-row" style="margin-bottom:20px;">
+            <div class="metric-card"><div class="metric-val">${roadmap.total}</div><div class="metric-label">Total Initiatives</div></div>
+            <div class="metric-card"><div class="metric-val" style="color:#6ee7b7">${roadmap.quick_wins.length}</div><div class="metric-label">Quick Wins</div></div>
+            <div class="metric-card"><div class="metric-val" style="color:#7dd3fc">${roadmap.strategic.length}</div><div class="metric-label">Strategic</div></div>
+            <div class="metric-card"><div class="metric-val" style="color:#fbbf24">${roadmap.long_term.length}</div><div class="metric-label">Long-term</div></div>
+        </div>
+    `;
+
+    for (const phase of phaseConfig) {
+        const items = roadmap[phase.key] || [];
+        html += `<div class="roadmap-phase ${phase.css}">
+            <h3 style="color:${phase.color};margin-bottom:4px;">${phase.label} (${items.length})</h3>
+            <p style="font-size:12px;color:#94a3b8;margin-bottom:12px;">${phase.desc}</p>
+            ${items.length ? items.map(i => {
+                const rice = i.rice_override || i.rice_score || 0;
+                return `<div class="roadmap-item">
+                    <div class="ri-name">${i.name}</div>
+                    <div class="ri-meta">
+                        ${i.strategy_layer ? layerBadge(i.strategy_layer) : ''}
+                        <span class="rice-badge ${riceClass(rice)}">${Number(rice).toFixed(1)}</span>
+                        <span>E:${i.effort}</span>
+                        ${statusHtml(i.status)}
+                    </div>
+                </div>`;
+            }).join('') : '<div class="empty" style="padding:16px;"><p>No initiatives in this phase</p></div>'}
+        </div>`;
+    }
+
+    document.getElementById(containerId).innerHTML = html;
+}
+
+// ===================== STEP 5: Initiatives & RICE =====================
+let step5Phase = 'table';
+
+async function loadStep5() {
+    const mc = document.getElementById('main-content');
+    mc.innerHTML = `
+        <div class="page-header">
+            <h2>Step 5: Digital Initiatives & RICE Prioritization</h2>
+            <p>Score initiatives using RICE = (Reach x Impact x Confidence) / Effort. Override scores manually.</p>
+        </div>
+        <div class="phase-tabs">
+            <button class="phase-tab ${step5Phase==='table'?'active':''}" onclick="step5Phase='table';loadStep5()">Initiatives Table</button>
+            <button class="phase-tab ${step5Phase==='roadmap'?'active':''}" onclick="step5Phase='roadmap';loadStep5()">Roadmap View</button>
+        </div>
+        <div id="step5-content"></div>
+        <div id="step5-gates" style="margin-top:20px;"></div>
+    `;
+    if (step5Phase === 'roadmap') {
+        await renderRoadmapView('step5-content');
+    } else {
+        await renderStep5Table();
+    }
+    renderStepGates(5, 'step5-gates');
+}
+
+async function renderStep5Table() {
+    const [groups, products, initiatives] = await Promise.all([
+        api('/step5/product-groups'),
+        api('/step5/digital-products'),
+        api('/step5/initiatives-full'),
+    ]);
+
+    let html = `
+        <div style="display: flex; gap: 20px; margin-bottom: 20px;">
+            <div class="card" style="flex:1;">
+                <h3>Product Groups <button class="btn btn-primary btn-sm" onclick="addProductGroup()">+ Add</button></h3>
+                ${groups.map(g => `<div style="padding: 6px 0; font-size: 14px;">${g.name} <span style="color:#64748b">(ID: ${g.id})</span></div>`).join('') || '<p style="color:#64748b">None yet</p>'}
+            </div>
+            <div class="card" style="flex:1;">
+                <h3>Digital Products <button class="btn btn-primary btn-sm" onclick="addDigitalProduct()">+ Add</button></h3>
+                ${products.map(p => `<div style="padding: 6px 0; font-size: 14px;">${p.name} <span style="color:#64748b">(${p.product_group_name}, ID: ${p.id})</span></div>`).join('') || '<p style="color:#64748b">None yet</p>'}
+            </div>
+        </div>
+        <div class="card">
+            <h3>Initiatives (RICE Ranked) <button class="btn btn-primary btn-sm" onclick="addInitiative()">+ Add</button></h3>`;
+
+    if (!initiatives.length) {
+        html += '<div class="empty"><p>No initiatives yet. Generate from Step 4 or add manually.</p></div>';
+    } else {
+        for (const i of initiatives) {
+            const effective = i.rice_override || i.rice_score;
+            const phase = i.roadmap_phase || (effective >= 3 && i.effort <= 2 ? 'quick_win' : effective >= 2 && i.effort <= 4 ? 'strategic' : 'long_term');
+            const borderColor = { business: '#059669', digital: '#2563eb', data: '#d97706', gen_ai: '#7c3aed' }[i.strategy_layer] || '#334155';
+
+            html += `<div class="strategy-card" style="border-left-color:${borderColor};">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                    <div style="font-weight:500;font-size:14px;" title="${i.name}">${i.name}</div>
+                    <div style="display:flex;gap:8px;align-items:center;">
+                        ${i.strategy_layer ? layerBadge(i.strategy_layer) : ''}
+                        <span class="rice-badge ${riceClass(effective)}">RICE ${Number(effective).toFixed(1)}</span>
+                        ${statusHtml(i.status)}
+                    </div>
+                </div>
+                <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:8px;">
+                    <span style="font-size:12px;color:#94a3b8;">R:${i.reach} I:${i.impact} C:${i.confidence} E:${i.effort}</span>
+                    <label style="font-size:11px;color:#64748b;">Value
+                        <select style="width:50px;padding:2px;font-size:12px;" onchange="updateInitField(${i.id},'value_score',+this.value)">
+                            ${[1,2,3,4,5].map(v => `<option value="${v}" ${i.value_score==v?'selected':''}>${v}</option>`).join('')}
+                        </select>
+                    </label>
+                    <label style="font-size:11px;color:#64748b;">Size
+                        <select style="width:50px;padding:2px;font-size:12px;" onchange="updateInitField(${i.id},'size_score',+this.value)">
+                            ${[1,2,3,4,5].map(v => `<option value="${v}" ${i.size_score==v?'selected':''}>${v}</option>`).join('')}
+                        </select>
+                    </label>
+                    <span style="font-size:11px;color:#94a3b8;">Phase: ${phase.replace('_',' ')}</span>
+                    <button class="btn btn-sm" style="background:#334155;color:#e2e8f0;font-size:11px;" onclick="overrideRice(${i.id})">RICE</button>
+                    <button class="btn btn-sm" style="background:#334155;color:#e2e8f0;font-size:11px;" onclick="editInitMeta(${i.id})">Edit</button>
+                </div>
+                <div style="font-size:12px;color:#64748b;margin-bottom:8px;">
+                    Product: ${i.product_name}${i.strategy_name ? ' | Strategy: ' + i.strategy_name : ''}
+                </div>`;
+
+            // Strategic OKRs section
+            if (i.strategic_okrs && i.strategic_okrs.length) {
+                for (const okr of i.strategic_okrs) {
+                    html += `<div style="margin-top:8px;padding:10px;background:#1e293b;border-radius:8px;">
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                            <strong style="font-size:13px;">OKR: ${okr.objective}</strong>
+                            <span style="font-size:11px;color:#64748b;">${okr.time_horizon || ''} ${statusHtml(okr.status)}</span>
+                        </div>`;
+                    if (okr.key_results && okr.key_results.length) {
+                        html += `<table style="margin-top:6px;">
+                            <tr><th>Key Result</th><th>Metric</th><th>Current</th><th>Target</th><th>Unit</th></tr>
+                            ${okr.key_results.map(kr => `<tr>
+                                <td style="font-size:13px;">${kr.key_result}</td>
+                                <td style="font-size:13px;">${kr.metric || '-'}</td>
+                                <td style="font-size:13px;">${kr.current_value}</td>
+                                <td style="font-size:13px;">${kr.target_value}</td>
+                                <td style="font-size:13px;">${kr.unit || '-'}</td>
+                            </tr>`).join('')}
+                        </table>`;
+                    }
+                    html += `</div>`;
+                }
+            } else {
+                html += `<div style="font-size:12px;color:#475569;margin-top:8px;">No linked strategic OKRs</div>`;
+            }
+
+            html += `</div>`;
+        }
+    }
+
+    html += `</div>`;
+    document.getElementById('step5-content').innerHTML = html;
+}
+
+async function updateInitField(id, field, value) {
+    await api(`/step5/initiatives/${id}`, 'PUT', { [field]: value });
+    toast('Updated');
+}
+
+async function editInitMeta(id) {
+    const deps = prompt('Dependencies (comma-separated, or leave blank):');
+    const risks = prompt('Risks (comma-separated, or leave blank):');
+    const segments = prompt('Impacted segments (comma-separated, or leave blank):');
+    const data = {};
+    if (deps !== null) data.dependencies = deps;
+    if (risks !== null) data.risks = risks;
+    if (segments !== null) data.impacted_segments = segments;
+    if (Object.keys(data).length) {
+        await api(`/step5/initiatives/${id}`, 'PUT', data);
+        toast('Metadata updated');
+        renderStep5Table();
+    }
+}
+
+async function addProductGroup() {
+    const name = prompt('Product group name:');
+    if (!name) return;
+    await api('/step5/product-groups', 'POST', { name });
+    toast('Product group added');
+    loadStep5();
+}
+
+async function addDigitalProduct() {
+    const groups = await api('/step5/product-groups');
+    if (!groups.length) { alert('Add a product group first.'); return; }
+    const pgId = prompt('Product Group ID (' + groups.map(g => g.id + '=' + g.name).join(', ') + '):');
+    const name = prompt('Product name:');
+    await api('/step5/digital-products', 'POST', { product_group_id: +pgId, name });
+    toast('Digital product added');
+    loadStep5();
+}
+
+async function addInitiative() {
+    const products = await api('/step5/digital-products');
+    if (!products.length) { alert('Add a digital product first.'); return; }
+    const dpId = prompt('Digital Product ID (' + products.map(p => p.id + '=' + p.name).join(', ') + '):');
+    const name = prompt('Initiative name:');
+    const description = prompt('Description (optional):');
+    const reach = prompt('Reach (number of users/quarter):') || '1';
+    const impact = prompt('Impact (0.25=minimal, 0.5=low, 1=medium, 2=high, 3=massive):') || '1';
+    const confidence = prompt('Confidence (0.5=low, 0.8=medium, 1.0=high):') || '1';
+    const effort = prompt('Effort (person-quarters):') || '1';
+    await api('/step5/initiatives', 'POST', { digital_product_id: +dpId, name, description, reach: +reach, impact: +impact, confidence: +confidence, effort: +effort });
+    toast('Initiative added');
+    loadStep5();
+}
+
+async function overrideRice(id) {
+    const score = prompt('Override RICE score:');
+    const reason = prompt('Reason for override:');
+    await api(`/step5/initiatives/${id}`, 'PUT', { rice_override: +score, rice_override_reason: reason });
+    toast('RICE override applied');
+    loadStep5();
+}
+
+// ===================== STEP 6: Epics & Teams =====================
+let step6Phase = 'generate';
+
+async function loadStep6() {
+    const mc = document.getElementById('main-content');
+    mc.innerHTML = `
+        <div class="page-header">
+            <h2>Step 6: Epics & Roadmap</h2>
+            <p>Auto-decompose initiatives into scored epics with cross-layer dependencies and phase-based roadmap.</p>
+        </div>
+        <div class="phase-tabs">
+            <button class="phase-tab ${step6Phase==='generate'?'active':''}" onclick="step6Phase='generate';loadStep6()">Generate</button>
+            <button class="phase-tab ${step6Phase==='review'?'active':''}" onclick="step6Phase='review';loadStep6()">Review Epics</button>
+            <button class="phase-tab ${step6Phase==='roadmap'?'active':''}" onclick="step6Phase='roadmap';loadStep6()">Roadmap</button>
+        </div>
+        <div id="step6-content"></div>
+        <div id="step6-gates" style="margin-top:20px;"></div>
+    `;
+    if (step6Phase === 'generate') await renderStep6Generate();
+    else if (step6Phase === 'review') await renderStep6Review();
+    else await renderStep6Roadmap();
+    renderStepGates(6, 'step6-gates');
+}
+
+// --- Tab 1: Generate ---
+async function renderStep6Generate() {
+    const [summary, teams] = await Promise.all([
+        api('/step6/summary'),
+        api('/step6/teams'),
+    ]);
+    document.getElementById('step6-content').innerHTML = `
+        <div class="metric-row" style="margin-bottom:20px;">
+            <div class="metric-card"><div class="metric-val">${summary.initiatives}</div><div class="metric-label">Initiatives Ready</div></div>
+            <div class="metric-card"><div class="metric-val">${summary.epics}</div><div class="metric-label">Existing Epics</div></div>
+            <div class="metric-card"><div class="metric-val">${summary.product_okrs}</div><div class="metric-label">Product OKRs</div></div>
+            <div class="metric-card"><div class="metric-val">${summary.teams}</div><div class="metric-label">Teams</div></div>
+            <div class="metric-card"><div class="metric-val">${summary.dependencies}</div><div class="metric-label">Dependencies</div></div>
+        </div>
+
+        <div class="card">
+            <h3>Auto-Generate Epics & Product OKRs</h3>
+            <p style="color:#94a3b8;font-size:13px;margin-bottom:16px;">
+                Decomposes each approved/proposed initiative into 3 layer-specific epics with value/size/effort scoring,
+                creates product OKRs from strategic OKRs, and infers cross-layer dependencies.
+            </p>
+            ${summary.initiatives > 0
+                ? `<button class="btn btn-primary" onclick="runStep6Generate()" id="btn-gen6">Generate Epics & Product OKRs</button>`
+                : '<p style="color:#f97316;">No approved/proposed initiatives found. Complete Step 5 first.</p>'}
+            <div id="gen6-result" style="margin-top:16px;"></div>
+        </div>
+
+        <div class="card">
+            <h3>Teams <button class="btn btn-primary btn-sm" onclick="addTeam()">+ Add</button></h3>
+            ${teams.length ? `<table>
+                <tr><th>Name</th><th>Capacity</th><th>ID</th></tr>
+                ${teams.map(t => `<tr><td>${t.name}</td><td>${t.capacity || '-'}</td><td>${t.id}</td></tr>`).join('')}
+            </table>` : '<div class="empty"><p>No teams yet. Add teams to assign to epics.</p></div>'}
+        </div>
+    `;
+}
+
+async function runStep6Generate() {
+    const btn = document.getElementById('btn-gen6');
+    const resultDiv = document.getElementById('gen6-result');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Generating...';
+    resultDiv.innerHTML = '';
+    try {
+        const res = await api('/step6/auto-generate', 'POST', {});
+        const epicCount = res.epics ? res.epics.length : 0;
+        const okrCount = res.product_okrs ? res.product_okrs.length : 0;
+        const depCount = res.dependencies ? res.dependencies.length : 0;
+        const skipCount = res.skipped ? res.skipped.length : 0;
+        resultDiv.innerHTML = `
+            <div style="padding:16px;background:#064e3b;border-radius:8px;color:#6ee7b7;">
+                <strong>Generation Complete</strong><br>
+                ${epicCount} epics created, ${okrCount} product OKRs created, ${depCount} cross-layer dependencies inferred.
+                ${skipCount > 0 ? `<br><span style="color:#fbbf24;">${skipCount} epics skipped (already exist).</span>` : ''}
+            </div>
+        `;
+        if (epicCount > 0) {
+            setTimeout(() => { step6Phase = 'review'; loadStep6(); }, 1500);
+        }
+    } catch (err) {
+        resultDiv.innerHTML = `<div style="padding:16px;background:#7f1d1d;border-radius:8px;color:#fca5a5;">Error: ${err.message || err}</div>`;
+    }
+    btn.disabled = false;
+    btn.textContent = 'Generate Epics & Product OKRs';
+}
+
+// --- Tab 2: Review ---
+async function renderStep6Review() {
+    const [epics, teams] = await Promise.all([
+        api('/step6/epics-full'),
+        api('/step6/teams'),
+    ]);
+
+    // Group epics by initiative
+    const grouped = {};
+    for (const e of epics) {
+        const key = e.initiative_id;
+        if (!grouped[key]) grouped[key] = { initiative_name: e.initiative_name, layer: e.strategy_layer, rice: e.rice_override || e.rice_score, epics: [] };
+        grouped[key].epics.push(e);
+    }
+
+    let html = '';
+    if (!epics.length) {
+        html = '<div class="empty"><p>No epics yet. Use the Generate tab first.</p></div>';
+    } else {
+        for (const [initId, group] of Object.entries(grouped)) {
+            const rice = group.rice || 0;
+            html += `<div class="card" style="margin-bottom:20px;">
+                <h3 style="margin-bottom:12px;">
+                    ${group.initiative_name}
+                    ${group.layer ? layerBadge(group.layer) : ''}
+                    <span class="rice-badge ${riceClass(rice)}" style="margin-left:8px;">RICE ${Number(rice).toFixed(1)}</span>
+                </h3>`;
+
+            for (const e of group.epics) {
+                const borderColor = { business: '#059669', digital: '#2563eb', data: '#d97706', gen_ai: '#7c3aed' }[group.layer] || '#334155';
+                const depInfo = [];
+                if (e.depends_on && e.depends_on.length) depInfo.push('Depends on: ' + e.depends_on.map(d => d.name.split(':')[0]).join(', '));
+                if (e.blocks && e.blocks.length) depInfo.push('Blocks: ' + e.blocks.map(d => d.name.split(':')[0]).join(', '));
+
+                html += `<div class="strategy-card" style="border-left-color:${borderColor};">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                        <div style="font-weight:500;font-size:14px;">${e.name}</div>
+                        <div style="display:flex;gap:8px;align-items:center;">
+                            ${statusHtml(e.status)}
+                            <button class="btn btn-danger" onclick="deleteEpic(${e.id})">Delete</button>
+                        </div>
+                    </div>
+                    <p style="font-size:13px;color:#94a3b8;margin-bottom:10px;">${e.description || ''}</p>
+                    <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:8px;">
+                        <label style="font-size:11px;color:#64748b;">Value
+                            <select style="width:50px;padding:2px;font-size:12px;" onchange="updateEpicField(${e.id},'value_score',+this.value)">
+                                ${[1,2,3,4,5].map(v => `<option value="${v}" ${e.value_score==v?'selected':''}>${v}</option>`).join('')}
+                            </select>
+                        </label>
+                        <label style="font-size:11px;color:#64748b;">Size
+                            <select style="width:50px;padding:2px;font-size:12px;" onchange="updateEpicField(${e.id},'size_score',+this.value)">
+                                ${[1,2,3,4,5].map(v => `<option value="${v}" ${e.size_score==v?'selected':''}>${v}</option>`).join('')}
+                            </select>
+                        </label>
+                        <label style="font-size:11px;color:#64748b;">Effort
+                            <select style="width:50px;padding:2px;font-size:12px;" onchange="updateEpicField(${e.id},'effort_score',+this.value)">
+                                ${[1,2,3,4,5].map(v => `<option value="${v}" ${e.effort_score==v?'selected':''}>${v}</option>`).join('')}
+                            </select>
+                        </label>
+                        <label style="font-size:11px;color:#64748b;">Risk
+                            <select style="width:80px;padding:2px;font-size:12px;" onchange="updateEpicField(${e.id},'risk_level',this.value)">
+                                ${['low','medium','high','critical'].map(r => `<option value="${r}" ${e.risk_level==r?'selected':''}>${r}</option>`).join('')}
+                            </select>
+                        </label>
+                        <label style="font-size:11px;color:#64748b;">Team
+                            <select style="width:100px;padding:2px;font-size:12px;" onchange="updateEpicField(${e.id},'team_id',this.value?+this.value:null)">
+                                <option value="">-- None --</option>
+                                ${teams.map(t => `<option value="${t.id}" ${e.team_id==t.id?'selected':''}>${t.name}</option>`).join('')}
+                            </select>
+                        </label>
+                        <span style="font-size:13px;font-weight:600;color:#38bdf8;">Priority: ${(e.priority_score || 0).toFixed(1)}</span>
+                    </div>
+                    ${e.okr_objective ? `<div style="margin-top:8px;padding:10px;background:#1e293b;border-radius:8px;">
+                        <strong style="font-size:13px;">Product OKR: ${e.okr_objective}</strong>
+                        ${e.product_key_results && e.product_key_results.length ? `<table style="margin-top:6px;">
+                            <tr><th>Key Result</th><th>Metric</th><th>Current</th><th>Target</th><th>Unit</th></tr>
+                            ${e.product_key_results.map(kr => `<tr>
+                                <td style="font-size:13px;">${kr.key_result}</td>
+                                <td style="font-size:13px;">${kr.metric || '-'}</td>
+                                <td style="font-size:13px;">${kr.current_value}</td>
+                                <td style="font-size:13px;">${kr.target_value}</td>
+                                <td style="font-size:13px;">${kr.unit || '-'}</td>
+                            </tr>`).join('')}
+                        </table>` : ''}
+                    </div>` : ''}
+                    <div style="font-size:12px;color:#64748b;margin-top:6px;">
+                        ${e.product_group_name ? 'Group: ' + e.product_group_name + ' ' : ''}
+                        ${depInfo.length ? '| ' + depInfo.join(' | ') : ''}
+                    </div>
+                </div>`;
+            }
+            html += '</div>';
+        }
+    }
+
+    html += `<div style="margin-top:16px;">
+        <button class="btn btn-primary" onclick="addManualEpic()">+ Add Manual Epic</button>
+    </div>`;
+
+    document.getElementById('step6-content').innerHTML = html;
+}
+
+async function updateEpicField(id, field, value) {
+    await api(`/step6/epics/${id}`, 'PUT', { [field]: value });
+    toast('Updated');
+    renderStep6Review();
+}
+
+async function deleteEpic(id) {
+    if (!confirm('Delete this epic and its features/dependencies?')) return;
+    await api(`/step6/epics/${id}`, 'DELETE');
+    toast('Epic deleted');
+    renderStep6Review();
+}
+
+async function addManualEpic() {
+    const initiatives = await api('/step5/initiatives');
+    if (!initiatives.length) { alert('Add initiatives in Step 5 first.'); return; }
+    const initId = prompt('Initiative ID (' + initiatives.map(i => i.id + '=' + i.name).join(', ') + '):');
+    if (!initId) return;
+    const name = prompt('Epic name:');
+    if (!name) return;
+    const description = prompt('Description (optional):');
+    await api('/step6/epics', 'POST', { initiative_id: +initId, name, description });
+    toast('Epic added');
+    renderStep6Review();
+}
+
+// --- Tab 3: Roadmap ---
+async function renderStep6Roadmap() {
+    const roadmap = await api('/step6/roadmap');
+    const phaseConfig = [
+        { key: 'quick_wins', label: 'Quick Wins', css: 'quick-wins', color: '#6ee7b7', desc: 'High priority, low effort epics' },
+        { key: 'strategic', label: 'Strategic', css: 'strategic', color: '#7dd3fc', desc: 'Medium-high priority epics' },
+        { key: 'long_term', label: 'Long-term', css: 'long-term', color: '#fbbf24', desc: 'High effort investment epics' },
+    ];
+
+    let html = `
+        <div class="metric-row" style="margin-bottom:20px;">
+            <div class="metric-card"><div class="metric-val">${roadmap.total}</div><div class="metric-label">Total Epics</div></div>
+            <div class="metric-card"><div class="metric-val" style="color:#6ee7b7">${roadmap.quick_wins.length}</div><div class="metric-label">Quick Wins</div></div>
+            <div class="metric-card"><div class="metric-val" style="color:#7dd3fc">${roadmap.strategic.length}</div><div class="metric-label">Strategic</div></div>
+            <div class="metric-card"><div class="metric-val" style="color:#fbbf24">${roadmap.long_term.length}</div><div class="metric-label">Long-term</div></div>
+            <div class="metric-card"><div class="metric-val">${roadmap.dependency_edges.length}</div><div class="metric-label">Dependencies</div></div>
+        </div>
+    `;
+
+    for (const phase of phaseConfig) {
+        const items = roadmap[phase.key] || [];
+        html += `<div class="roadmap-phase ${phase.css}">
+            <h3 style="color:${phase.color};margin-bottom:4px;">${phase.label} (${items.length})</h3>
+            <p style="font-size:12px;color:#94a3b8;margin-bottom:12px;">${phase.desc}</p>
+            ${items.length ? items.map(e => {
+                const riskCls = 'risk-' + (e.risk_level || 'medium');
+                return `<div class="roadmap-item">
+                    <div class="ri-name">
+                        ${e.name}
+                        <span style="font-size:11px;color:#64748b;margin-left:8px;">${e.initiative_name || ''}</span>
+                    </div>
+                    <div class="ri-meta">
+                        ${e.strategy_layer ? layerBadge(e.strategy_layer) : ''}
+                        <span style="font-weight:600;color:#38bdf8;">P:${(e.priority_score||0).toFixed(1)}</span>
+                        <span>E:${e.effort_score||'-'}</span>
+                        <span>V:${e.value_score||'-'}</span>
+                        <span class="${riskCls}">${e.risk_level||'medium'}</span>
+                        ${e.dep_count ? `<span style="color:#f97316;">${e.dep_count} deps</span>` : ''}
+                        ${statusHtml(e.status)}
+                    </div>
+                </div>`;
+            }).join('') : '<div class="empty" style="padding:16px;"><p>No epics in this phase</p></div>'}
+        </div>`;
+    }
+
+    document.getElementById('step6-content').innerHTML = html;
+}
+
+async function addTeam() {
+    const name = prompt('Team name:');
+    if (!name) return;
+    const capacity = prompt('Capacity (optional):');
+    await api('/step6/teams', 'POST', { name, capacity: capacity ? +capacity : null });
+    toast('Team added');
+    loadStep6();
+}
+
+// ===================== STEP 7: Feature Decomposition & Delivery Roadmap =====================
+let step7Phase = 'generate';
+
+async function loadStep7() {
+    const mc = document.getElementById('main-content');
+    mc.innerHTML = `
+        <div class="page-header">
+            <h2>Step 7: Feature Decomposition & Delivery Roadmap</h2>
+            <p>Auto-decompose epics into scored features with delivery OKRs and phase-based roadmap.</p>
+        </div>
+        <div class="phase-tabs">
+            <button class="phase-tab ${step7Phase==='generate'?'active':''}" onclick="step7Phase='generate';loadStep7()">Generate</button>
+            <button class="phase-tab ${step7Phase==='review'?'active':''}" onclick="step7Phase='review';loadStep7()">Review Features</button>
+            <button class="phase-tab ${step7Phase==='roadmap'?'active':''}" onclick="step7Phase='roadmap';loadStep7()">Roadmap</button>
+        </div>
+        <div id="step7-content"></div>
+        <div id="step7-gates" style="margin-top:20px;"></div>
+    `;
+    if (step7Phase === 'generate') await renderStep7Generate();
+    else if (step7Phase === 'review') await renderStep7Review();
+    else await renderStep7Roadmap();
+    renderStepGates(7, 'step7-gates');
+}
+
+// --- Tab 1: Generate ---
+async function renderStep7Generate() {
+    const [summary, dokrs] = await Promise.all([
+        api('/step7/summary'),
+        api('/step7/delivery-okrs'),
+    ]);
+    document.getElementById('step7-content').innerHTML = `
+        <div class="metric-row" style="margin-bottom:20px;">
+            <div class="metric-card"><div class="metric-val">${summary.epics}</div><div class="metric-label">Epics Ready</div></div>
+            <div class="metric-card"><div class="metric-val">${summary.features}</div><div class="metric-label">Existing Features</div></div>
+            <div class="metric-card"><div class="metric-val">${summary.delivery_okrs}</div><div class="metric-label">Delivery OKRs</div></div>
+            <div class="metric-card"><div class="metric-val">${summary.teams}</div><div class="metric-label">Teams</div></div>
+        </div>
+
+        <div class="card">
+            <h3>Auto-Generate Features & Delivery OKRs</h3>
+            <p style="color:#94a3b8;font-size:13px;margin-bottom:16px;">
+                Decomposes each epic into 3 layer-specific features with value/size/effort scoring inherited from the epic,
+                and creates delivery OKRs cascaded from product OKRs.
+            </p>
+            ${summary.epics > 0
+                ? '<button class="btn btn-primary" onclick="runStep7Generate()" id="btn-gen7">Generate Features & Delivery OKRs</button>'
+                : '<p style="color:#f97316;">No epics found. Complete Step 6 first.</p>'}
+            <div id="gen7-result" style="margin-top:16px;"></div>
+        </div>
+
+        <div class="card">
+            <h3>Delivery OKRs</h3>
+            ${dokrs.length ? '<table><tr><th>Objective</th><th>Product OKR</th><th>Team</th><th>Status</th></tr>' +
+                dokrs.map(d => '<tr><td>' + d.objective + '</td><td>' + d.product_objective + '</td><td>' + d.team_name + '</td><td>' + statusHtml(d.status) + '</td></tr>').join('') +
+                '</table>' : '<div class="empty"><p>No delivery OKRs yet. They will be auto-created during generation.</p></div>'}
+        </div>
+    `;
+}
+
+async function runStep7Generate() {
+    const btn = document.getElementById('btn-gen7');
+    const resultDiv = document.getElementById('gen7-result');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Generating...';
+    resultDiv.innerHTML = '';
+    try {
+        const res = await api('/step7/auto-generate', 'POST', {});
+        const featCount = res.features ? res.features.length : 0;
+        const dokrCount = res.delivery_okrs ? res.delivery_okrs.length : 0;
+        const skipCount = res.skipped ? res.skipped.length : 0;
+        resultDiv.innerHTML = `
+            <div style="padding:16px;background:#064e3b;border-radius:8px;color:#6ee7b7;">
+                <strong>Generation Complete</strong><br>
+                ${featCount} features created, ${dokrCount} delivery OKRs created.
+                ${skipCount > 0 ? '<br><span style="color:#fbbf24;">' + skipCount + ' features skipped (already exist).</span>' : ''}
+            </div>
+        `;
+        if (featCount > 0) {
+            setTimeout(() => { step7Phase = 'review'; loadStep7(); }, 1500);
+        }
+    } catch (err) {
+        resultDiv.innerHTML = '<div style="padding:16px;background:#7f1d1d;border-radius:8px;color:#fca5a5;">Error: ' + (err.message || err) + '</div>';
+    }
+    btn.disabled = false;
+    btn.textContent = 'Generate Features & Delivery OKRs';
+}
+
+// --- Tab 2: Review Features (Initiative → Epic → Feature hierarchy) ---
+async function renderStep7Review() {
+    const features = await api('/step7/features-full');
+
+    // Group by initiative, then by epic
+    const initiatives = {};
+    for (const f of features) {
+        const initKey = f.initiative_id || 0;
+        if (!initiatives[initKey]) {
+            initiatives[initKey] = {
+                initiative_name: f.initiative_name || 'Ungrouped',
+                layer: f.strategy_layer,
+                rice: f.rice_override || f.rice_score,
+                epics: {}
+            };
+        }
+        const epicKey = f.epic_id;
+        if (!initiatives[initKey].epics[epicKey]) {
+            initiatives[initKey].epics[epicKey] = {
+                epic_name: f.epic_name, layer: f.strategy_layer,
+                rice: f.rice_override || f.rice_score,
+                product_name: f.product_name, product_group_name: f.product_group_name,
+                team_name: f.team_name, features: []
+            };
+        }
+        initiatives[initKey].epics[epicKey].features.push(f);
+    }
+
+    let html = '';
+    if (!features.length) {
+        html = '<div class="empty"><p>No features yet. Use the Generate tab first.</p></div>';
+    } else {
+        for (const [initId, init] of Object.entries(initiatives)) {
+            const initRice = init.rice || 0;
+            html += '<div class="card" style="margin-bottom:24px;">' +
+                '<h3 style="margin-bottom:16px;">' +
+                    init.initiative_name +
+                    (init.layer ? ' ' + layerBadge(init.layer) : '') +
+                    ' <span class="rice-badge ' + riceClass(initRice) + '" style="margin-left:8px;">RICE ' + Number(initRice).toFixed(1) + '</span>' +
+                '</h3>';
+
+            for (const [epicId, group] of Object.entries(init.epics)) {
+                html += '<div style="margin-left:16px;margin-bottom:16px;padding:12px;background:#0f172a;border-radius:8px;">' +
+                    '<h4 style="font-size:14px;color:#f1f5f9;margin-bottom:10px;">' +
+                        group.epic_name +
+                        (group.product_name ? ' <span style="font-size:12px;color:#94a3b8;margin-left:8px;">' + group.product_name + '</span>' : '') +
+                        (group.team_name ? ' <span style="font-size:12px;color:#64748b;margin-left:4px;">| ' + group.team_name + '</span>' : '') +
+                    '</h4>';
+
+                for (const f of group.features) {
+                    const borderColor = { business: '#059669', digital: '#2563eb', data: '#d97706', gen_ai: '#7c3aed' }[group.layer] || '#334155';
+                    html += '<div class="strategy-card" style="border-left-color:' + borderColor + ';">' +
+                        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">' +
+                            '<div style="font-weight:500;font-size:14px;">' + f.name + '</div>' +
+                            '<div style="display:flex;gap:8px;align-items:center;">' +
+                                statusHtml(f.status) +
+                                '<button class="btn btn-danger" onclick="deleteFeature(' + f.id + ')">Delete</button>' +
+                            '</div>' +
+                        '</div>' +
+                        '<p style="font-size:13px;color:#94a3b8;margin-bottom:10px;">' + (f.description || '') + '</p>' +
+                        '<div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:8px;">' +
+                            '<label style="font-size:11px;color:#64748b;">Value ' +
+                                '<select style="width:50px;padding:2px;font-size:12px;" onchange="updateFeatureField(' + f.id + ',\'value_score\',+this.value)">' +
+                                    [1,2,3,4,5].map(v => '<option value="' + v + '"' + (f.value_score==v?' selected':'') + '>' + v + '</option>').join('') +
+                                '</select>' +
+                            '</label>' +
+                            '<label style="font-size:11px;color:#64748b;">Size ' +
+                                '<select style="width:50px;padding:2px;font-size:12px;" onchange="updateFeatureField(' + f.id + ',\'size_score\',+this.value)">' +
+                                    [1,2,3,4,5].map(v => '<option value="' + v + '"' + (f.size_score==v?' selected':'') + '>' + v + '</option>').join('') +
+                                '</select>' +
+                            '</label>' +
+                            '<label style="font-size:11px;color:#64748b;">Effort ' +
+                                '<select style="width:50px;padding:2px;font-size:12px;" onchange="updateFeatureField(' + f.id + ',\'effort_score\',+this.value)">' +
+                                    [1,2,3,4,5].map(v => '<option value="' + v + '"' + (f.effort_score==v?' selected':'') + '>' + v + '</option>').join('') +
+                                '</select>' +
+                            '</label>' +
+                            '<label style="font-size:11px;color:#64748b;">Risk ' +
+                                '<select style="width:80px;padding:2px;font-size:12px;" onchange="updateFeatureField(' + f.id + ',\'risk_level\',this.value)">' +
+                                    ['low','medium','high','critical'].map(r => '<option value="' + r + '"' + (f.risk_level==r?' selected':'') + '>' + r + '</option>').join('') +
+                                '</select>' +
+                            '</label>' +
+                            '<span style="font-size:13px;font-weight:600;color:#38bdf8;">Priority: ' + (f.priority_score || 0).toFixed(1) + '</span>' +
+                        '</div>' +
+                        '<div style="font-size:12px;color:#64748b;">' +
+                            (f.delivery_okr_objective ? '<span>Delivery OKR: ' + f.delivery_okr_objective + '</span> ' : '') +
+                            (f.dependencies_text ? '| Deps: ' + f.dependencies_text + ' ' : '') +
+                        '</div>' +
+                    '</div>';
+                }
+                html += '</div>';
+            }
+            html += '</div>';
+        }
+    }
+
+    html += '<div style="margin-top:16px;">' +
+        '<button class="btn btn-primary" onclick="addManualFeature()">+ Add Manual Feature</button>' +
+    '</div>';
+
+    document.getElementById('step7-content').innerHTML = html;
+}
+
+async function updateFeatureField(id, field, value) {
+    await api('/step7/features/' + id, 'PUT', { [field]: value });
+    toast('Updated');
+    renderStep7Review();
+}
+
+async function deleteFeature(id) {
+    if (!confirm('Delete this feature?')) return;
+    await api('/step7/features/' + id, 'DELETE');
+    toast('Feature deleted');
+    renderStep7Review();
+}
+
+async function addManualFeature() {
+    const epics = await api('/step6/epics');
+    if (!epics.length) { alert('Add epics in Step 6 first.'); return; }
+    const epicId = prompt('Epic ID (' + epics.map(e => e.id + '=' + e.name).join(', ') + '):');
+    if (!epicId) return;
+    const name = prompt('Feature name:');
+    if (!name) return;
+    const description = prompt('Description (optional):');
+    await api('/step7/features', 'POST', { epic_id: +epicId, name, description });
+    toast('Feature added');
+    renderStep7Review();
+}
+
+// --- Tab 3: Roadmap ---
+async function renderStep7Roadmap() {
+    const roadmap = await api('/step7/roadmap');
+    const phaseConfig = [
+        { key: 'quick_wins', label: 'Quick Wins', css: 'quick-wins', color: '#6ee7b7', desc: 'High priority, low effort features' },
+        { key: 'strategic', label: 'Strategic', css: 'strategic', color: '#7dd3fc', desc: 'Medium-high priority features' },
+        { key: 'long_term', label: 'Long-term', css: 'long-term', color: '#fbbf24', desc: 'High effort investment features' },
+    ];
+
+    let html = '<div class="metric-row" style="margin-bottom:20px;">' +
+        '<div class="metric-card"><div class="metric-val">' + roadmap.total + '</div><div class="metric-label">Total Features</div></div>' +
+        '<div class="metric-card"><div class="metric-val" style="color:#6ee7b7">' + roadmap.quick_wins.length + '</div><div class="metric-label">Quick Wins</div></div>' +
+        '<div class="metric-card"><div class="metric-val" style="color:#7dd3fc">' + roadmap.strategic.length + '</div><div class="metric-label">Strategic</div></div>' +
+        '<div class="metric-card"><div class="metric-val" style="color:#fbbf24">' + roadmap.long_term.length + '</div><div class="metric-label">Long-term</div></div>' +
+    '</div>';
+
+    for (const phase of phaseConfig) {
+        const items = roadmap[phase.key] || [];
+        html += '<div class="roadmap-phase ' + phase.css + '">' +
+            '<h3 style="color:' + phase.color + ';margin-bottom:4px;">' + phase.label + ' (' + items.length + ')</h3>' +
+            '<p style="font-size:12px;color:#94a3b8;margin-bottom:12px;">' + phase.desc + '</p>' +
+            (items.length ? items.map(f => {
+                const riskCls = 'risk-' + (f.risk_level || 'medium');
+                return '<div class="roadmap-item">' +
+                    '<div class="ri-name">' +
+                        f.name +
+                        (f.initiative_name ? '<span style="font-size:11px;color:#94a3b8;margin-left:8px;">' + f.initiative_name + '</span>' : '') +
+                        '<span style="font-size:11px;color:#64748b;margin-left:8px;">' + (f.epic_name || '') + '</span>' +
+                    '</div>' +
+                    '<div class="ri-meta">' +
+                        (f.strategy_layer ? layerBadge(f.strategy_layer) : '') +
+                        ' <span style="font-weight:600;color:#38bdf8;">P:' + (f.priority_score||0).toFixed(1) + '</span>' +
+                        ' <span>E:' + (f.effort_score||'-') + '</span>' +
+                        ' <span>V:' + (f.value_score||'-') + '</span>' +
+                        ' <span class="' + riskCls + '">' + (f.risk_level||'medium') + '</span>' +
+                        ' ' + statusHtml(f.status) +
+                    '</div>' +
+                '</div>';
+            }).join('') : '<div class="empty" style="padding:16px;"><p>No features in this phase</p></div>') +
+        '</div>';
+    }
+
+    document.getElementById('step7-content').innerHTML = html;
+}
+
+// ===================== REVIEW GATES =====================
+async function loadGates() {
+    const gates = await api('/gates/');
+
+    const gateConfig = [
+        { step: 1, gates: [{n:1, name:'Review dashboard metrics'}, {n:2, name:'Approve performance baseline'}] },
+        { step: 2, gates: [{n:1, name:'Refine opportunity levers'}] },
+        { step: 3, gates: [{n:1, name:'Validate SWOT entries'}, {n:2, name:'Approve TOWS strategies'}] },
+        { step: 4, gates: [{n:1, name:'Review strategies'}, {n:2, name:'Approve Strategic OKRs'}] },
+        { step: 5, gates: [{n:1, name:'RICE manual override complete'}, {n:2, name:'Approve initiative list'}] },
+        { step: 6, gates: [{n:1, name:'Review team dependencies'}, {n:2, name:'Approve Product OKRs'}] },
+        { step: 7, gates: [{n:1, name:'Review Delivery OKRs'}, {n:2, name:'Approve final roadmap'}] },
+    ];
+
+    // Seed gates if empty
+    if (!gates.length) {
+        for (const s of gateConfig) {
+            for (const g of s.gates) {
+                await api('/gates/', 'POST', { step_number: s.step, gate_number: g.n, gate_name: g.name });
+            }
+        }
+        return loadGates();
+    }
+
+    document.getElementById('main-content').innerHTML = `
+        <div class="page-header">
+            <h2>Review Gates (HITL Approvals)</h2>
+            <p>Each step requires human approval before proceeding to the next.</p>
+        </div>
+
+        ${gateConfig.map(s => {
+            const stepGates = gates.filter(g => g.step_number === s.step);
+            return `<div class="card">
+                <h3>Step ${s.step}</h3>
+                ${stepGates.map(g => `
+                    <div class="gate-card">
+                        <div class="gate-info">
+                            <div class="gate-name">Gate ${g.gate_number}: ${g.gate_name}</div>
+                            <div class="gate-desc">${g.review_notes || 'No review notes'}</div>
+                        </div>
+                        ${statusHtml(g.status)}
+                        ${g.status !== 'approved' ? `<button class="btn btn-success btn-sm" style="margin-left:12px" onclick="approveGate(${g.id})">Approve</button>` : ''}
+                    </div>
+                `).join('')}
+            </div>`;
+        }).join('')}
+    `;
+}
+
+async function approveGate(id) {
+    const notes = prompt('Review notes (optional):');
+    await api(`/gates/${id}`, 'PUT', { status: 'approved', reviewer: 'User', review_notes: notes });
+    toast('Gate approved');
+    loadGates();
+}
+
+// ===================== SHARED REVIEW GATES =====================
+const gateConfig = {
+    1: [{n:1, name:'Review dashboard metrics'}, {n:2, name:'Approve performance baseline'}],
+    2: [{n:1, name:'Refine opportunity levers'}],
+    3: [{n:1, name:'Validate SWOT entries'}, {n:2, name:'Approve TOWS strategies'}],
+    4: [{n:1, name:'Review strategies'}, {n:2, name:'Approve Strategic OKRs'}],
+    5: [{n:1, name:'RICE manual override complete'}, {n:2, name:'Approve initiative list'}],
+    6: [{n:1, name:'Review team dependencies'}, {n:2, name:'Approve Product OKRs'}],
+    7: [{n:1, name:'Review Delivery OKRs'}, {n:2, name:'Approve final roadmap'}],
+};
+
+async function renderStepGates(stepNumber, targetDivId) {
+    const target = document.getElementById(targetDivId);
+    if (!target) return;
+
+    let gates = await api('/gates/step/' + stepNumber);
+
+    // Seed gates if none exist for this step
+    if (!gates.length) {
+        const config = gateConfig[stepNumber] || [];
+        for (const g of config) {
+            await api('/gates/', 'POST', { step_number: stepNumber, gate_number: g.n, gate_name: g.name });
+        }
+        gates = await api('/gates/step/' + stepNumber);
+    }
+
+    if (!gates.length) { target.innerHTML = ''; return; }
+
+    const allApproved = gates.every(g => g.status === 'approved');
+
+    let html = '<div class="card" style="margin-top:24px;border-top:2px solid ' + (allApproved ? '#059669' : '#334155') + ';">' +
+        '<h3>Step ' + stepNumber + ' Review Gates</h3>';
+
+    for (const g of gates) {
+        html += '<div class="gate-card">' +
+            '<div class="gate-info">' +
+                '<div class="gate-name">Gate ' + g.gate_number + ': ' + g.gate_name + '</div>' +
+                '<div class="gate-desc">' + (g.review_notes || 'No review notes') + '</div>' +
+            '</div>' +
+            statusHtml(g.status) +
+            (g.status !== 'approved' ? ' <button class="btn btn-success btn-sm" style="margin-left:12px" onclick="approveStepGate(' + g.id + ',' + stepNumber + ',\'' + targetDivId + '\')">Approve</button>' : '') +
+        '</div>';
+    }
+
+    if (allApproved) {
+        html += '<div style="text-align:center;padding:16px;background:#064e3b;border-radius:8px;margin-top:12px;">' +
+            '<span style="color:#6ee7b7;font-weight:600;font-size:15px;">All gates approved</span>';
+        if (stepNumber < 7) {
+            html += '<br><button class="btn btn-primary" style="margin-top:10px;" onclick="showStep(' + (stepNumber + 1) + ')">Proceed to Step ' + (stepNumber + 1) + ' &rarr;</button>';
+        } else {
+            html += '<br><span style="color:#6ee7b7;font-size:13px;margin-top:8px;display:inline-block;">All steps complete!</span>';
+        }
+        html += '</div>';
+    }
+
+    html += '</div>';
+    target.innerHTML = html;
+}
+
+async function approveStepGate(gateId, stepNumber, targetDivId) {
+    const notes = prompt('Review notes (optional):');
+    await api('/gates/' + gateId, 'PUT', { status: 'approved', reviewer: 'User', review_notes: notes });
+    toast('Gate approved');
+    renderStepGates(stepNumber, targetDivId);
+}
+
+// --- Init ---
+showStep(1);
+</script>
+
+</body>
+</html>

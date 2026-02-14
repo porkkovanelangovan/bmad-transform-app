@@ -1,0 +1,77 @@
+agents:
+  - name: Data_Intelligence
+    task: Ingest ERP/BI (Internal) and Open API (External) data
+    responsibilities:
+      - Connect to internal ERP/BI systems via async httpx calls
+      - Fetch external market data from Open APIs
+      - Normalize and store data in SQLite tables
+      - Feed Steps 1 & 2 with revenue, ops, and competitor data
+    endpoints:
+      - POST /api/step1/business-units
+      - POST /api/step1/revenue-splits
+      - POST /api/step1/ops-efficiency
+      - POST /api/step1/competitors
+
+  - name: VSM_Analyst
+    task: Identify Growth/Efficiency/Experience levers in value streams
+    responsibilities:
+      - Map operational value streams per business unit
+      - Identify opportunity levers across 4 dimensions
+      - Quantify current vs target state gaps
+      - Feed Step 2 with value stream analysis
+    endpoints:
+      - POST /api/step2/value-streams
+      - POST /api/step2/levers
+
+  - name: Strategy_Futurist
+    task: Generate SWOT/TOWS and Gen AI strategies
+    responsibilities:
+      - Synthesize SWOT from Steps 1 & 2 data
+      - Generate TOWS action matrix (SO/WO/ST/WT)
+      - Define triple-layer strategies (Business, Digital, Gen AI)
+      - Create Strategic OKRs with cascading Key Results
+    endpoints:
+      - POST /api/step3/swot
+      - POST /api/step3/tows
+      - POST /api/step4/strategies
+      - POST /api/step4/okrs
+
+  - name: Portfolio_Architect
+    task: Manage RICE scoring and Cascading OKRs
+    responsibilities:
+      - Score initiatives using RICE formula
+      - Support manual RICE overrides with rationale
+      - Cascade Strategic OKRs to Product and Delivery OKRs
+      - Map initiatives to digital products and product groups
+      - Build full traceability roadmap
+    endpoints:
+      - POST /api/step5/initiatives
+      - PUT /api/step5/initiatives/{id}
+      - POST /api/step6/product-okrs
+      - POST /api/step7/delivery-okrs
+      - GET /api/step7/roadmap
+
+  - name: Security_Compliance
+    task: Validate OAuth2/JWT and PII masking
+    responsibilities:
+      - Enforce OAuth2/JWT authentication on API endpoints
+      - Implement PII masking for sensitive data fields
+      - Run Bandit security scans on Python code
+      - Validate input sanitization across all endpoints
+    checks:
+      - bandit -r backend/
+      - PII field masking verification
+      - JWT token validation
+
+  - name: FullStack_Developer
+    task: Write Python/FastAPI code and update UI
+    responsibilities:
+      - Implement and maintain FastAPI routers
+      - Build and update HTML5/JS frontend
+      - Manage SQLite schema migrations
+      - Write integration tests
+    tech_stack:
+      - Python 3.11+
+      - FastAPI + uvicorn
+      - aiosqlite
+      - HTML5 + vanilla JS
