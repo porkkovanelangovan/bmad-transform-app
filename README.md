@@ -1,1 +1,1 @@
-# Business-Transformation-Architect-app
+# bmad-transform-app
