@@ -17,7 +17,7 @@ from routers import (
     review_gates,
 )
 
-app = FastAPI(title="BMAD Business Transformation Tool", version="1.0.0")
+app = FastAPI(title="Business Transformation Architect", version="1.0.0")
 
 app.add_middleware(
     CORSMiddleware,

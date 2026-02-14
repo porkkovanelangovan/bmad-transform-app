@@ -1,5 +1,5 @@
 -- ============================================================
--- BMAD Business Transformation Tool - SQLite Schema
+-- Business Transformation Architect - SQLite Schema
 -- ============================================================
 -- Referential Integrity Chain:
 --   Initiative -> Product -> Epic -> Feature
