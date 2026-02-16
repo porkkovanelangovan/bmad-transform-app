@@ -175,43 +175,65 @@ async def gather_finnhub_data(org_name: str, industry: str, competitors: list[st
 
 
 # ──────────────────────────────────────────────
-# 5. Web Search References
+# 5. Web Search References (live)
 # ──────────────────────────────────────────────
 
 async def gather_web_search(segment: str, industry: str) -> dict:
-    """Return curated industry benchmark references. Extension point for future SerpAPI/Bing."""
+    """Search the web for real industry benchmarks and case studies."""
     try:
-        references = [
-            {
-                "title": f"{industry.title()} Value Stream Benchmarking Report",
-                "source": "Industry Analyst Report",
-                "key_finding": f"Top-quartile {segment} processes achieve 40-60% faster cycle times through automation",
-                "improvement_pct": "40-60%",
-            },
-            {
-                "title": f"Lean Six Sigma in {industry.title()}: Best Practices",
-                "source": "Case Study Collection",
-                "key_finding": f"Organizations implementing lean in {segment} see 25-35% reduction in wait times",
-                "improvement_pct": "25-35%",
-            },
-            {
-                "title": f"Digital Transformation Impact on {segment.title()}",
-                "source": "Management Consulting Study",
-                "key_finding": "End-to-end digitization reduces process time by 50-70% and improves first-pass yield by 15-25%",
-                "improvement_pct": "50-70%",
-            },
-            {
-                "title": f"Operational Excellence in {industry.title()}",
-                "source": "Industry Benchmark Database",
-                "key_finding": f"Best-in-class {segment} operations maintain flow efficiency above 30%",
-                "improvement_pct": "N/A",
-            },
+        from web_search import search_web
+
+        queries = [
+            f"{segment} value stream benchmarks {industry}",
+            f"{segment} process improvement case study",
         ]
+        all_results = []
+        for q in queries:
+            results = await search_web(q, num_results=3)
+            all_results.extend(results)
 
         return {
             "source": "web_search",
-            "note": "Curated references — live web search integration available as future enhancement",
-            "references": references,
+            "references": [
+                {
+                    "title": r.get("title", ""),
+                    "url": r.get("url", ""),
+                    "key_finding": r.get("snippet", ""),
+                }
+                for r in all_results
+            ],
         }
+    except Exception:
+        return {}
+
+
+# ──────────────────────────────────────────────
+# 6. Jira Connector
+# ──────────────────────────────────────────────
+
+async def gather_jira(segment: str, industry: str) -> dict:
+    """Pull workflow data from Jira Cloud."""
+    try:
+        from connectors import fetch_jira_workflows, is_jira_configured
+
+        if not is_jira_configured():
+            return {}
+        return await fetch_jira_workflows()
+    except Exception:
+        return {}
+
+
+# ──────────────────────────────────────────────
+# 7. ServiceNow Connector
+# ──────────────────────────────────────────────
+
+async def gather_servicenow(segment: str, industry: str) -> dict:
+    """Pull incident/change workflow data from ServiceNow."""
+    try:
+        from connectors import fetch_servicenow_workflows, is_servicenow_configured
+
+        if not is_servicenow_configured():
+            return {}
+        return await fetch_servicenow_workflows()
     except Exception:
         return {}

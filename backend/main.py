@@ -15,17 +15,21 @@ from routers import (
     step6_epics_teams,
     step7_features,
     review_gates,
+    auth_router,
 )
 
 app = FastAPI(title="Business Transformation Architect", version="1.0.0")
 
+# CORS: configurable origins (default restrictive for production)
+ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:8000").split(",")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+app.include_router(auth_router.router, prefix="/api/auth", tags=["Auth"])
 app.include_router(step1_performance.router, prefix="/api/step1", tags=["Step 1: Performance"])
 app.include_router(step2_value_streams.router, prefix="/api/step2", tags=["Step 2: Value Streams"])
 app.include_router(step3_swot_tows.router, prefix="/api/step3", tags=["Step 3: SWOT/TOWS"])
@@ -35,29 +39,73 @@ app.include_router(step6_epics_teams.router, prefix="/api/step6", tags=["Step 6:
 app.include_router(step7_features.router, prefix="/api/step7", tags=["Step 7: Features & Roadmap"])
 app.include_router(review_gates.router, prefix="/api/gates", tags=["Review Gates"])
 
+
 @app.on_event("startup")
-async def startup_migrate():
-    """Initialize database from schema.sql if fresh, then apply column migrations for existing DBs."""
+async def startup():
+    from database import USE_POSTGRES, init_pg_pool
+    await init_pg_pool()
+    await run_migrations()
+
+
+@app.on_event("shutdown")
+async def shutdown():
+    from database import close_pg_pool
+    await close_pg_pool()
+
+
+async def run_migrations():
+    """Initialize database from schema if fresh, apply column migrations for existing DBs."""
+    from database import USE_POSTGRES, get_db_connection
+
+    db = await get_db_connection()
+    try:
+        if USE_POSTGRES:
+            await _migrate_postgres(db)
+        else:
+            await _migrate_sqlite(db)
+    finally:
+        await db.close()
+
+
+async def _migrate_postgres(db):
+    """Run PostgreSQL schema (all CREATE IF NOT EXISTS)."""
+    schema_path = os.path.join(os.path.dirname(__file__), "..", "database", "schema_postgres.sql")
+    with open(schema_path, "r") as f:
+        schema_sql = f.read()
+    await db.executescript(schema_sql)
+
+
+async def _migrate_sqlite(db):
+    """Initialize SQLite database from schema.sql if fresh, then apply column migrations."""
     import aiosqlite
     from database import DB_PATH
 
     schema_path = os.path.join(os.path.dirname(__file__), "..", "database", "schema.sql")
 
-    async with aiosqlite.connect(DB_PATH) as db:
-        # Check if DB is fresh (no tables yet)
-        cursor = await db.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='organization'")
+    # We need raw aiosqlite connection for SQLite-specific migration logic
+    async with aiosqlite.connect(DB_PATH) as raw_db:
+        cursor = await raw_db.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='organization'")
         exists = await cursor.fetchone()
 
         if not exists:
-            # Fresh DB: run full schema
             with open(schema_path, "r") as f:
                 schema_sql = f.read()
-            await db.executescript(schema_sql)
+            await raw_db.executescript(schema_sql)
         else:
+            # Add users table for existing DBs
+            await raw_db.execute("""CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                email TEXT UNIQUE NOT NULL,
+                name TEXT NOT NULL,
+                hashed_password TEXT NOT NULL,
+                is_active INTEGER DEFAULT 1,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )""")
+
             # Existing DB: add new columns if missing
             for col in ["competitor_1_name TEXT", "competitor_2_name TEXT"]:
                 try:
-                    await db.execute(f"ALTER TABLE organization ADD COLUMN {col}")
+                    await raw_db.execute(f"ALTER TABLE organization ADD COLUMN {col}")
                 except Exception:
                     pass
 
@@ -68,12 +116,12 @@ async def startup_migrate():
                 "market_cap_value REAL",
             ]:
                 try:
-                    await db.execute(f"ALTER TABLE competitors ADD COLUMN {col}")
+                    await raw_db.execute(f"ALTER TABLE competitors ADD COLUMN {col}")
                 except Exception:
                     pass
 
             # New Step 2 tables for value stream mapping
-            await db.execute("""CREATE TABLE IF NOT EXISTS value_stream_steps (
+            await raw_db.execute("""CREATE TABLE IF NOT EXISTS value_stream_steps (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 value_stream_id INTEGER NOT NULL REFERENCES value_streams(id),
                 step_order INTEGER NOT NULL,
@@ -88,7 +136,7 @@ async def startup_migrate():
                 notes TEXT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )""")
-            await db.execute("""CREATE TABLE IF NOT EXISTS value_stream_metrics (
+            await raw_db.execute("""CREATE TABLE IF NOT EXISTS value_stream_metrics (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 value_stream_id INTEGER NOT NULL UNIQUE REFERENCES value_streams(id),
                 total_lead_time_hours REAL DEFAULT 0,
@@ -97,10 +145,10 @@ async def startup_migrate():
                 flow_efficiency REAL DEFAULT 0,
                 bottleneck_step TEXT,
                 bottleneck_reason TEXT,
-                data_source TEXT DEFAULT 'manual' CHECK (data_source IN ('ai_generated', 'template', 'uploaded', 'manual')),
+                data_source TEXT DEFAULT 'manual' CHECK (data_source IN ('ai_generated', 'template', 'uploaded', 'manual', 'visual_upload', 'url_extraction')),
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )""")
-            await db.execute("""CREATE TABLE IF NOT EXISTS value_stream_benchmarks (
+            await raw_db.execute("""CREATE TABLE IF NOT EXISTS value_stream_benchmarks (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 value_stream_id INTEGER NOT NULL REFERENCES value_streams(id),
                 competitor_name TEXT NOT NULL,
@@ -113,7 +161,7 @@ async def startup_migrate():
             )""")
 
             # --- Step 4 migrations: strategy_inputs table, approved column, 'data' layer ---
-            await db.execute("""CREATE TABLE IF NOT EXISTS strategy_inputs (
+            await raw_db.execute("""CREATE TABLE IF NOT EXISTS strategy_inputs (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 input_type TEXT NOT NULL CHECK (input_type IN (
                     'business_strategy', 'digital_strategy', 'data_strategy', 'gen_ai_strategy',
@@ -126,23 +174,22 @@ async def startup_migrate():
             )""")
 
             try:
-                await db.execute("ALTER TABLE strategies ADD COLUMN approved INTEGER DEFAULT 0")
+                await raw_db.execute("ALTER TABLE strategies ADD COLUMN approved INTEGER DEFAULT 0")
             except Exception:
                 pass
 
             # Rebuild strategies table to expand layer CHECK to include 'data'
-            # Also fix any FK references broken by previous rename migrations
             needs_rebuild = False
             try:
-                await db.execute("INSERT INTO strategies (layer, name, description) VALUES ('data', '__migration_test__', NULL)")
-                await db.execute("DELETE FROM strategies WHERE name = '__migration_test__'")
+                await raw_db.execute("INSERT INTO strategies (layer, name, description) VALUES ('data', '__migration_test__', NULL)")
+                await raw_db.execute("DELETE FROM strategies WHERE name = '__migration_test__'")
             except Exception:
                 needs_rebuild = True
 
             # Check if any tables have broken FK references to strategies_old
             fk_broken = False
             for tbl_name in ['strategic_okrs', 'initiatives']:
-                cursor = await db.execute("SELECT sql FROM sqlite_master WHERE name = ?", (tbl_name,))
+                cursor = await raw_db.execute("SELECT sql FROM sqlite_master WHERE name = ?", (tbl_name,))
                 row = await cursor.fetchone()
                 if row and 'strategies_old' in (row[0] or ''):
                     fk_broken = True
@@ -150,12 +197,12 @@ async def startup_migrate():
 
             if needs_rebuild or fk_broken:
                 try:
-                    await db.execute("PRAGMA foreign_keys = OFF")
+                    await raw_db.execute("PRAGMA foreign_keys = OFF")
 
                     if needs_rebuild:
-                        await db.execute("DROP TABLE IF EXISTS strategies_old")
-                        await db.execute("ALTER TABLE strategies RENAME TO strategies_old")
-                        await db.execute("""CREATE TABLE strategies (
+                        await raw_db.execute("DROP TABLE IF EXISTS strategies_old")
+                        await raw_db.execute("ALTER TABLE strategies RENAME TO strategies_old")
+                        await raw_db.execute("""CREATE TABLE strategies (
                             id INTEGER PRIMARY KEY AUTOINCREMENT,
                             layer TEXT NOT NULL CHECK (layer IN ('business', 'digital', 'data', 'gen_ai')),
                             name TEXT NOT NULL,
@@ -164,15 +211,14 @@ async def startup_migrate():
                             approved INTEGER DEFAULT 0,
                             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                         )""")
-                        await db.execute("""INSERT INTO strategies (id, layer, name, description, tows_action_id, approved, created_at)
+                        await raw_db.execute("""INSERT INTO strategies (id, layer, name, description, tows_action_id, approved, created_at)
                             SELECT id, layer, name, description, tows_action_id,
                                    COALESCE(approved, 0), created_at FROM strategies_old""")
-                        await db.execute("DROP TABLE strategies_old")
+                        await raw_db.execute("DROP TABLE strategies_old")
 
                     if fk_broken:
-                        # Rebuild strategic_okrs to fix FK reference
-                        await db.execute("ALTER TABLE strategic_okrs RENAME TO strategic_okrs_old")
-                        await db.execute("""CREATE TABLE strategic_okrs (
+                        await raw_db.execute("ALTER TABLE strategic_okrs RENAME TO strategic_okrs_old")
+                        await raw_db.execute("""CREATE TABLE strategic_okrs (
                             id INTEGER PRIMARY KEY AUTOINCREMENT,
                             strategy_id INTEGER NOT NULL REFERENCES strategies(id),
                             objective TEXT NOT NULL,
@@ -180,16 +226,15 @@ async def startup_migrate():
                             status TEXT DEFAULT 'draft' CHECK (status IN ('draft', 'active', 'achieved', 'at_risk')),
                             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                         )""")
-                        await db.execute("""INSERT INTO strategic_okrs (id, strategy_id, objective, time_horizon, status, created_at)
+                        await raw_db.execute("""INSERT INTO strategic_okrs (id, strategy_id, objective, time_horizon, status, created_at)
                             SELECT id, strategy_id, objective, time_horizon, status, created_at FROM strategic_okrs_old""")
-                        await db.execute("DROP TABLE strategic_okrs_old")
+                        await raw_db.execute("DROP TABLE strategic_okrs_old")
 
-                        # Rebuild strategic_key_results too if it references old table
-                        cursor2 = await db.execute("SELECT sql FROM sqlite_master WHERE name = 'strategic_key_results'")
+                        cursor2 = await raw_db.execute("SELECT sql FROM sqlite_master WHERE name = 'strategic_key_results'")
                         kr_row = await cursor2.fetchone()
                         if kr_row and 'okrs_old' in (kr_row[0] or ''):
-                            await db.execute("ALTER TABLE strategic_key_results RENAME TO strategic_key_results_old")
-                            await db.execute("""CREATE TABLE strategic_key_results (
+                            await raw_db.execute("ALTER TABLE strategic_key_results RENAME TO strategic_key_results_old")
+                            await raw_db.execute("""CREATE TABLE strategic_key_results (
                                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                                 okr_id INTEGER NOT NULL REFERENCES strategic_okrs(id),
                                 key_result TEXT NOT NULL,
@@ -199,16 +244,15 @@ async def startup_migrate():
                                 unit TEXT,
                                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                             )""")
-                            await db.execute("""INSERT INTO strategic_key_results (id, okr_id, key_result, metric, current_value, target_value, unit, created_at)
+                            await raw_db.execute("""INSERT INTO strategic_key_results (id, okr_id, key_result, metric, current_value, target_value, unit, created_at)
                                 SELECT id, okr_id, key_result, metric, current_value, target_value, unit, created_at FROM strategic_key_results_old""")
-                            await db.execute("DROP TABLE strategic_key_results_old")
+                            await raw_db.execute("DROP TABLE strategic_key_results_old")
 
-                        # Rebuild initiatives table if it references strategies_old
-                        cursor3 = await db.execute("SELECT sql FROM sqlite_master WHERE name = 'initiatives'")
+                        cursor3 = await raw_db.execute("SELECT sql FROM sqlite_master WHERE name = 'initiatives'")
                         init_row = await cursor3.fetchone()
                         if init_row and 'strategies_old' in (init_row[0] or ''):
-                            await db.execute("ALTER TABLE initiatives RENAME TO initiatives_old")
-                            await db.execute("""CREATE TABLE initiatives (
+                            await raw_db.execute("ALTER TABLE initiatives RENAME TO initiatives_old")
+                            await raw_db.execute("""CREATE TABLE initiatives (
                                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                                 digital_product_id INTEGER NOT NULL REFERENCES digital_products(id),
                                 strategy_id INTEGER REFERENCES strategies(id),
@@ -230,7 +274,7 @@ async def startup_migrate():
                                 status TEXT DEFAULT 'proposed' CHECK (status IN ('proposed', 'approved', 'in_progress', 'completed', 'deferred')),
                                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                             )""")
-                            await db.execute("""INSERT INTO initiatives (id, digital_product_id, strategy_id, name, description,
+                            await raw_db.execute("""INSERT INTO initiatives (id, digital_product_id, strategy_id, name, description,
                                 reach, impact, confidence, effort, rice_override, rice_override_reason,
                                 value_score, size_score, impacted_segments, dependencies, risks, roadmap_phase,
                                 status, created_at)
@@ -238,11 +282,11 @@ async def startup_migrate():
                                 reach, impact, confidence, effort, rice_override, rice_override_reason,
                                 COALESCE(value_score, 3), COALESCE(size_score, 3), impacted_segments, dependencies, risks, roadmap_phase,
                                 status, created_at FROM initiatives_old""")
-                            await db.execute("DROP TABLE initiatives_old")
+                            await raw_db.execute("DROP TABLE initiatives_old")
 
-                    await db.execute("PRAGMA foreign_keys = ON")
+                    await raw_db.execute("PRAGMA foreign_keys = ON")
                 except Exception:
-                    await db.execute("PRAGMA foreign_keys = ON")
+                    await raw_db.execute("PRAGMA foreign_keys = ON")
 
             # --- Step 5 migrations: new initiative columns ---
             for col in [
@@ -254,7 +298,7 @@ async def startup_migrate():
                 "roadmap_phase TEXT",
             ]:
                 try:
-                    await db.execute(f"ALTER TABLE initiatives ADD COLUMN {col}")
+                    await raw_db.execute(f"ALTER TABLE initiatives ADD COLUMN {col}")
                 except Exception:
                     pass
 
@@ -270,7 +314,7 @@ async def startup_migrate():
                 "roadmap_phase TEXT",
             ]:
                 try:
-                    await db.execute(f"ALTER TABLE epics ADD COLUMN {col}")
+                    await raw_db.execute(f"ALTER TABLE epics ADD COLUMN {col}")
                 except Exception:
                     pass
 
@@ -282,29 +326,26 @@ async def startup_migrate():
                 "dependencies_text TEXT", "roadmap_phase TEXT",
             ]:
                 try:
-                    await db.execute(f"ALTER TABLE features ADD COLUMN {col}")
+                    await raw_db.execute(f"ALTER TABLE features ADD COLUMN {col}")
                 except Exception:
                     pass
 
-            # Fix broken FKs: rebuild any table whose CREATE SQL contains
-            # references to renamed tables (_old or _rebuild suffixes).
-            # Strategy: DROP + re-CREATE (not RENAME) to avoid SQLite FK propagation.
+            # Fix broken FKs
             all_tables_to_check = [
                 'product_okrs', 'product_key_results', 'delivery_okrs',
                 'epics', 'epic_dependencies', 'features',
             ]
             broken_tables = set()
             for tbl in all_tables_to_check:
-                c = await db.execute("SELECT sql FROM sqlite_master WHERE name = ?", (tbl,))
+                c = await raw_db.execute("SELECT sql FROM sqlite_master WHERE name = ?", (tbl,))
                 r = await c.fetchone()
                 if r and ('_old' in (r[0] or '') or '_rebuild' in (r[0] or '')):
                     broken_tables.add(tbl)
 
             if broken_tables:
                 try:
-                    await db.execute("PRAGMA foreign_keys = OFF")
+                    await raw_db.execute("PRAGMA foreign_keys = OFF")
 
-                    # Rebuild in dependency order (base tables first)
                     rebuild_defs = {
                         'product_okrs': ("""CREATE TABLE product_okrs (
                             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -386,7 +427,6 @@ async def startup_migrate():
                              "CREATE INDEX IF NOT EXISTS idx_features_epic ON features(epic_id)"]),
                     }
 
-                    # Also rebuild dependent tables even if not directly broken
                     if 'product_okrs' in broken_tables:
                         broken_tables.update(['product_key_results', 'delivery_okrs', 'epics'])
                     if 'epics' in broken_tables:
@@ -396,20 +436,54 @@ async def startup_migrate():
                         if tbl not in broken_tables:
                             continue
                         create_sql, insert_sql, indexes = rebuild_defs[tbl]
-                        # Use _new suffix: create new, copy, drop old, rename new
                         new_create = create_sql.replace(f"CREATE TABLE {tbl}", f"CREATE TABLE {tbl}_new")
-                        await db.execute(new_create)
-                        await db.execute(insert_sql)
-                        await db.execute(f"DROP TABLE {tbl}")
-                        await db.execute(f"ALTER TABLE {tbl}_new RENAME TO {tbl}")
+                        await raw_db.execute(new_create)
+                        await raw_db.execute(insert_sql)
+                        await raw_db.execute(f"DROP TABLE {tbl}")
+                        await raw_db.execute(f"ALTER TABLE {tbl}_new RENAME TO {tbl}")
                         for idx_sql in indexes:
-                            await db.execute(idx_sql)
+                            await raw_db.execute(idx_sql)
 
-                    await db.execute("PRAGMA foreign_keys = ON")
-                except Exception as e:
-                    await db.execute("PRAGMA foreign_keys = ON")
+                    await raw_db.execute("PRAGMA foreign_keys = ON")
+                except Exception:
+                    await raw_db.execute("PRAGMA foreign_keys = ON")
 
-        await db.commit()
+            # --- Phase 3 migration: expand data_source CHECK constraint on value_stream_metrics ---
+            try:
+                await raw_db.execute(
+                    "INSERT INTO value_stream_metrics (value_stream_id, data_source) VALUES (-1, 'visual_upload')"
+                )
+                await raw_db.execute("DELETE FROM value_stream_metrics WHERE value_stream_id = -1")
+            except Exception:
+                # CHECK constraint rejects new values — recreate the table
+                try:
+                    await raw_db.execute("PRAGMA foreign_keys = OFF")
+                    await raw_db.execute("""CREATE TABLE IF NOT EXISTS value_stream_metrics_new (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        value_stream_id INTEGER NOT NULL REFERENCES value_streams(id),
+                        total_lead_time_hours REAL DEFAULT 0,
+                        total_process_time_hours REAL DEFAULT 0,
+                        total_wait_time_hours REAL DEFAULT 0,
+                        flow_efficiency REAL DEFAULT 0,
+                        bottleneck_step TEXT,
+                        bottleneck_reason TEXT,
+                        data_source TEXT DEFAULT 'manual' CHECK (data_source IN ('ai_generated', 'template', 'uploaded', 'manual', 'visual_upload', 'url_extraction')),
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )""")
+                    await raw_db.execute("""INSERT INTO value_stream_metrics_new
+                        (id, value_stream_id, total_lead_time_hours, total_process_time_hours,
+                         total_wait_time_hours, flow_efficiency, bottleneck_step, bottleneck_reason,
+                         data_source, created_at)
+                        SELECT id, value_stream_id, total_lead_time_hours, total_process_time_hours,
+                         total_wait_time_hours, flow_efficiency, bottleneck_step, bottleneck_reason,
+                         data_source, created_at FROM value_stream_metrics""")
+                    await raw_db.execute("DROP TABLE value_stream_metrics")
+                    await raw_db.execute("ALTER TABLE value_stream_metrics_new RENAME TO value_stream_metrics")
+                    await raw_db.execute("PRAGMA foreign_keys = ON")
+                except Exception:
+                    await raw_db.execute("PRAGMA foreign_keys = ON")
+
+        await raw_db.commit()
 
 
 frontend_path = os.path.join(os.path.dirname(__file__), "..", "frontend")

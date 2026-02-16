@@ -12,8 +12,12 @@ from source_gatherers import (
     gather_industry_benchmarks,
     gather_finnhub_data,
     gather_web_search,
+    gather_jira,
+    gather_servicenow,
 )
 from ai_research import is_openai_available, research_value_stream
+from process_parser import parse_process_image, parse_bpmn, is_vision_available
+from url_extractor import extract_from_url
 
 router = APIRouter()
 
@@ -246,10 +250,152 @@ async def upload_vs(business_unit_id: int, file: UploadFile = File(...), db=Depe
 
 
 # ──────────────────────────────────────────────
+# NEW — Visual Process Map Upload
+# ──────────────────────────────────────────────
+
+VISUAL_EXTENSIONS = {".png", ".jpg", ".jpeg", ".pdf", ".bpmn", ".xml"}
+
+@router.post("/upload-visual")
+async def upload_visual(business_unit_id: int, file: UploadFile = File(...), db=Depends(get_db)):
+    """Upload a visual process map (image, PDF, BPMN) and extract steps via AI or XML parsing."""
+    if not file.filename:
+        return {"error": "No file provided"}
+
+    ext = "." + file.filename.rsplit(".", 1)[-1].lower() if "." in file.filename else ""
+    if ext not in VISUAL_EXTENSIONS:
+        return {"error": f"Unsupported file type '{ext}'. Supported: {', '.join(sorted(VISUAL_EXTENSIONS))}"}
+
+    content = await file.read()
+
+    # Route to appropriate parser
+    if ext in (".bpmn", ".xml"):
+        result = parse_bpmn(content)
+    else:
+        result = await parse_process_image(content, file.filename, file.content_type or "")
+
+    if result.get("error"):
+        return result
+
+    steps = result.get("steps", [])
+    if not steps:
+        return {"error": "No process steps could be extracted from the file"}
+
+    # Derive name from filename
+    vs_name = file.filename.rsplit(".", 1)[0].replace("_", " ").replace("-", " ").title()
+
+    cursor = await db.execute(
+        "INSERT INTO value_streams (business_unit_id, name, description) VALUES (?, ?, ?)",
+        (business_unit_id, vs_name, f"Extracted from visual upload ({ext})"),
+    )
+    vs_id = cursor.lastrowid
+
+    for step in steps:
+        pt = float(step.get("process_time_hours", 0) or 0)
+        wt = float(step.get("wait_time_hours", 0) or 0)
+        await db.execute(
+            "INSERT INTO value_stream_steps "
+            "(value_stream_id, step_order, step_name, description, step_type, "
+            "process_time_hours, wait_time_hours, lead_time_hours, resources, is_bottleneck, notes) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                vs_id,
+                step.get("step_order", 0),
+                step.get("step_name", "Step"),
+                step.get("description"),
+                step.get("step_type", "process"),
+                pt,
+                wt,
+                pt + wt,
+                step.get("resources"),
+                1 if step.get("is_bottleneck") else 0,
+                step.get("notes"),
+            ),
+        )
+
+    await _recalculate_metrics(vs_id, db, data_source="visual_upload")
+    await db.commit()
+    return {"id": vs_id, "steps": len(steps), "source_type": "visual_upload"}
+
+
+# ──────────────────────────────────────────────
+# NEW — Pull from URL
+# ──────────────────────────────────────────────
+
+@router.post("/pull-from-url")
+async def pull_from_url(data: dict, db=Depends(get_db)):
+    """Extract process data from a web URL using AI."""
+    url = data.get("url", "").strip()
+    business_unit_id = data.get("business_unit_id")
+    segment_name = data.get("segment_name", "")
+
+    if not url:
+        return {"error": "url is required"}
+    if not business_unit_id:
+        return {"error": "business_unit_id is required"}
+
+    result = await extract_from_url(url)
+
+    if result.get("error") and not result.get("steps"):
+        return result
+
+    steps = result.get("steps", [])
+    confidence = result.get("confidence", "low")
+
+    if not steps:
+        return {
+            "error": "No process steps could be extracted from the URL",
+            "source_url": url,
+            "confidence": confidence,
+            "raw_text_preview": result.get("raw_text_preview", ""),
+        }
+
+    # Derive name from segment or URL
+    vs_name = segment_name or url.split("//")[-1].split("/")[0].replace("www.", "").title()
+
+    cursor = await db.execute(
+        "INSERT INTO value_streams (business_unit_id, name, description) VALUES (?, ?, ?)",
+        (business_unit_id, vs_name, f"Extracted from URL: {url}"),
+    )
+    vs_id = cursor.lastrowid
+
+    for step in steps:
+        pt = float(step.get("process_time_hours", 0) or 0)
+        wt = float(step.get("wait_time_hours", 0) or 0)
+        await db.execute(
+            "INSERT INTO value_stream_steps "
+            "(value_stream_id, step_order, step_name, description, step_type, "
+            "process_time_hours, wait_time_hours, lead_time_hours, resources, is_bottleneck, notes) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                vs_id,
+                step.get("step_order", 0),
+                step.get("step_name", "Step"),
+                step.get("description"),
+                step.get("step_type", "process"),
+                pt,
+                wt,
+                pt + wt,
+                step.get("resources"),
+                1 if step.get("is_bottleneck") else 0,
+                step.get("notes"),
+            ),
+        )
+
+    await _recalculate_metrics(vs_id, db, data_source="url_extraction")
+    await db.commit()
+    return {
+        "id": vs_id,
+        "steps": len(steps),
+        "source_url": url,
+        "confidence": confidence,
+    }
+
+
+# ──────────────────────────────────────────────
 # NEW — Pull from Sources
 # ──────────────────────────────────────────────
 
-VALID_SOURCES = {"app_data", "erp_simulation", "industry_benchmarks", "finnhub", "web_search", "openai_research"}
+VALID_SOURCES = {"app_data", "erp_simulation", "industry_benchmarks", "finnhub", "web_search", "openai_research", "jira", "servicenow"}
 
 GATHERER_MAP = {
     "app_data": lambda db, segment, industry, org_name, competitors: gather_app_data(db),
@@ -257,6 +403,8 @@ GATHERER_MAP = {
     "industry_benchmarks": lambda db, segment, industry, org_name, competitors: gather_industry_benchmarks(segment, industry),
     "finnhub": lambda db, segment, industry, org_name, competitors: gather_finnhub_data(org_name, industry, competitors),
     "web_search": lambda db, segment, industry, org_name, competitors: gather_web_search(segment, industry),
+    "jira": lambda db, segment, industry, org_name, competitors: gather_jira(segment, industry),
+    "servicenow": lambda db, segment, industry, org_name, competitors: gather_servicenow(segment, industry),
 }
 
 

@@ -214,6 +214,27 @@
         .risk-high { color: #f97316; }
         .risk-critical { color: #fca5a5; font-weight: 600; }
 
+        /* Login/Register screen */
+        .login-screen { display: flex; align-items: center; justify-content: center; min-height: 100vh; background: #0f172a; }
+        .login-card { background: #1e293b; border: 1px solid #334155; border-radius: 16px; padding: 40px; width: 100%; max-width: 400px; }
+        .login-card h2 { text-align: center; color: #38bdf8; margin-bottom: 8px; font-size: 22px; }
+        .login-card .subtitle { text-align: center; color: #94a3b8; font-size: 13px; margin-bottom: 28px; }
+        .login-card .form-group { margin-bottom: 16px; }
+        .login-card .btn-primary { width: 100%; padding: 12px; font-size: 15px; margin-top: 8px; }
+        .login-card .toggle-link { text-align: center; margin-top: 16px; font-size: 13px; color: #94a3b8; }
+        .login-card .toggle-link a { color: #38bdf8; cursor: pointer; text-decoration: none; }
+        .login-card .toggle-link a:hover { text-decoration: underline; }
+        .login-card .error-msg { color: #fca5a5; font-size: 13px; text-align: center; margin-top: 12px; min-height: 20px; }
+
+        /* User info in sidebar */
+        .user-info { padding: 12px 20px; border-top: 1px solid #334155; margin-top: auto; }
+        .user-info .user-name { font-size: 13px; color: #e2e8f0; font-weight: 500; }
+        .user-info .user-email { font-size: 11px; color: #94a3b8; margin-top: 2px; }
+        .user-info .btn-logout { background: none; border: 1px solid #475569; color: #94a3b8; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 12px; margin-top: 8px; width: 100%; transition: all 0.2s; }
+        .user-info .btn-logout:hover { border-color: #dc2626; color: #fca5a5; }
+
+        .sidebar { display: flex; flex-direction: column; }
+
         /* Responsive */
         @media (max-width: 768px) {
             .app { flex-direction: column; }
@@ -227,7 +248,11 @@
 </head>
 <body>
 
-<div class="app">
+<!-- Login/Register Screen (shown when not authenticated) -->
+<div id="login-screen" class="login-screen" style="display:none;"></div>
+
+<!-- Main App (shown when authenticated) -->
+<div class="app" id="app-container" style="display:none;">
     <nav class="sidebar">
         <div class="logo">
             <h1>Business Transformation Architect</h1>
@@ -261,6 +286,7 @@
             <span class="step-num">7</span>
             <span class="step-label">Features & Roadmap</span>
         </div>
+        <div class="user-info" id="user-info"></div>
     </nav>
 
     <main class="main" id="main-content">
@@ -273,6 +299,176 @@
 <script>
 const API = '/api';
 let currentStep = 1;
+let authToken = localStorage.getItem('bta_token');
+let currentUser = null;
+
+// --- Auth ---
+function getAuthHeaders() {
+    const headers = { 'Content-Type': 'application/json' };
+    if (authToken) headers['Authorization'] = 'Bearer ' + authToken;
+    return headers;
+}
+
+function renderLoginScreen(mode = 'login') {
+    document.getElementById('app-container').style.display = 'none';
+    const screen = document.getElementById('login-screen');
+    screen.style.display = 'flex';
+
+    if (mode === 'register') {
+        screen.innerHTML = `
+            <div class="login-card">
+                <h2>Create Account</h2>
+                <p class="subtitle">Business Transformation Architect</p>
+                <div class="form-group">
+                    <label>Full Name</label>
+                    <input type="text" id="reg-name" placeholder="Your name" />
+                </div>
+                <div class="form-group">
+                    <label>Email</label>
+                    <input type="email" id="reg-email" placeholder="you@company.com" />
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" id="reg-password" placeholder="Min 8 characters" />
+                </div>
+                <button class="btn btn-primary" onclick="handleRegister()">Create Account</button>
+                <div class="error-msg" id="auth-error"></div>
+                <div class="toggle-link">Already have an account? <a onclick="renderLoginScreen('login')">Sign in</a></div>
+            </div>
+        `;
+    } else {
+        screen.innerHTML = `
+            <div class="login-card">
+                <h2>Sign In</h2>
+                <p class="subtitle">Business Transformation Architect</p>
+                <div class="form-group">
+                    <label>Email</label>
+                    <input type="email" id="login-email" placeholder="you@company.com" />
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" id="login-password" placeholder="Your password" />
+                </div>
+                <button class="btn btn-primary" onclick="handleLogin()">Sign In</button>
+                <div class="error-msg" id="auth-error"></div>
+                <div class="toggle-link">Don't have an account? <a onclick="renderLoginScreen('register')">Create one</a></div>
+            </div>
+        `;
+    }
+
+    // Enable enter key submission
+    setTimeout(() => {
+        const inputs = screen.querySelectorAll('input');
+        inputs.forEach(inp => {
+            inp.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    if (mode === 'register') handleRegister();
+                    else handleLogin();
+                }
+            });
+        });
+        if (inputs.length) inputs[0].focus();
+    }, 50);
+}
+
+async function handleRegister() {
+    const name = document.getElementById('reg-name').value.trim();
+    const email = document.getElementById('reg-email').value.trim();
+    const password = document.getElementById('reg-password').value;
+    const errEl = document.getElementById('auth-error');
+    errEl.textContent = '';
+
+    if (!name || !email || !password) { errEl.textContent = 'All fields are required'; return; }
+    if (password.length < 8) { errEl.textContent = 'Password must be at least 8 characters'; return; }
+
+    try {
+        const res = await fetch(API + '/auth/register', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, email, password }),
+        });
+        const data = await res.json();
+        if (!res.ok) { errEl.textContent = data.detail || 'Registration failed'; return; }
+        // Auto-login after registration
+        await doLogin(email, password);
+    } catch (e) {
+        errEl.textContent = 'Network error. Please try again.';
+    }
+}
+
+async function handleLogin() {
+    const email = document.getElementById('login-email').value.trim();
+    const password = document.getElementById('login-password').value;
+    const errEl = document.getElementById('auth-error');
+    errEl.textContent = '';
+
+    if (!email || !password) { errEl.textContent = 'Email and password are required'; return; }
+    await doLogin(email, password);
+}
+
+async function doLogin(email, password) {
+    const errEl = document.getElementById('auth-error');
+    try {
+        const res = await fetch(API + '/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password }),
+        });
+        const data = await res.json();
+        if (!res.ok) { errEl.textContent = data.detail || 'Login failed'; return; }
+
+        authToken = data.access_token;
+        currentUser = data.user;
+        localStorage.setItem('bta_token', authToken);
+        showApp();
+    } catch (e) {
+        errEl.textContent = 'Network error. Please try again.';
+    }
+}
+
+function logout() {
+    authToken = null;
+    currentUser = null;
+    localStorage.removeItem('bta_token');
+    renderLoginScreen();
+}
+
+function showApp() {
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('app-container').style.display = 'flex';
+
+    // Show user info in sidebar
+    const userInfo = document.getElementById('user-info');
+    if (currentUser) {
+        userInfo.innerHTML = `
+            <div class="user-name">${currentUser.name}</div>
+            <div class="user-email">${currentUser.email}</div>
+            <button class="btn-logout" onclick="logout()">Sign Out</button>
+        `;
+    }
+
+    showStep(1);
+}
+
+async function initApp() {
+    if (authToken) {
+        // Validate existing token
+        try {
+            const res = await fetch(API + '/auth/me', {
+                headers: { 'Authorization': 'Bearer ' + authToken },
+            });
+            if (res.ok) {
+                currentUser = await res.json();
+                showApp();
+                return;
+            }
+        } catch (e) {}
+        // Token invalid/expired
+        authToken = null;
+        localStorage.removeItem('bta_token');
+    }
+    renderLoginScreen();
+}
 
 // --- Utility ---
 function toast(msg) {
@@ -283,14 +479,18 @@ function toast(msg) {
 }
 
 async function api(path, method = 'GET', body = null) {
-    const opts = { method, headers: { 'Content-Type': 'application/json' } };
+    const opts = { method, headers: getAuthHeaders() };
     if (body) opts.body = JSON.stringify(body);
     const res = await fetch(API + path, opts);
+    if (res.status === 401) { logout(); return null; }
     return res.json();
 }
 
 async function apiUpload(path, formData) {
-    const res = await fetch(API + path, { method: 'POST', body: formData });
+    const headers = {};
+    if (authToken) headers['Authorization'] = 'Bearer ' + authToken;
+    const res = await fetch(API + path, { method: 'POST', body: formData, headers });
+    if (res.status === 401) { logout(); return null; }
     return res.json();
 }
 
@@ -808,6 +1008,50 @@ async function renderStep2Input() {
         </div>
 
         <div class="card">
+            <h3>Upload Process Map</h3>
+            <p style="font-size:13px;color:#94a3b8;margin-bottom:12px;">Upload a visual process map (image, PDF) for AI extraction, or a BPMN XML file for direct parsing.</p>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Business Unit</label>
+                    <select id="vs-visual-bu">
+                        ${units.length ? units.map(u => `<option value="${u.id}">${u.name}</option>`).join('') : '<option value="">No business units</option>'}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Process Map File</label>
+                    <input type="file" id="vs-visual-file" accept=".png,.jpg,.jpeg,.pdf,.bpmn,.xml" style="padding:8px;" />
+                </div>
+            </div>
+            <button class="btn" style="background:#0d9488;color:#fff;" onclick="uploadVisualProcessMap()" ${!units.length ? 'disabled' : ''}>Extract Steps</button>
+            <p style="font-size:12px;color:#64748b;margin-top:8px;">Supports PNG, JPG, PDF (via AI Vision), and BPMN/XML files. BPMN parsing works without an API key.</p>
+        </div>
+
+        <div class="card">
+            <h3>Extract from URL</h3>
+            <p style="font-size:13px;color:#94a3b8;margin-bottom:12px;">Provide a URL to a web page describing a process or workflow. AI will extract steps automatically.</p>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Business Unit</label>
+                    <select id="vs-url-bu">
+                        ${units.length ? units.map(u => `<option value="${u.id}">${u.name}</option>`).join('') : '<option value="">No business units</option>'}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Web URL</label>
+                    <input type="text" id="vs-url-input" placeholder="https://example.com/process-description" />
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Segment Name (optional)</label>
+                    <input type="text" id="vs-url-segment" placeholder="e.g. Order Fulfillment" />
+                </div>
+            </div>
+            <button class="btn" style="background:#8b5cf6;color:#fff;" onclick="extractFromUrl()" ${!units.length ? 'disabled' : ''}>Extract from URL</button>
+            <p style="font-size:12px;color:#64748b;margin-top:8px;">Fetches the page, extracts text, and uses AI to identify process steps. Requires OPENAI_API_KEY for best results.</p>
+        </div>
+
+        <div class="card">
             <h3>Pull from Sources</h3>
             <p style="font-size:13px;color:#94a3b8;margin-bottom:12px;">Aggregate data from multiple internal and external sources to build an enriched value stream.</p>
             <div class="form-row">
@@ -829,7 +1073,7 @@ async function renderStep2Input() {
                         <input type="checkbox" class="pull-source-cb" value="app_data" checked /> App Data (existing records)
                     </label>
                     <label style="display:flex;align-items:center;gap:6px;margin-bottom:6px;font-size:13px;cursor:pointer;">
-                        <input type="checkbox" class="pull-source-cb" value="erp_simulation" checked /> ERP/CRM Simulation
+                        <input type="checkbox" class="pull-source-cb" value="erp_simulation" checked /> ERP Simulation (demo data)
                     </label>
                     <label style="display:flex;align-items:center;gap:6px;margin-bottom:6px;font-size:13px;cursor:pointer;">
                         <input type="checkbox" class="pull-source-cb" value="industry_benchmarks" checked /> Industry Benchmarks
@@ -841,10 +1085,16 @@ async function renderStep2Input() {
                         <input type="checkbox" class="pull-source-cb" value="finnhub" /> Finnhub / Alpha Vantage
                     </label>
                     <label style="display:flex;align-items:center;gap:6px;margin-bottom:6px;font-size:13px;cursor:pointer;">
-                        <input type="checkbox" class="pull-source-cb" value="web_search" /> Web Search References
+                        <input type="checkbox" class="pull-source-cb" value="web_search" /> Web Search (live)
                     </label>
                     <label style="display:flex;align-items:center;gap:6px;margin-bottom:6px;font-size:13px;cursor:pointer;">
                         <input type="checkbox" class="pull-source-cb" value="openai_research" /> OpenAI Research (GPT)
+                    </label>
+                    <label style="display:flex;align-items:center;gap:6px;margin-bottom:6px;font-size:13px;cursor:pointer;">
+                        <input type="checkbox" class="pull-source-cb" value="jira" /> Jira (workflow data)
+                    </label>
+                    <label style="display:flex;align-items:center;gap:6px;margin-bottom:6px;font-size:13px;cursor:pointer;">
+                        <input type="checkbox" class="pull-source-cb" value="servicenow" /> ServiceNow (incidents)
                     </label>
                 </div>
             </div>
@@ -934,8 +1184,9 @@ async function pullFromSources() {
     if (!sources.length) { alert('Select at least one source.'); return; }
 
     const sourceLabels = {
-        app_data: 'App Data', erp_simulation: 'ERP/CRM', industry_benchmarks: 'Benchmarks',
-        finnhub: 'Finnhub', web_search: 'Web Search', openai_research: 'OpenAI'
+        app_data: 'App Data', erp_simulation: 'ERP Simulation', industry_benchmarks: 'Benchmarks',
+        finnhub: 'Finnhub', web_search: 'Web Search', openai_research: 'OpenAI',
+        jira: 'Jira', servicenow: 'ServiceNow'
     };
     const progressItems = sources.map(s =>
         `<div id="pull-status-${s}" style="display:flex;align-items:center;gap:8px;margin:4px 0;font-size:13px;">
@@ -969,6 +1220,78 @@ async function pullFromSources() {
 
     const srcSummary = Object.entries(result.sources_used || {}).map(([k, v]) => `${sourceLabels[k] || k}: ${v}`).join(', ');
     toast(`Generated ${result.steps} steps, ${result.benchmarks} benchmarks (${result.synthesis_method}). Sources: ${srcSummary}`);
+    step2SelectedVs = result.id;
+    step2Phase = 'edit';
+    renderStep2Edit();
+}
+
+async function uploadVisualProcessMap() {
+    const buId = document.getElementById('vs-visual-bu').value;
+    const fileInput = document.getElementById('vs-visual-file');
+    if (!buId) { alert('Select a business unit.'); return; }
+    if (!fileInput.files.length) { alert('Select a process map file to upload.'); return; }
+
+    const file = fileInput.files[0];
+    const ext = file.name.split('.').pop().toLowerCase();
+    const isBpmn = ext === 'bpmn' || ext === 'xml';
+
+    document.getElementById('main-content').innerHTML = `
+        <div class="page-header"><h2>Step 2: Value Stream Analysis</h2></div>
+        <div class="loading-overlay">
+            <div class="spinner"></div>
+            <p>Extracting steps from "${file.name}"...</p>
+            <p class="progress-msg">${isBpmn ? 'Parsing BPMN XML...' : 'AI Vision is analyzing the process map, this may take 15-30 seconds'}</p>
+        </div>
+    `;
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const result = await apiUpload(`/step2/upload-visual?business_unit_id=${buId}`, formData);
+
+    if (result.error) {
+        alert(result.error);
+        renderStep2Input();
+        return;
+    }
+
+    toast(`Extracted ${result.steps} steps from process map (${result.source_type})`);
+    step2SelectedVs = result.id;
+    step2Phase = 'edit';
+    renderStep2Edit();
+}
+
+async function extractFromUrl() {
+    const buId = document.getElementById('vs-url-bu').value;
+    const url = document.getElementById('vs-url-input').value.trim();
+    const segment = document.getElementById('vs-url-segment').value.trim();
+
+    if (!buId) { alert('Select a business unit.'); return; }
+    if (!url) { alert('Enter a URL to extract from.'); return; }
+
+    document.getElementById('main-content').innerHTML = `
+        <div class="page-header"><h2>Step 2: Value Stream Analysis</h2></div>
+        <div class="loading-overlay">
+            <div class="spinner"></div>
+            <p>Extracting process data from URL...</p>
+            <p class="progress-msg">Fetching page content and analyzing with AI, this may take 15-30 seconds</p>
+        </div>
+    `;
+
+    const result = await api('/step2/pull-from-url', 'POST', {
+        url: url,
+        business_unit_id: +buId,
+        segment_name: segment
+    });
+
+    if (result.error && !result.id) {
+        alert(result.error + (result.raw_text_preview ? '\n\nPreview: ' + result.raw_text_preview.substring(0, 200) : ''));
+        renderStep2Input();
+        return;
+    }
+
+    const confLabel = result.confidence === 'high' ? 'high confidence' : result.confidence === 'medium' ? 'medium confidence' : 'low confidence';
+    toast(`Extracted ${result.steps} steps from URL (${confLabel})`);
     step2SelectedVs = result.id;
     step2Phase = 'edit';
     renderStep2Edit();
@@ -2786,7 +3109,7 @@ async function approveStepGate(gateId, stepNumber, targetDivId) {
 }
 
 // --- Init ---
-showStep(1);
+initApp();
 </script>
 
 </body>
