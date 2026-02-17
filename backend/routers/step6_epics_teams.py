@@ -1,5 +1,7 @@
 from fastapi import APIRouter, Depends
 from database import get_db
+from ai_initiatives import gather_initiative_context, generate_ai_epics, recommend_team_assignments
+from ai_research import is_openai_available
 
 router = APIRouter()
 
@@ -130,12 +132,11 @@ async def update_epic(epic_id: int, data: dict, db=Depends(get_db)):
     scoring_fields = {"value_score", "size_score", "effort_score"}
     if scoring_fields & set(data.keys()):
         # Fetch current values to merge with updates
-        cur = await db.execute("SELECT value_score, size_score, effort_score FROM epics WHERE id = ?", (epic_id,))
-        row = await cur.fetchone()
+        row = await db.execute_fetchone("SELECT value_score, size_score, effort_score FROM epics WHERE id = ?", (epic_id,))
         if row:
-            v = data.get("value_score", row[0] or 3)
-            s = data.get("size_score", row[1] or 3)
-            e = data.get("effort_score", row[2] or 3)
+            v = data.get("value_score", row["value_score"] or 3)
+            s = data.get("size_score", row["size_score"] or 3)
+            e = data.get("effort_score", row["effort_score"] or 3)
             priority = (v * s) / e if e else 0
             fields.append("priority_score = ?")
             values.append(round(priority, 2))
@@ -191,22 +192,22 @@ async def delete_dependency(dep_id: int, db=Depends(get_db)):
 
 @router.get("/summary")
 async def get_summary(db=Depends(get_db)):
-    init_cur = await db.execute(
-        "SELECT COUNT(*) FROM initiatives WHERE status IN ('approved', 'proposed')"
+    rows = await db.execute_fetchall(
+        "SELECT COUNT(*) as cnt FROM initiatives WHERE status IN ('approved', 'proposed')"
     )
-    init_count = (await init_cur.fetchone())[0]
+    init_count = rows[0]["cnt"] if rows else 0
 
-    epic_cur = await db.execute("SELECT COUNT(*) FROM epics")
-    epic_count = (await epic_cur.fetchone())[0]
+    rows = await db.execute_fetchall("SELECT COUNT(*) as cnt FROM epics")
+    epic_count = rows[0]["cnt"] if rows else 0
 
-    okr_cur = await db.execute("SELECT COUNT(*) FROM product_okrs")
-    okr_count = (await okr_cur.fetchone())[0]
+    rows = await db.execute_fetchall("SELECT COUNT(*) as cnt FROM product_okrs")
+    okr_count = rows[0]["cnt"] if rows else 0
 
-    team_cur = await db.execute("SELECT COUNT(*) FROM teams")
-    team_count = (await team_cur.fetchone())[0]
+    rows = await db.execute_fetchall("SELECT COUNT(*) as cnt FROM teams")
+    team_count = rows[0]["cnt"] if rows else 0
 
-    dep_cur = await db.execute("SELECT COUNT(*) FROM epic_dependencies")
-    dep_count = (await dep_cur.fetchone())[0]
+    rows = await db.execute_fetchall("SELECT COUNT(*) as cnt FROM epic_dependencies")
+    dep_count = rows[0]["cnt"] if rows else 0
 
     return {
         "initiatives": init_count,
@@ -250,122 +251,304 @@ async def auto_generate(db=Depends(get_db)):
     created_epics = []
     created_okrs = []
     created_deps = []
+    team_assignments = []
     skipped = []
+    ai_powered = False
 
-    # Track first epic per layer for cross-layer dependencies
-    layer_first_epics = {}  # layer -> first epic id created in this run or existing
+    # Try AI-powered generation
+    if is_openai_available():
+        context = await gather_initiative_context(db)
 
-    for init in initiatives:
-        layer = init.get("strategy_layer") or "digital"
-        templates = EPIC_TEMPLATES.get(layer, EPIC_TEMPLATES["digital"])
-        init_value = init.get("value_score") or 3
-        init_size = init.get("size_score") or 3
-        init_risks = init.get("risks") or ""
-        risk_level = _infer_risk_level(init_risks)
-
-        # 2a. Create product OKRs from strategic OKRs if not exists
-        if init.get("strategy_id") and init.get("product_id"):
-            sokr_rows = await db.execute_fetchall(
-                "SELECT so.* FROM strategic_okrs so WHERE so.strategy_id = ?",
-                (init["strategy_id"],)
-            )
-            for sokr in sokr_rows:
-                sokr = dict(sokr)
-                # Check if product OKR already exists for this strategic OKR + product
-                existing = await db.execute(
-                    "SELECT id FROM product_okrs WHERE strategic_okr_id = ? AND digital_product_id = ?",
-                    (sokr["id"], init["product_id"])
+        # Build initiative list with OKR context for AI
+        init_with_okrs = []
+        for init in initiatives:
+            init_copy = dict(init)
+            if init.get("strategy_id"):
+                sokr_rows = await db.execute_fetchall(
+                    "SELECT so.* FROM strategic_okrs so WHERE so.strategy_id = ?",
+                    (init["strategy_id"],)
                 )
-                if await existing.fetchone():
+                okrs = []
+                for sokr in sokr_rows:
+                    sokr_dict = dict(sokr)
+                    kr_rows = await db.execute_fetchall(
+                        "SELECT * FROM strategic_key_results WHERE okr_id = ?", (sokr_dict["id"],)
+                    )
+                    sokr_dict["key_results"] = [dict(kr) for kr in kr_rows]
+                    okrs.append(sokr_dict)
+                init_copy["okrs"] = okrs
+            init_with_okrs.append(init_copy)
+
+        ai_result = await generate_ai_epics(init_with_okrs, context)
+
+        if ai_result:
+            ai_powered = True
+            ai_epics = ai_result["epics"]
+            ai_pokrs = ai_result.get("product_okrs", [])
+            ai_cross_deps = ai_result.get("cross_epic_dependencies", [])
+
+            # Build initiative name -> id+product_id lookup
+            init_lookup = {}
+            for init in initiatives:
+                init_lookup[init["name"]] = init
+
+            # Create AI-generated product OKRs
+            for ai_pokr in ai_pokrs:
+                # Find strategy + product for this OKR
+                strat_name = ai_pokr.get("strategy_name", "")
+                prod_name = ai_pokr.get("product_name", "")
+
+                # Find the strategy
+                strat_row = None
+                for init in initiatives:
+                    if init.get("strategy_name") == strat_name:
+                        strat_row = init
+                        break
+                if not strat_row:
+                    strat_row = initiatives[0] if initiatives else None
+                if not strat_row:
                     continue
-                obj_text = f"{sokr['objective']} ({init.get('product_name', 'Product')})"
+
+                # Find strategic OKR to link to
+                sokr_rows = await db.execute_fetchall(
+                    "SELECT id FROM strategic_okrs WHERE strategy_id = ? LIMIT 1",
+                    (strat_row.get("strategy_id"),)
+                )
+                if not sokr_rows:
+                    continue
+                sokr_id = sokr_rows[0]["id"]
+                product_id = strat_row.get("product_id")
+                if not product_id:
+                    continue
+
+                # Check if already exists
+                existing = await db.execute_fetchall(
+                    "SELECT id FROM product_okrs WHERE strategic_okr_id = ? AND digital_product_id = ? LIMIT 1",
+                    (sokr_id, product_id)
+                )
+                if existing:
+                    continue
+
                 cur = await db.execute(
-                    "INSERT INTO product_okrs (strategic_okr_id, digital_product_id, objective, status) VALUES (?, ?, ?, 'draft')",
-                    (sokr["id"], init["product_id"], obj_text)
+                    "INSERT INTO product_okrs (strategic_okr_id, digital_product_id, objective, ai_generated, status) "
+                    "VALUES (?, ?, ?, 1, 'draft')",
+                    (sokr_id, product_id, ai_pokr["objective"])
                 )
                 pokr_id = cur.lastrowid
-                created_okrs.append({"id": pokr_id, "objective": obj_text})
+                created_okrs.append({"id": pokr_id, "objective": ai_pokr["objective"]})
 
-                # Cascade key results
-                kr_rows = await db.execute_fetchall(
-                    "SELECT * FROM strategic_key_results WHERE okr_id = ?", (sokr["id"],)
-                )
-                for kr in kr_rows:
-                    kr = dict(kr)
+                # Create AI-generated key results
+                for kr in ai_pokr.get("key_results", []):
                     await db.execute(
                         "INSERT INTO product_key_results (product_okr_id, key_result, metric, current_value, target_value, unit) "
                         "VALUES (?, ?, ?, ?, ?, ?)",
-                        (pokr_id, kr["key_result"], kr.get("metric"), kr.get("current_value", 0),
-                         kr.get("target_value", 0), kr.get("unit"))
+                        (pokr_id, kr.get("key_result", ""), kr.get("metric", ""),
+                         kr.get("current_value", 0), kr.get("target_value", 0), kr.get("unit", ""))
                     )
 
-        # Find a product OKR to link epics to
-        pokr_cur = await db.execute(
-            "SELECT id FROM product_okrs WHERE digital_product_id = ? LIMIT 1",
-            (init.get("product_id"),)
-        )
-        pokr_row = await pokr_cur.fetchone()
-        pokr_id = pokr_row[0] if pokr_row else None
+            # Create AI-generated epics
+            epic_name_to_id = {}  # for dependency resolution
+            for ai_epic in ai_epics:
+                # Match to initiative
+                init_match = init_lookup.get(ai_epic.get("initiative_name"))
+                if not init_match:
+                    # Fuzzy match: find closest initiative name
+                    for iname, idata in init_lookup.items():
+                        if ai_epic.get("initiative_name", "").lower() in iname.lower() or iname.lower() in ai_epic.get("initiative_name", "").lower():
+                            init_match = idata
+                            break
+                if not init_match:
+                    init_match = initiatives[0] if initiatives else None
+                if not init_match:
+                    continue
 
-        # 2b. Decompose into 3 epics using layer template
-        effort_distribution = [2, 3, 2]  # distribute effort across 3 epics
-        for idx, (epic_name_tpl, epic_desc_tpl) in enumerate(templates):
-            full_name = f"{epic_name_tpl}: {init['name']}"
+                epic_name = ai_epic["name"]
 
-            # Idempotent: skip if epic name + initiative_id already exists
-            dup_cur = await db.execute(
-                "SELECT id FROM epics WHERE name = ? AND initiative_id = ?",
-                (full_name, init["id"])
-            )
-            dup_row = await dup_cur.fetchone()
-            if dup_row:
-                # Track existing first epic for cross-layer deps
-                if idx == 0 and layer not in layer_first_epics:
-                    layer_first_epics[layer] = dup_row[0]
-                skipped.append(full_name)
-                continue
-
-            effort = effort_distribution[idx]
-            priority = round((init_value * init_size) / effort, 2) if effort else 0
-
-            cur = await db.execute(
-                "INSERT INTO epics (initiative_id, product_okr_id, name, description, status, "
-                "value_score, size_score, effort_score, priority_score, risk_level, risks, "
-                "dependencies_text, roadmap_phase) "
-                "VALUES (?, ?, ?, ?, 'backlog', ?, ?, ?, ?, ?, ?, ?, ?)",
-                (init["id"], pokr_id, full_name, epic_desc_tpl,
-                 init_value, init_size, effort, priority,
-                 risk_level, init_risks, init.get("dependencies"),
-                 None)  # roadmap_phase auto-classified in roadmap endpoint
-            )
-            epic_id = cur.lastrowid
-            created_epics.append({"id": epic_id, "name": full_name, "layer": layer})
-
-            # Track first epic per layer
-            if idx == 0 and layer not in layer_first_epics:
-                layer_first_epics[layer] = epic_id
-
-    # 3. Create cross-layer dependencies
-    for dep_layer, foundation_layer in CROSS_LAYER_DEPS:
-        dep_epic = layer_first_epics.get(dep_layer)
-        found_epic = layer_first_epics.get(foundation_layer)
-        if dep_epic and found_epic and dep_epic != found_epic:
-            # Check if dependency already exists
-            existing = await db.execute(
-                "SELECT id FROM epic_dependencies WHERE epic_id = ? AND depends_on_epic_id = ?",
-                (dep_epic, found_epic)
-            )
-            if not await existing.fetchone():
-                cur = await db.execute(
-                    "INSERT INTO epic_dependencies (epic_id, depends_on_epic_id, dependency_type, notes) "
-                    "VALUES (?, ?, 'blocks', ?)",
-                    (dep_epic, found_epic, f"Auto: {dep_layer} depends on {foundation_layer}")
+                # Idempotent
+                dup_rows = await db.execute_fetchall(
+                    "SELECT id FROM epics WHERE name = ? AND initiative_id = ? LIMIT 1",
+                    (epic_name, init_match["id"])
                 )
-                created_deps.append({
-                    "id": cur.lastrowid,
-                    "from_layer": dep_layer,
-                    "to_layer": foundation_layer,
-                })
+                if dup_rows:
+                    epic_name_to_id[epic_name] = dup_rows[0]["id"]
+                    skipped.append(epic_name)
+                    continue
+
+                # Find product OKR to link
+                pokr_rows = await db.execute_fetchall(
+                    "SELECT id FROM product_okrs WHERE digital_product_id = ? LIMIT 1",
+                    (init_match.get("product_id"),)
+                )
+                pokr_id = pokr_rows[0]["id"] if pokr_rows else None
+
+                value = ai_epic.get("value_score", 3)
+                size = ai_epic.get("size_score", 3)
+                effort = ai_epic.get("effort_score", 3)
+                priority = round((value * size) / effort, 2) if effort else 0
+
+                cur = await db.execute(
+                    "INSERT INTO epics (initiative_id, product_okr_id, name, description, status, "
+                    "value_score, size_score, effort_score, priority_score, risk_level, risks, "
+                    "dependencies_text, roadmap_phase, ai_generated, estimated_effort_days, ai_rationale) "
+                    "VALUES (?, ?, ?, ?, 'backlog', ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)",
+                    (init_match["id"], pokr_id, epic_name, ai_epic.get("description", ""),
+                     value, size, effort, priority,
+                     ai_epic.get("risk_level", "medium"), ai_epic.get("risks", ""),
+                     ai_epic.get("dependencies_text", ""), None,
+                     ai_epic.get("estimated_effort_days"), ai_epic.get("rationale", ""))
+                )
+                epic_id = cur.lastrowid
+                epic_name_to_id[epic_name] = epic_id
+                layer = init_match.get("strategy_layer") or "digital"
+                created_epics.append({"id": epic_id, "name": epic_name, "layer": layer})
+
+            # Create cross-epic dependencies from AI
+            for dep in ai_cross_deps:
+                dep_epic_id = epic_name_to_id.get(dep.get("epic_name"))
+                found_epic_id = epic_name_to_id.get(dep.get("depends_on_epic_name"))
+                if dep_epic_id and found_epic_id and dep_epic_id != found_epic_id:
+                    existing = await db.execute_fetchall(
+                        "SELECT id FROM epic_dependencies WHERE epic_id = ? AND depends_on_epic_id = ? LIMIT 1",
+                        (dep_epic_id, found_epic_id)
+                    )
+                    if not existing:
+                        cur = await db.execute(
+                            "INSERT INTO epic_dependencies (epic_id, depends_on_epic_id, dependency_type, notes) "
+                            "VALUES (?, ?, ?, ?)",
+                            (dep_epic_id, found_epic_id,
+                             dep.get("dependency_type", "blocks"),
+                             dep.get("notes", "AI-generated dependency"))
+                        )
+                        created_deps.append({"id": cur.lastrowid})
+
+            # Team recommendations
+            teams = await db.execute_fetchall("SELECT * FROM teams ORDER BY name")
+            teams_list = [dict(t) for t in teams]
+            if teams_list and ai_epics:
+                rec_result = await recommend_team_assignments(ai_epics, teams_list)
+                if rec_result and rec_result.get("assignments"):
+                    team_name_to_id = {t["name"]: t["id"] for t in teams_list}
+                    for assignment in rec_result["assignments"]:
+                        epic_id = epic_name_to_id.get(assignment.get("epic_name"))
+                        team_id = team_name_to_id.get(assignment.get("team_name"))
+                        if epic_id and team_id:
+                            await db.execute(
+                                "UPDATE epics SET team_id = ? WHERE id = ?",
+                                (team_id, epic_id)
+                            )
+                            team_assignments.append({
+                                "epic_name": assignment["epic_name"],
+                                "team_name": assignment["team_name"],
+                            })
+
+    # Fallback: rule-based generation
+    if not ai_powered:
+        layer_first_epics = {}
+
+        for init in initiatives:
+            layer = init.get("strategy_layer") or "digital"
+            templates = EPIC_TEMPLATES.get(layer, EPIC_TEMPLATES["digital"])
+            init_value = init.get("value_score") or 3
+            init_size = init.get("size_score") or 3
+            init_risks = init.get("risks") or ""
+            risk_level = _infer_risk_level(init_risks)
+
+            # Create product OKRs from strategic OKRs
+            if init.get("strategy_id") and init.get("product_id"):
+                sokr_rows = await db.execute_fetchall(
+                    "SELECT so.* FROM strategic_okrs so WHERE so.strategy_id = ?",
+                    (init["strategy_id"],)
+                )
+                for sokr in sokr_rows:
+                    sokr = dict(sokr)
+                    existing = await db.execute_fetchall(
+                        "SELECT id FROM product_okrs WHERE strategic_okr_id = ? AND digital_product_id = ? LIMIT 1",
+                        (sokr["id"], init["product_id"])
+                    )
+                    if existing:
+                        continue
+                    obj_text = f"{sokr['objective']} ({init.get('product_name', 'Product')})"
+                    cur = await db.execute(
+                        "INSERT INTO product_okrs (strategic_okr_id, digital_product_id, objective, ai_generated, status) "
+                        "VALUES (?, ?, ?, 0, 'draft')",
+                        (sokr["id"], init["product_id"], obj_text)
+                    )
+                    pokr_id = cur.lastrowid
+                    created_okrs.append({"id": pokr_id, "objective": obj_text})
+
+                    kr_rows = await db.execute_fetchall(
+                        "SELECT * FROM strategic_key_results WHERE okr_id = ?", (sokr["id"],)
+                    )
+                    for kr in kr_rows:
+                        kr = dict(kr)
+                        await db.execute(
+                            "INSERT INTO product_key_results (product_okr_id, key_result, metric, current_value, target_value, unit) "
+                            "VALUES (?, ?, ?, ?, ?, ?)",
+                            (pokr_id, kr["key_result"], kr.get("metric"), kr.get("current_value", 0),
+                             kr.get("target_value", 0), kr.get("unit"))
+                        )
+
+            # Find product OKR to link
+            pokr_rows = await db.execute_fetchall(
+                "SELECT id FROM product_okrs WHERE digital_product_id = ? LIMIT 1",
+                (init.get("product_id"),)
+            )
+            pokr_id = pokr_rows[0]["id"] if pokr_rows else None
+
+            # Decompose into 3 epics using layer template
+            effort_distribution = [2, 3, 2]
+            for idx, (epic_name_tpl, epic_desc_tpl) in enumerate(templates):
+                full_name = f"{epic_name_tpl}: {init['name']}"
+
+                dup_rows = await db.execute_fetchall(
+                    "SELECT id FROM epics WHERE name = ? AND initiative_id = ? LIMIT 1",
+                    (full_name, init["id"])
+                )
+                if dup_rows:
+                    if idx == 0 and layer not in layer_first_epics:
+                        layer_first_epics[layer] = dup_rows[0]["id"]
+                    skipped.append(full_name)
+                    continue
+
+                effort = effort_distribution[idx]
+                priority = round((init_value * init_size) / effort, 2) if effort else 0
+
+                cur = await db.execute(
+                    "INSERT INTO epics (initiative_id, product_okr_id, name, description, status, "
+                    "value_score, size_score, effort_score, priority_score, risk_level, risks, "
+                    "dependencies_text, roadmap_phase, ai_generated) "
+                    "VALUES (?, ?, ?, ?, 'backlog', ?, ?, ?, ?, ?, ?, ?, ?, 0)",
+                    (init["id"], pokr_id, full_name, epic_desc_tpl,
+                     init_value, init_size, effort, priority,
+                     risk_level, init_risks, init.get("dependencies"),
+                     None)
+                )
+                epic_id = cur.lastrowid
+                created_epics.append({"id": epic_id, "name": full_name, "layer": layer})
+
+                if idx == 0 and layer not in layer_first_epics:
+                    layer_first_epics[layer] = epic_id
+
+        # Cross-layer dependencies
+        for dep_layer, foundation_layer in CROSS_LAYER_DEPS:
+            dep_epic = layer_first_epics.get(dep_layer)
+            found_epic = layer_first_epics.get(foundation_layer)
+            if dep_epic and found_epic and dep_epic != found_epic:
+                existing = await db.execute_fetchall(
+                    "SELECT id FROM epic_dependencies WHERE epic_id = ? AND depends_on_epic_id = ? LIMIT 1",
+                    (dep_epic, found_epic)
+                )
+                if not existing:
+                    cur = await db.execute(
+                        "INSERT INTO epic_dependencies (epic_id, depends_on_epic_id, dependency_type, notes) "
+                        "VALUES (?, ?, 'blocks', ?)",
+                        (dep_epic, found_epic, f"Auto: {dep_layer} depends on {foundation_layer}")
+                    )
+                    created_deps.append({
+                        "id": cur.lastrowid,
+                        "from_layer": dep_layer,
+                        "to_layer": foundation_layer,
+                    })
 
     await db.commit()
 
@@ -373,7 +556,9 @@ async def auto_generate(db=Depends(get_db)):
         "epics": created_epics,
         "product_okrs": created_okrs,
         "dependencies": created_deps,
+        "team_assignments": team_assignments,
         "skipped": skipped,
+        "ai_powered": ai_powered,
     }
 
 

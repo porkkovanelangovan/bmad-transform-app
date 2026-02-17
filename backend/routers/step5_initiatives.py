@@ -1,5 +1,7 @@
 from fastapi import APIRouter, Depends
 from database import get_db
+from ai_initiatives import gather_initiative_context, generate_ai_initiatives
+from ai_research import is_openai_available
 
 router = APIRouter()
 
@@ -143,6 +145,36 @@ LAYER_RICE_DEFAULTS = {
 }
 
 
+async def _ensure_product_group(db, layer):
+    """Ensure product group exists for a strategy layer, return group_id."""
+    group_name = LAYER_LABELS.get(layer, layer.title())
+    existing_group = await db.execute_fetchall(
+        "SELECT id FROM product_groups WHERE name = ?", (group_name,)
+    )
+    if existing_group:
+        return dict(existing_group[0])["id"], False
+    cursor = await db.execute(
+        "INSERT INTO product_groups (name, description) VALUES (?, ?)",
+        (group_name, f"Product group for {layer} layer strategies"),
+    )
+    return cursor.lastrowid, True
+
+
+async def _ensure_digital_product(db, group_id, name, description=""):
+    """Ensure digital product exists, return product_id."""
+    existing = await db.execute_fetchall(
+        "SELECT id FROM digital_products WHERE product_group_id = ? AND name = ?",
+        (group_id, name),
+    )
+    if existing:
+        return dict(existing[0])["id"], False
+    cursor = await db.execute(
+        "INSERT INTO digital_products (product_group_id, name, description) VALUES (?, ?, ?)",
+        (group_id, name, description),
+    )
+    return cursor.lastrowid, True
+
+
 @router.post("/auto-generate")
 async def auto_generate_initiatives(db=Depends(get_db)):
     """Generate initiatives from approved strategies and their OKRs."""
@@ -153,87 +185,135 @@ async def auto_generate_initiatives(db=Depends(get_db)):
     if not strategies:
         return {"error": "No approved strategies found. Approve strategies in Step 4 first."}
 
+    ai_powered = False
     created_initiatives = 0
     created_products = 0
     created_groups = 0
 
-    for s in strategies:
-        s_dict = dict(s)
-        layer = s_dict["layer"]
-        strategy_id = s_dict["id"]
-        group_name = LAYER_LABELS.get(layer, layer.title())
+    # Build strategy lookup for matching AI results
+    strategy_list = [dict(s) for s in strategies]
+    strategy_lookup = {}
+    for s in strategy_list:
+        strategy_lookup[(s["name"], s["layer"])] = s
+        strategy_lookup[s["name"]] = s  # also by name alone for fuzzy matching
 
-        # Ensure product group exists
-        existing_group = await db.execute_fetchall(
-            "SELECT id FROM product_groups WHERE name = ?", (group_name,)
-        )
-        if existing_group:
-            group_id = dict(existing_group[0])["id"]
-        else:
-            cursor = await db.execute(
-                "INSERT INTO product_groups (name, description) VALUES (?, ?)",
-                (group_name, f"Product group for {layer} layer strategies"),
+    # Try AI-powered generation
+    if is_openai_available():
+        context = await gather_initiative_context(db)
+        ai_initiatives = await generate_ai_initiatives(context)
+
+        if ai_initiatives:
+            ai_powered = True
+            for ai_init in ai_initiatives:
+                # Match to strategy
+                s_dict = strategy_lookup.get(
+                    (ai_init["strategy_name"], ai_init["strategy_layer"])
+                ) or strategy_lookup.get(ai_init["strategy_name"])
+
+                if not s_dict:
+                    # Fallback: use first strategy of matching layer
+                    for sl in strategy_list:
+                        if sl["layer"] == ai_init.get("strategy_layer"):
+                            s_dict = sl
+                            break
+                if not s_dict:
+                    s_dict = strategy_list[0]
+
+                layer = s_dict["layer"]
+                strategy_id = s_dict["id"]
+
+                # Ensure product group + digital product
+                group_id, new_group = await _ensure_product_group(db, layer)
+                if new_group:
+                    created_groups += 1
+
+                product_id, new_product = await _ensure_digital_product(
+                    db, group_id, s_dict["name"], s_dict.get("description", "")
+                )
+                if new_product:
+                    created_products += 1
+
+                init_name = ai_init["name"][:80]
+
+                # Skip if already exists
+                existing_init = await db.execute_fetchall(
+                    "SELECT id FROM initiatives WHERE name = ? AND strategy_id = ?",
+                    (init_name, strategy_id),
+                )
+                if existing_init:
+                    continue
+
+                await db.execute(
+                    "INSERT INTO initiatives (digital_product_id, strategy_id, name, description, "
+                    "reach, impact, confidence, effort, value_score, size_score, "
+                    "impacted_segments, dependencies, risks, roadmap_phase, "
+                    "ai_generated, ai_rationale, status) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, 'proposed')",
+                    (product_id, strategy_id, init_name, ai_init.get("description", ""),
+                     ai_init["reach"], ai_init["impact"], ai_init["confidence"], ai_init["effort"],
+                     ai_init.get("value_score", 3), ai_init.get("size_score", 3),
+                     ai_init.get("impacted_segments"), ai_init.get("dependencies"),
+                     ai_init.get("risks"), ai_init.get("roadmap_phase"),
+                     ai_init.get("rationale")),
+                )
+                created_initiatives += 1
+
+    # Fallback: rule-based generation (if AI not available or failed)
+    if not ai_powered:
+        for s in strategy_list:
+            layer = s["layer"]
+            strategy_id = s["id"]
+
+            group_id, new_group = await _ensure_product_group(db, layer)
+            if new_group:
+                created_groups += 1
+
+            product_id, new_product = await _ensure_digital_product(
+                db, group_id, s["name"], s.get("description", "")
             )
-            group_id = cursor.lastrowid
-            created_groups += 1
+            if new_product:
+                created_products += 1
 
-        # Ensure digital product exists for this strategy
-        product_name = s_dict["name"]
-        existing_product = await db.execute_fetchall(
-            "SELECT id FROM digital_products WHERE product_group_id = ? AND name = ?",
-            (group_id, product_name),
-        )
-        if existing_product:
-            product_id = dict(existing_product[0])["id"]
-        else:
-            cursor = await db.execute(
-                "INSERT INTO digital_products (product_group_id, name, description) VALUES (?, ?, ?)",
-                (group_id, product_name, s_dict.get("description", "")),
+            okrs = await db.execute_fetchall(
+                "SELECT * FROM strategic_okrs WHERE strategy_id = ?", (strategy_id,)
             )
-            product_id = cursor.lastrowid
-            created_products += 1
 
-        # Fetch OKRs for this strategy
-        okrs = await db.execute_fetchall(
-            "SELECT * FROM strategic_okrs WHERE strategy_id = ?", (strategy_id,)
-        )
+            rice = LAYER_RICE_DEFAULTS.get(layer, {"reach": 3, "impact": 1, "confidence": 0.8, "effort": 3})
 
-        rice = LAYER_RICE_DEFAULTS.get(layer, {"reach": 3, "impact": 1, "confidence": 0.8, "effort": 3})
+            for okr in okrs:
+                okr_dict = dict(okr)
+                krs = await db.execute_fetchall(
+                    "SELECT key_result FROM strategic_key_results WHERE okr_id = ?", (okr_dict["id"],)
+                )
+                kr_text = "; ".join(dict(kr)["key_result"] for kr in krs) if krs else ""
 
-        for okr in okrs:
-            okr_dict = dict(okr)
-            # Fetch key results for initiative description
-            krs = await db.execute_fetchall(
-                "SELECT key_result FROM strategic_key_results WHERE okr_id = ?", (okr_dict["id"],)
-            )
-            kr_text = "; ".join(dict(kr)["key_result"] for kr in krs) if krs else ""
+                init_name = f"{okr_dict['objective'][:80]}"
+                init_desc = f"Initiative from {layer} strategy '{s['name']}'. Key results: {kr_text}" if kr_text else f"Initiative from {layer} strategy '{s['name']}'"
 
-            init_name = f"{okr_dict['objective'][:80]}"
-            init_desc = f"Initiative from {layer} strategy '{s_dict['name']}'. Key results: {kr_text}" if kr_text else f"Initiative from {layer} strategy '{s_dict['name']}'"
+                existing_init = await db.execute_fetchall(
+                    "SELECT id FROM initiatives WHERE name = ? AND strategy_id = ?",
+                    (init_name, strategy_id),
+                )
+                if existing_init:
+                    continue
 
-            # Skip if already exists (idempotent)
-            existing_init = await db.execute_fetchall(
-                "SELECT id FROM initiatives WHERE name = ? AND strategy_id = ?",
-                (init_name, strategy_id),
-            )
-            if existing_init:
-                continue
-
-            await db.execute(
-                "INSERT INTO initiatives (digital_product_id, strategy_id, name, description, "
-                "reach, impact, confidence, effort, value_score, size_score, status) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'proposed')",
-                (product_id, strategy_id, init_name, init_desc,
-                 rice["reach"], rice["impact"], rice["confidence"], rice["effort"],
-                 3, 3),
-            )
-            created_initiatives += 1
+                await db.execute(
+                    "INSERT INTO initiatives (digital_product_id, strategy_id, name, description, "
+                    "reach, impact, confidence, effort, value_score, size_score, "
+                    "ai_generated, status) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 'proposed')",
+                    (product_id, strategy_id, init_name, init_desc,
+                     rice["reach"], rice["impact"], rice["confidence"], rice["effort"],
+                     3, 3),
+                )
+                created_initiatives += 1
 
     await db.commit()
     return {
         "initiatives": created_initiatives,
         "products": created_products,
         "groups": created_groups,
+        "ai_powered": ai_powered,
     }
 
 

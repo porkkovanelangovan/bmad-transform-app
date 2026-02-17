@@ -195,6 +195,34 @@
         .strategy-card.digital { border-left-color: #2563eb; }
         .strategy-card.data { border-left-color: #d97706; }
         .strategy-card.gen_ai { border-left-color: #7c3aed; }
+        /* Severity & confidence badges */
+        .severity-badge { display: inline-block; padding: 1px 7px; border-radius: 10px; font-size: 10px; font-weight: 600; margin-left: 4px; }
+        .severity-high { background: #7f1d1d; color: #fca5a5; }
+        .severity-medium { background: #713f12; color: #fbbf24; }
+        .severity-low { background: #064e3b; color: #6ee7b7; }
+        .confidence-badge { display: inline-block; padding: 1px 7px; border-radius: 10px; font-size: 10px; margin-left: 2px; }
+        .confidence-high { border: 1.5px solid #6ee7b7; color: #6ee7b7; }
+        .confidence-medium { border: 1.5px dashed #fbbf24; color: #fbbf24; }
+        .confidence-low { border: 1.5px dotted #94a3b8; color: #94a3b8; }
+        /* Risk level badges */
+        .risk-badge { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; }
+        .risk-critical { background: #7f1d1d; color: #fca5a5; }
+        .risk-high { background: #7c2d12; color: #fdba74; }
+        .risk-medium { background: #713f12; color: #fbbf24; }
+        .risk-low { background: #064e3b; color: #6ee7b7; }
+        /* Impact score */
+        .impact-bar { display: inline-block; height: 8px; border-radius: 4px; background: #0ea5e9; min-width: 8px; }
+        .impact-label { font-size: 11px; color: #94a3b8; margin-left: 4px; }
+        /* AI badge */
+        .ai-badge { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; background: #581c87; color: #c4b5fd; }
+        /* Expandable text */
+        .expand-toggle { cursor: pointer; color: #0ea5e9; font-size: 12px; margin-left: 4px; }
+        .expand-toggle:hover { text-decoration: underline; }
+        .sp-badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; background: #1e3a5f; color: #7dd3fc; }
+        .effort-days-badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; background: #064e3b; color: #6ee7b7; }
+        .dep-badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; background: #713f12; color: #fbbf24; }
+        .acceptance-criteria { margin-top: 8px; padding: 10px; background: #0f172a; border-radius: 8px; font-size: 12px; color: #94a3b8; white-space: pre-line; display: none; }
+        .acceptance-criteria.open { display: block; }
         .roadmap-phase { padding: 20px; border-radius: 12px; margin-bottom: 20px; }
         .roadmap-phase.quick-wins { background: #064e3b22; border: 1px solid #065f46; }
         .roadmap-phase.strategic { background: #1e3a5f22; border: 1px solid #1e40af; }
@@ -235,6 +263,81 @@
 
         .sidebar { display: flex; flex-direction: column; }
 
+        /* AI Dashboard */
+        .ai-section { margin-bottom: 16px; }
+        .ai-section-header { display: flex; align-items: center; justify-content: space-between; cursor: pointer; padding: 14px 18px; background: #1e293b; border: 1px solid #334155; border-radius: 10px; transition: all 0.2s; }
+        .ai-section-header:hover { background: #253347; }
+        .ai-section-header h4 { font-size: 14px; color: #f1f5f9; display: flex; align-items: center; gap: 8px; }
+        .ai-section-header .toggle-arrow { color: #64748b; transition: transform 0.2s; font-size: 12px; }
+        .ai-section-header .toggle-arrow.open { transform: rotate(90deg); }
+        .ai-section-body { padding: 18px; background: #1e293b; border: 1px solid #334155; border-top: none; border-radius: 0 0 10px 10px; display: none; }
+        .ai-section-body.open { display: block; }
+        .ai-section.expanded .ai-section-header { border-radius: 10px 10px 0 0; }
+
+        .health-score-circle { width: 100px; height: 100px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 28px; font-weight: 700; margin: 0 auto 12px; }
+        .health-score-bar { display: flex; gap: 4px; margin: 16px 0; }
+        .health-score-bar .step-seg { flex: 1; height: 32px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600; color: #fff; }
+
+        .anomaly-card { background: #1a0a0a; border: 1px solid #dc2626; border-radius: 8px; padding: 14px; margin-bottom: 10px; }
+        .anomaly-card .anomaly-title { font-size: 14px; font-weight: 600; color: #fca5a5; }
+        .anomaly-card .anomaly-detail { font-size: 13px; color: #e2e8f0; margin-top: 4px; }
+
+        .warning-card { background: #1a1400; border: 1px solid #d97706; border-radius: 8px; padding: 14px; margin-bottom: 10px; }
+        .warning-card .warning-title { font-size: 14px; font-weight: 600; color: #fbbf24; }
+        .warning-card .warning-detail { font-size: 13px; color: #e2e8f0; margin-top: 4px; }
+
+        .forecast-card { background: #0f172a; border: 1px solid #334155; border-radius: 8px; padding: 14px; text-align: center; flex: 1; min-width: 180px; }
+        .forecast-card .forecast-val { font-size: 22px; font-weight: 700; color: #38bdf8; }
+        .forecast-card .forecast-range { font-size: 11px; color: #64748b; margin-top: 2px; }
+        .forecast-card .forecast-label { font-size: 11px; color: #94a3b8; margin-top: 4px; text-transform: uppercase; }
+
+        .nlq-chip { display: inline-block; padding: 6px 14px; border-radius: 20px; background: #334155; color: #94a3b8; font-size: 12px; cursor: pointer; margin: 4px; transition: all 0.2s; }
+        .nlq-chip:hover { background: #475569; color: #e2e8f0; }
+
+        .report-section { padding: 18px; background: #0f172a; border: 1px solid #334155; border-radius: 8px; margin-bottom: 12px; }
+        .report-section h5 { font-size: 15px; color: #38bdf8; margin-bottom: 10px; }
+        .report-section .report-content { font-size: 13px; color: #e2e8f0; line-height: 1.7; white-space: pre-wrap; }
+
+        .impact-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+        .impact-grid .impact-col { background: #0f172a; border: 1px solid #334155; border-radius: 8px; padding: 14px; }
+        .impact-grid .impact-col h5 { font-size: 13px; color: #94a3b8; text-transform: uppercase; margin-bottom: 8px; }
+
+        .threat-bar { height: 8px; border-radius: 4px; background: #334155; overflow: hidden; }
+        .threat-bar-fill { height: 100%; border-radius: 4px; }
+
+        .ai-loading { text-align: center; padding: 24px; }
+        .ai-loading .spinner { width: 24px; height: 24px; }
+
+        /* Data Ingestion Hub */
+        .ingest-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; }
+        .ingest-column { display: flex; flex-direction: column; gap: 12px; }
+        .ingest-column h4 { font-size: 14px; color: #f1f5f9; margin-bottom: 4px; }
+        .ingest-column p { font-size: 12px; color: #64748b; }
+        .drop-zone { border: 2px dashed #475569; border-radius: 10px; padding: 28px 16px; text-align: center; cursor: pointer; transition: all 0.2s; background: #0f172a; }
+        .drop-zone:hover, .drop-zone.drag-over { border-color: #0ea5e9; background: #0c1a2e; }
+        .drop-zone .dz-icon { font-size: 28px; color: #475569; margin-bottom: 8px; }
+        .drop-zone .dz-text { font-size: 13px; color: #94a3b8; }
+        .drop-zone .dz-formats { font-size: 11px; color: #64748b; margin-top: 6px; }
+        .source-status { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 500; }
+        .source-status.configured { background: #064e3b; color: #6ee7b7; }
+        .source-status.not-configured { background: #1e293b; color: #64748b; }
+        .url-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        .url-table th { text-align: left; padding: 8px 10px; font-size: 11px; color: #94a3b8; text-transform: uppercase; border-bottom: 1px solid #334155; }
+        .url-table td { padding: 8px 10px; border-bottom: 1px solid #1e293b; }
+        .url-status-success { color: #6ee7b7; }
+        .url-status-error { color: #fca5a5; }
+        .url-status-pending { color: #94a3b8; }
+        .card-collapsible .card-header { display: flex; align-items: center; justify-content: space-between; cursor: pointer; }
+        .card-collapsible .card-header .toggle-arrow { color: #64748b; transition: transform 0.2s; font-size: 14px; margin-right: 8px; }
+        .card-collapsible.expanded .toggle-arrow { transform: rotate(90deg); }
+        .card-collapsible .card-body { display: none; margin-top: 16px; }
+        .card-collapsible.expanded .card-body { display: block; }
+        .refresh-result { padding: 10px 14px; border-radius: 8px; margin-top: 8px; font-size: 13px; }
+        .refresh-result.ok { background: #064e3b; color: #6ee7b7; }
+        .refresh-result.error { background: #7f1d1d; color: #fca5a5; }
+        .refresh-result.skipped { background: #1e293b; color: #64748b; }
+        .btn-lg { padding: 14px 28px; font-size: 15px; font-weight: 600; }
+
         /* Responsive */
         @media (max-width: 768px) {
             .app { flex-direction: column; }
@@ -243,6 +346,8 @@
             .form-group { min-width: 100%; }
             .analysis-grid { grid-template-columns: 1fr; }
             .swot-grid { grid-template-columns: 1fr; }
+            .impact-grid { grid-template-columns: 1fr; }
+            .ingest-grid { grid-template-columns: 1fr; }
         }
     </style>
 </head>
@@ -515,7 +620,7 @@ function showStep(n) {
 }
 
 // ===================== STEP 1: Performance Dashboard =====================
-let step1Phase = 'data'; // 'setup', 'data', 'analysis'
+let step1Phase = 'data'; // 'setup', 'data', 'analysis', 'ai'
 
 async function loadStep1() {
     const org = await api('/step1/organization');
@@ -524,7 +629,9 @@ async function loadStep1() {
         renderStep1Setup();
     } else {
         if (step1Phase === 'setup') step1Phase = 'data';
-        if (step1Phase === 'analysis') {
+        if (step1Phase === 'ai') {
+            renderStep1AI();
+        } else if (step1Phase === 'analysis') {
             renderStep1Analysis();
         } else {
             renderStep1Data(org);
@@ -619,11 +726,12 @@ async function submitOrganization() {
 }
 
 async function renderStep1Data(org) {
-    const [units, revenue, ops, competitors] = await Promise.all([
+    const [units, revenue, ops, competitors, urls] = await Promise.all([
         api('/step1/business-units'),
         api('/step1/revenue-splits'),
         api('/step1/ops-efficiency'),
         api('/step1/competitors'),
+        api('/step1/urls'),
     ]);
 
     document.getElementById('main-content').innerHTML = `
@@ -636,55 +744,255 @@ async function renderStep1Data(org) {
             <button class="phase-tab" onclick="step1Phase='setup'; renderStep1Setup()">Org Setup</button>
             <button class="phase-tab active">Data Tables</button>
             <button class="phase-tab" onclick="step1Phase='analysis'; renderStep1Analysis()">Analysis Dashboard</button>
-            <button class="btn btn-primary btn-sm" onclick="reingestData()" style="margin-left: auto;">Re-fetch Data</button>
+            <button class="phase-tab" onclick="step1Phase='ai'; renderStep1AI()">AI Insights</button>
+        </div>
+
+        <div class="metric-row">
+            <div class="metric-card"><div class="metric-val">${units.length}</div><div class="metric-label">Business Units</div></div>
+            <div class="metric-card"><div class="metric-val">${revenue.length}</div><div class="metric-label">Revenue Records</div></div>
+            <div class="metric-card"><div class="metric-val">${ops.length}</div><div class="metric-label">Ops Metrics</div></div>
+            <div class="metric-card"><div class="metric-val">${competitors.length}</div><div class="metric-label">Competitors</div></div>
         </div>
 
         <div class="card">
-            <h3>Business Units <button class="btn btn-primary btn-sm" onclick="addBusinessUnit()">+ Add</button></h3>
-            ${units.length ? `<table>
-                <tr><th>Name</th><th>Description</th><th></th></tr>
-                ${units.map(u => `<tr>
-                    <td>${u.name}</td><td>${u.description || '-'}</td>
-                    <td><button class="btn btn-danger" onclick="deleteBusinessUnit(${u.id})">Delete</button></td>
-                </tr>`).join('')}
-            </table>` : '<div class="empty"><p>No business units yet. Add one to get started.</p></div>'}
+            <h3>Data Ingestion</h3>
+            <div class="ingest-grid">
+                <div class="ingest-column">
+                    <h4>Upload Documents</h4>
+                    <div class="drop-zone" id="step1-drop-zone" onclick="document.getElementById('step1-file-input').click()">
+                        <div class="dz-icon">&#128196;</div>
+                        <div class="dz-text">Drag & drop files here or click to browse</div>
+                        <div class="dz-formats">CSV, Excel, JSON, PDF, Word, Images</div>
+                    </div>
+                    <input type="file" id="step1-file-input" style="display:none"
+                        accept=".csv,.xlsx,.json,.pdf,.docx,.png,.jpg,.jpeg"
+                        onchange="uploadStep1File()">
+                    <div id="step1-upload-status"></div>
+                </div>
+                <div class="ingest-column">
+                    <h4>Application URLs</h4>
+                    <div class="form-group">
+                        <label>URL</label>
+                        <input type="url" id="step1-url-input" placeholder="https://...">
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Label</label>
+                            <input type="text" id="step1-url-label" placeholder="Optional label">
+                        </div>
+                        <div class="form-group">
+                            <label>Type</label>
+                            <select id="step1-url-type">
+                                <option value="external">External</option>
+                                <option value="internal">Internal App</option>
+                                <option value="investor">Investor Page</option>
+                            </select>
+                        </div>
+                    </div>
+                    <button class="btn btn-primary btn-sm" onclick="addStep1Url()">Add URL</button>
+                </div>
+                <div class="ingest-column">
+                    <h4>Auto-Fetch Sources</h4>
+                    <button class="btn btn-primary btn-lg" onclick="refreshAllSources()" style="width:100%">Refresh All Sources</button>
+                    <div style="margin-top:10px; display:flex; flex-direction:column; gap:6px;">
+                        <span class="source-status configured">Finnhub + Alpha Vantage</span>
+                        <span class="source-status ${(urls || []).length ? 'configured' : 'not-configured'}">${(urls || []).length || 0} Saved URLs</span>
+                    </div>
+                    <div id="step1-refresh-results"></div>
+                </div>
+            </div>
         </div>
 
-        <div class="card">
-            <h3>Revenue Splits <button class="btn btn-primary btn-sm" onclick="addRevenueSplit()">+ Add</button></h3>
-            ${revenue.length ? `<table>
-                <tr><th>Business Unit</th><th>Dimension</th><th>Value</th><th>Revenue</th><th>Period</th></tr>
-                ${revenue.map(r => `<tr>
-                    <td>${r.business_unit_name}</td><td>${r.dimension}</td><td>${r.dimension_value}</td>
-                    <td>$${Number(r.revenue).toLocaleString()}</td><td>${r.period}</td>
+        ${(urls || []).length ? `<div class="card">
+            <h3>Saved URLs <button class="btn btn-primary btn-sm" onclick="fetchAllStep1Urls()">Fetch All URLs</button></h3>
+            <table class="url-table">
+                <tr><th>URL</th><th>Label</th><th>Type</th><th>Status</th><th>Last Fetched</th><th>Actions</th></tr>
+                ${urls.map(u => `<tr>
+                    <td style="max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${u.url}">${u.url}</td>
+                    <td>${u.label || '-'}</td>
+                    <td>${u.url_type || 'external'}</td>
+                    <td><span class="url-status-${u.status || 'pending'}">${u.status || 'pending'}</span></td>
+                    <td>${u.last_fetched_at ? new Date(u.last_fetched_at).toLocaleString() : '-'}</td>
+                    <td>
+                        <button class="btn btn-primary btn-sm" onclick="fetchStep1Url(${u.id})">Fetch</button>
+                        <button class="btn btn-danger" onclick="deleteStep1Url(${u.id})">Del</button>
+                    </td>
                 </tr>`).join('')}
-            </table>` : '<div class="empty"><p>No revenue data yet.</p></div>'}
+            </table>
+        </div>` : ''}
+
+        <div class="card card-collapsible" id="card-bus-units">
+            <div class="card-header" onclick="toggleStep1Card('card-bus-units')">
+                <h3 style="margin-bottom:0"><span class="toggle-arrow">&#9654;</span> Business Units (${units.length}) <button class="btn btn-primary btn-sm" onclick="event.stopPropagation(); addBusinessUnit()">+ Add Manual</button></h3>
+            </div>
+            <div class="card-body">
+                ${units.length ? `<table>
+                    <tr><th>Name</th><th>Description</th><th></th></tr>
+                    ${units.map(u => `<tr>
+                        <td>${u.name}</td><td>${u.description || '-'}</td>
+                        <td><button class="btn btn-danger" onclick="deleteBusinessUnit(${u.id})">Delete</button></td>
+                    </tr>`).join('')}
+                </table>` : '<div class="empty"><p>No business units yet.</p></div>'}
+            </div>
         </div>
 
-        <div class="card">
-            <h3>Ops Efficiency <button class="btn btn-primary btn-sm" onclick="addOpsMetric()">+ Add</button></h3>
-            ${ops.length ? `<table>
-                <tr><th>Business Unit</th><th>Metric</th><th>Value</th><th>Target</th><th>Period</th></tr>
-                ${ops.map(o => `<tr>
-                    <td>${o.business_unit_name}</td><td>${o.metric_name}</td>
-                    <td>${o.metric_value}</td><td>${o.target_value || '-'}</td><td>${o.period}</td>
-                </tr>`).join('')}
-            </table>` : '<div class="empty"><p>No ops metrics yet.</p></div>'}
+        <div class="card card-collapsible" id="card-revenue">
+            <div class="card-header" onclick="toggleStep1Card('card-revenue')">
+                <h3 style="margin-bottom:0"><span class="toggle-arrow">&#9654;</span> Revenue Splits (${revenue.length}) <button class="btn btn-primary btn-sm" onclick="event.stopPropagation(); addRevenueSplit()">+ Add Manual</button></h3>
+            </div>
+            <div class="card-body">
+                ${revenue.length ? `<table>
+                    <tr><th>Business Unit</th><th>Dimension</th><th>Value</th><th>Revenue</th><th>Period</th></tr>
+                    ${revenue.map(r => `<tr>
+                        <td>${r.business_unit_name}</td><td>${r.dimension}</td><td>${r.dimension_value}</td>
+                        <td>$${Number(r.revenue).toLocaleString()}</td><td>${r.period}</td>
+                    </tr>`).join('')}
+                </table>` : '<div class="empty"><p>No revenue data yet.</p></div>'}
+            </div>
         </div>
 
-        <div class="card">
-            <h3>Competitors <button class="btn btn-primary btn-sm" onclick="addCompetitor()">+ Add</button></h3>
-            ${competitors.length ? `<table>
-                <tr><th>Name</th><th>Market Share</th><th>Strengths</th><th>Weaknesses</th></tr>
-                ${competitors.map(c => `<tr>
-                    <td>${c.name}</td><td>${c.market_share ? c.market_share + '%' : '-'}</td>
-                    <td>${c.strengths || '-'}</td><td>${c.weaknesses || '-'}</td>
-                </tr>`).join('')}
-            </table>` : '<div class="empty"><p>No competitor data yet.</p></div>'}
+        <div class="card card-collapsible" id="card-ops">
+            <div class="card-header" onclick="toggleStep1Card('card-ops')">
+                <h3 style="margin-bottom:0"><span class="toggle-arrow">&#9654;</span> Ops Efficiency (${ops.length}) <button class="btn btn-primary btn-sm" onclick="event.stopPropagation(); addOpsMetric()">+ Add Manual</button></h3>
+            </div>
+            <div class="card-body">
+                ${ops.length ? `<table>
+                    <tr><th>Business Unit</th><th>Metric</th><th>Value</th><th>Target</th><th>Period</th></tr>
+                    ${ops.map(o => `<tr>
+                        <td>${o.business_unit_name}</td><td>${o.metric_name}</td>
+                        <td>${o.metric_value}</td><td>${o.target_value || '-'}</td><td>${o.period}</td>
+                    </tr>`).join('')}
+                </table>` : '<div class="empty"><p>No ops metrics yet.</p></div>'}
+            </div>
+        </div>
+
+        <div class="card card-collapsible" id="card-competitors">
+            <div class="card-header" onclick="toggleStep1Card('card-competitors')">
+                <h3 style="margin-bottom:0"><span class="toggle-arrow">&#9654;</span> Competitors (${competitors.length}) <button class="btn btn-primary btn-sm" onclick="event.stopPropagation(); addCompetitor()">+ Add Manual</button></h3>
+            </div>
+            <div class="card-body">
+                ${competitors.length ? `<table>
+                    <tr><th>Name</th><th>Market Share</th><th>Strengths</th><th>Weaknesses</th></tr>
+                    ${competitors.map(c => `<tr>
+                        <td>${c.name}</td><td>${c.market_share ? c.market_share + '%' : '-'}</td>
+                        <td>${c.strengths || '-'}</td><td>${c.weaknesses || '-'}</td>
+                    </tr>`).join('')}
+                </table>` : '<div class="empty"><p>No competitor data yet.</p></div>'}
+            </div>
         </div>
         <div id="step1-gates" style="margin-top:20px;"></div>
     `;
+
+    // Setup drag-and-drop
+    const dz = document.getElementById('step1-drop-zone');
+    if (dz) {
+        dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag-over'); });
+        dz.addEventListener('dragleave', () => dz.classList.remove('drag-over'));
+        dz.addEventListener('drop', e => {
+            e.preventDefault();
+            dz.classList.remove('drag-over');
+            const fi = document.getElementById('step1-file-input');
+            fi.files = e.dataTransfer.files;
+            uploadStep1File();
+        });
+    }
+
     renderStepGates(1, 'step1-gates');
+}
+
+function toggleStep1Card(cardId) {
+    const card = document.getElementById(cardId);
+    if (card) card.classList.toggle('expanded');
+}
+
+async function uploadStep1File() {
+    const fi = document.getElementById('step1-file-input');
+    if (!fi.files.length) return;
+    const statusDiv = document.getElementById('step1-upload-status');
+    statusDiv.innerHTML = '<div class="spinner"></div> Uploading & extracting...';
+    const formData = new FormData();
+    formData.append('file', fi.files[0]);
+    const result = await apiUpload('/step1/upload', formData);
+    fi.value = '';
+    if (result && result.success) {
+        const s = result.summary || {};
+        statusDiv.innerHTML = `<div class="refresh-result ok">Extracted: ${s.business_units || 0} BUs, ${s.revenue_splits || 0} revenue, ${s.ops_efficiency || 0} ops, ${s.competitors || 0} competitors</div>`;
+        toast('File data extracted');
+        setTimeout(() => loadStep1(), 1500);
+    } else {
+        statusDiv.innerHTML = `<div class="refresh-result error">${result?.error || 'Upload failed'}</div>`;
+    }
+}
+
+async function addStep1Url() {
+    const url = document.getElementById('step1-url-input').value.trim();
+    if (!url) { alert('Enter a URL'); return; }
+    const label = document.getElementById('step1-url-label').value.trim();
+    const url_type = document.getElementById('step1-url-type').value;
+    const result = await api('/step1/urls', 'POST', { url, label, url_type });
+    if (result && result.success) {
+        toast('URL added');
+        document.getElementById('step1-url-input').value = '';
+        document.getElementById('step1-url-label').value = '';
+        loadStep1();
+    } else {
+        alert(result?.error || 'Failed to add URL');
+    }
+}
+
+async function deleteStep1Url(id) {
+    if (!confirm('Delete this URL?')) return;
+    await api(`/step1/urls/${id}`, 'DELETE');
+    toast('URL deleted');
+    loadStep1();
+}
+
+async function fetchStep1Url(id) {
+    toast('Fetching URL...');
+    const result = await api(`/step1/urls/${id}/fetch`, 'POST');
+    if (result && result.success) {
+        const s = result.summary || {};
+        toast(`Extracted: ${s.business_units || 0} BUs, ${s.revenue_splits || 0} revenue, ${s.ops_efficiency || 0} ops, ${s.competitors || 0} competitors`);
+        loadStep1();
+    } else {
+        alert(result?.error || 'Fetch failed');
+    }
+}
+
+async function fetchAllStep1Urls() {
+    toast('Fetching all URLs...');
+    const result = await api('/step1/urls/fetch-all', 'POST');
+    if (result && result.success) {
+        const count = (result.results || []).filter(r => r.status === 'success').length;
+        toast(`Fetched ${count} of ${(result.results || []).length} URLs`);
+        loadStep1();
+    } else {
+        alert(result?.error || 'Fetch all failed');
+    }
+}
+
+async function refreshAllSources() {
+    const resDiv = document.getElementById('step1-refresh-results');
+    resDiv.innerHTML = '<div class="spinner"></div> Refreshing all sources...';
+    const result = await api('/step1/refresh-all', 'POST');
+    if (result && result.success) {
+        const sources = result.sources || {};
+        let html = '';
+        for (const [src, info] of Object.entries(sources)) {
+            const status = info.status || 'skipped';
+            const label = src.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+            let detail = '';
+            if (status === 'ok') detail = info.summary ? JSON.stringify(info.summary) : (info.message || 'Done');
+            else if (status === 'error') detail = info.error || 'Error';
+            else detail = info.reason || 'Skipped';
+            html += `<div class="refresh-result ${status}">${label}: ${detail}</div>`;
+        }
+        resDiv.innerHTML = html;
+        toast('All sources refreshed');
+        setTimeout(() => loadStep1(), 2000);
+    } else {
+        resDiv.innerHTML = `<div class="refresh-result error">${result?.error || 'Refresh failed'}</div>`;
+    }
 }
 
 async function reingestData() {
@@ -832,6 +1140,7 @@ async function renderStep1Analysis() {
             <button class="phase-tab" onclick="step1Phase='setup'; renderStep1Setup()">Org Setup</button>
             <button class="phase-tab" onclick="step1Phase='data'; loadStep1()">Data Tables</button>
             <button class="phase-tab active">Analysis Dashboard</button>
+            <button class="phase-tab" onclick="step1Phase='ai'; renderStep1AI()">AI Insights</button>
         </div>
 
         ${org.market_cap ? `<div class="metric-row">
@@ -858,19 +1167,19 @@ async function renderStep1Analysis() {
             <div class="swot-grid">
                 <div class="swot-quad strengths">
                     <h4>Strengths</h4>
-                    <ul>${swot.strengths.map(s => `<li>${s}</li>`).join('')}</ul>
+                    <ul>${swot.strengths.map(s => `<li>${typeof s === 'string' ? s : s.description}</li>`).join('')}</ul>
                 </div>
                 <div class="swot-quad weaknesses">
                     <h4>Weaknesses</h4>
-                    <ul>${swot.weaknesses.map(w => `<li>${w}</li>`).join('')}</ul>
+                    <ul>${swot.weaknesses.map(w => `<li>${typeof w === 'string' ? w : w.description}</li>`).join('')}</ul>
                 </div>
                 <div class="swot-quad opportunities">
                     <h4>Opportunities</h4>
-                    <ul>${swot.opportunities.map(o => `<li>${o}</li>`).join('')}</ul>
+                    <ul>${swot.opportunities.map(o => `<li>${typeof o === 'string' ? o : o.description}</li>`).join('')}</ul>
                 </div>
                 <div class="swot-quad threats">
                     <h4>Threats</h4>
-                    <ul>${swot.threats.map(t => `<li>${t}</li>`).join('')}</ul>
+                    <ul>${swot.threats.map(t => `<li>${typeof t === 'string' ? t : t.description}</li>`).join('')}</ul>
                 </div>
             </div>
         </div>
@@ -883,10 +1192,10 @@ async function saveSwotToStep3() {
     const data = await api('/step1/analysis');
     const swot = data.swot;
     const entries = [];
-    swot.strengths.forEach(s => entries.push({ category: 'strength', description: s }));
-    swot.weaknesses.forEach(w => entries.push({ category: 'weakness', description: w }));
-    swot.opportunities.forEach(o => entries.push({ category: 'opportunity', description: o }));
-    swot.threats.forEach(t => entries.push({ category: 'threat', description: t }));
+    swot.strengths.forEach(s => entries.push({ category: 'strength', description: typeof s === 'string' ? s : s.description, severity: (s && s.severity) || 'medium', confidence: (s && s.confidence) || 'medium' }));
+    swot.weaknesses.forEach(w => entries.push({ category: 'weakness', description: typeof w === 'string' ? w : w.description, severity: (w && w.severity) || 'medium', confidence: (w && w.confidence) || 'medium' }));
+    swot.opportunities.forEach(o => entries.push({ category: 'opportunity', description: typeof o === 'string' ? o : o.description, severity: (o && o.severity) || 'medium', confidence: (o && o.confidence) || 'medium' }));
+    swot.threats.forEach(t => entries.push({ category: 'threat', description: typeof t === 'string' ? t : t.description, severity: (t && t.severity) || 'medium', confidence: (t && t.confidence) || 'medium' }));
     const result = await api('/step1/analysis/save-swot', 'POST', { entries });
     toast(`${result.saved || 0} SWOT entries saved to Step 3`);
 }
@@ -942,6 +1251,618 @@ async function addCompetitor() {
     await api('/step1/competitors', 'POST', { name, market_share: market_share ? +market_share : null, strengths, weaknesses });
     toast('Competitor added');
     loadStep1();
+}
+
+// ===================== STEP 1: AI Insights =====================
+
+function toggleAiSection(id) {
+    const section = document.getElementById(id);
+    const body = section.querySelector('.ai-section-body');
+    const arrow = section.querySelector('.toggle-arrow');
+    const isOpen = body.classList.contains('open');
+    body.classList.toggle('open');
+    arrow.classList.toggle('open');
+    section.classList.toggle('expanded');
+}
+
+function aiSectionHtml(id, icon, title, bodyId) {
+    return `<div class="ai-section" id="${id}">
+        <div class="ai-section-header" onclick="toggleAiSection('${id}')">
+            <h4>${icon} ${title} <span class="ai-badge">AI</span></h4>
+            <span class="toggle-arrow">&#9654;</span>
+        </div>
+        <div class="ai-section-body" id="${bodyId}"></div>
+    </div>`;
+}
+
+async function renderStep1AI() {
+    document.getElementById('main-content').innerHTML = `
+        <div class="page-header">
+            <h2>Step 1: AI-Powered Insights</h2>
+            <p>AI analysis, forecasting, anomaly detection, and natural language querying across all transformation data.</p>
+        </div>
+
+        <div class="phase-tabs">
+            <button class="phase-tab" onclick="step1Phase='setup'; renderStep1Setup()">Org Setup</button>
+            <button class="phase-tab" onclick="step1Phase='data'; loadStep1()">Data Tables</button>
+            <button class="phase-tab" onclick="step1Phase='analysis'; renderStep1Analysis()">Analysis Dashboard</button>
+            <button class="phase-tab active">AI Insights</button>
+        </div>
+
+        ${aiSectionHtml('ai-sec-exec', '&#128202;', 'Executive Summary', 'ai-body-exec')}
+        ${aiSectionHtml('ai-sec-financial', '&#128176;', 'AI Financial Analysis', 'ai-body-financial')}
+        ${aiSectionHtml('ai-sec-trends', '&#128200;', 'Trends & Forecasting', 'ai-body-trends')}
+        ${aiSectionHtml('ai-sec-anomaly', '&#9888;', 'Anomaly Detection', 'ai-body-anomaly')}
+        ${aiSectionHtml('ai-sec-competitors', '&#127942;', 'Competitor Discovery', 'ai-body-competitors')}
+        ${aiSectionHtml('ai-sec-enrich', '&#128269;', 'Data Enrichment', 'ai-body-enrich')}
+        ${aiSectionHtml('ai-sec-health', '&#128154;', 'Transformation Health', 'ai-body-health')}
+        ${aiSectionHtml('ai-sec-nlq', '&#128172;', 'Ask a Question', 'ai-body-nlq')}
+        ${aiSectionHtml('ai-sec-scenario', '&#127919;', 'What-If Scenarios', 'ai-body-scenario')}
+        ${aiSectionHtml('ai-sec-report', '&#128196;', 'Report Generation', 'ai-body-report')}
+        <div id="step1-gates" style="margin-top:20px;"></div>
+    `;
+
+    // Pre-populate section bodies with controls
+    _initExecSection();
+    _initFinancialSection();
+    _initTrendsSection();
+    _initAnomalySection();
+    _initCompetitorSection();
+    _initEnrichSection();
+    _initHealthSection();
+    _initNlqSection();
+    _initScenarioSection();
+    _initReportSection();
+    renderStepGates(1, 'step1-gates');
+}
+
+function _initExecSection() {
+    document.getElementById('ai-body-exec').innerHTML = `
+        <button class="btn btn-primary btn-sm" onclick="generateExecSummary(false)">Generate Summary</button>
+        <button class="btn btn-sm" style="background:#334155;color:#94a3b8;margin-left:8px;" onclick="generateExecSummary(true)">Refresh</button>
+        <div id="exec-result" style="margin-top:16px;"></div>`;
+}
+
+function _initFinancialSection() {
+    document.getElementById('ai-body-financial').innerHTML = `
+        <button class="btn btn-primary btn-sm" onclick="generateFinancialAnalysis()">Analyze Financials</button>
+        <div id="financial-result" style="margin-top:16px;"></div>`;
+}
+
+function _initTrendsSection() {
+    document.getElementById('ai-body-trends').innerHTML = `
+        <button class="btn btn-primary btn-sm" onclick="generateTrendAnalysis()">Forecast Trends</button>
+        <div id="trends-result" style="margin-top:16px;"></div>`;
+}
+
+function _initAnomalySection() {
+    document.getElementById('ai-body-anomaly').innerHTML = `
+        <button class="btn btn-primary btn-sm" onclick="runAnomalyDetection()">Scan for Anomalies</button>
+        <div id="anomaly-result" style="margin-top:16px;"></div>`;
+}
+
+function _initCompetitorSection() {
+    document.getElementById('ai-body-competitors').innerHTML = `
+        <button class="btn btn-primary btn-sm" onclick="discoverCompetitors()">Discover Competitors</button>
+        <div id="competitor-result" style="margin-top:16px;"></div>`;
+}
+
+function _initEnrichSection() {
+    document.getElementById('ai-body-enrich').innerHTML = `
+        <button class="btn btn-primary btn-sm" onclick="getEnrichmentSuggestions()">Get Suggestions</button>
+        <div id="enrich-result" style="margin-top:16px;"></div>`;
+}
+
+function _initHealthSection() {
+    document.getElementById('ai-body-health').innerHTML = `
+        <button class="btn btn-primary btn-sm" onclick="checkTransformationHealth()">Assess Health</button>
+        <div id="health-result" style="margin-top:16px;"></div>`;
+}
+
+function _initNlqSection() {
+    document.getElementById('ai-body-nlq').innerHTML = `
+        <div class="form-row">
+            <div class="form-group" style="flex:4;">
+                <input type="text" id="nlq-input" placeholder="Ask anything about your organization data..." onkeydown="if(event.key==='Enter')askQuestion()" />
+            </div>
+            <div class="form-group" style="flex:0;min-width:auto;">
+                <button class="btn btn-primary" onclick="askQuestion()">Ask</button>
+            </div>
+        </div>
+        <div id="nlq-result" style="margin-top:12px;"></div>`;
+}
+
+function _initScenarioSection() {
+    document.getElementById('ai-body-scenario').innerHTML = `
+        <div class="form-row">
+            <div class="form-group">
+                <label>Scenario Type</label>
+                <select id="scenario-type">
+                    <option value="revenue_change">Revenue Change</option>
+                    <option value="market_entry">Market Entry</option>
+                    <option value="cost_change">Cost Change</option>
+                    <option value="custom">Custom</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Scenario Name</label>
+                <input type="text" id="scenario-name" placeholder="e.g. 20% Revenue Growth" />
+            </div>
+        </div>
+        <div class="form-group" style="margin-bottom:12px;">
+            <label>Description / Parameters</label>
+            <textarea id="scenario-desc" rows="2" placeholder="Describe the scenario... e.g. Revenue increases by 20% due to new product launch"></textarea>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="runScenario()">Model Scenario</button>
+        <div id="scenario-result" style="margin-top:16px;"></div>`;
+}
+
+function _initReportSection() {
+    document.getElementById('ai-body-report').innerHTML = `
+        <div class="form-row" style="align-items:flex-end;">
+            <div class="form-group">
+                <label>Audience</label>
+                <select id="report-audience">
+                    <option value="c_suite">C-Suite</option>
+                    <option value="board">Board</option>
+                    <option value="technical">Technical</option>
+                </select>
+            </div>
+            <div class="form-group" style="flex:0;min-width:auto;">
+                <button class="btn btn-primary" onclick="generateReport()">Generate Report</button>
+            </div>
+        </div>
+        <div id="report-result" style="margin-top:16px;"></div>`;
+}
+
+// --- AI Section JS Functions ---
+
+function _showLoading(el) { el.innerHTML = '<div class="ai-loading"><div class="spinner"></div><p style="color:#94a3b8;font-size:13px;margin-top:8px;">Analyzing with AI...</p></div>'; }
+function _showError(el, msg) { el.innerHTML = `<div style="color:#fca5a5;font-size:13px;">${msg}</div>`; }
+function _severityBadge(s) { return `<span class="severity-badge severity-${s||'medium'}">${s||'medium'}</span>`; }
+function _confidenceBadge(c) { return `<span class="confidence-badge confidence-${c||'medium'}">${c||'medium'}</span>`; }
+function _impactBadge(i) {
+    const colors = {high:'severity-high',medium:'severity-medium',low:'severity-low'};
+    return `<span class="severity-badge ${colors[i]||'severity-medium'}">${i||'medium'}</span>`;
+}
+function _scoreColor(s) {
+    if (s >= 75) return '#059669';
+    if (s >= 50) return '#d97706';
+    if (s >= 25) return '#f97316';
+    return '#dc2626';
+}
+
+async function generateExecSummary(refresh) {
+    const el = document.getElementById('exec-result');
+    _showLoading(el);
+    const data = await api('/step1/ai/executive-summary', 'POST', { refresh: !!refresh });
+    if (data.error) { _showError(el, data.error); return; }
+    if (!data.ai_powered) { _showError(el, data.message); return; }
+
+    el.innerHTML = `
+        <div style="font-size:18px;font-weight:700;color:#38bdf8;margin-bottom:12px;">${data.headline || ''}</div>
+        ${(data.summary_paragraphs||[]).map(p => `<p style="font-size:13px;color:#e2e8f0;margin-bottom:10px;line-height:1.6;">${p}</p>`).join('')}
+        ${data.key_findings && data.key_findings.length ? `
+            <h4 style="font-size:14px;margin:16px 0 8px;color:#f1f5f9;">Key Findings</h4>
+            ${data.key_findings.map(f => `<div style="padding:8px 12px;background:#0f172a;border-radius:6px;margin-bottom:6px;font-size:13px;">
+                ${f.finding} ${_impactBadge(f.impact)} <span class="confidence-badge confidence-${f.action_required==='immediate'?'high':f.action_required==='short_term'?'medium':'low'}">${(f.action_required||'').replace('_',' ')}</span>
+            </div>`).join('')}` : ''}
+        ${data.competitor_narrative ? `<div style="margin-top:12px;padding:12px;background:#1e3a5f33;border-radius:8px;font-size:13px;color:#7dd3fc;"><strong>Competitive Position:</strong> ${data.competitor_narrative}</div>` : ''}
+        ${data.strategic_implications && data.strategic_implications.length ? `
+            <h4 style="font-size:14px;margin:16px 0 8px;color:#f1f5f9;">Strategic Implications</h4>
+            ${data.strategic_implications.map(si => `<div style="padding:8px 12px;background:#0f172a;border-radius:6px;margin-bottom:6px;font-size:13px;">
+                ${si.implication} <span class="severity-badge severity-medium">${(si.timeframe||'').replace('_',' ')}</span>
+                ${si.recommended_action ? `<div style="color:#94a3b8;margin-top:4px;font-size:12px;">Action: ${si.recommended_action}</div>` : ''}
+            </div>`).join('')}` : ''}
+        ${data.cached ? '<div style="margin-top:8px;font-size:11px;color:#64748b;">Cached result. Click Refresh for new analysis.</div>' : ''}
+    `;
+}
+
+async function generateFinancialAnalysis() {
+    const el = document.getElementById('financial-result');
+    _showLoading(el);
+    const data = await api('/step1/ai/financial-analysis', 'POST', {});
+    if (data.error) { _showError(el, data.error); return; }
+    if (!data.ai_powered) { _showError(el, data.message); return; }
+
+    const swotHtml = ['strengths','weaknesses','opportunities','threats'].map(cat => `
+        <div class="swot-quad ${cat}">
+            <h4>${cat.charAt(0).toUpperCase()+cat.slice(1)}</h4>
+            <ul>${(data[cat]||[]).map(e => `<li>${e.description||e} ${_severityBadge(e.severity)} ${_confidenceBadge(e.confidence)}</li>`).join('')}</ul>
+        </div>`).join('');
+
+    el.innerHTML = `
+        <div class="swot-grid">${swotHtml}</div>
+        ${data.key_insights && data.key_insights.length ? `
+            <h4 style="font-size:14px;margin:16px 0 8px;color:#f1f5f9;">Key Insights</h4>
+            ${data.key_insights.map(ki => `<div style="padding:10px 12px;background:#0f172a;border-radius:6px;margin-bottom:6px;font-size:13px;">
+                <div style="font-weight:600;color:#38bdf8;">${ki.insight}</div>
+                ${ki.supporting_data ? `<div style="color:#94a3b8;margin-top:4px;font-size:12px;">${ki.supporting_data}</div>` : ''}
+                ${ki.strategic_implication ? `<div style="color:#6ee7b7;margin-top:2px;font-size:12px;">Implication: ${ki.strategic_implication}</div>` : ''}
+            </div>`).join('')}` : ''}
+        <div style="margin-top:12px;display:flex;gap:12px;align-items:center;">
+            <div style="font-size:12px;color:#94a3b8;">Data Quality:</div>
+            <div style="flex:1;height:8px;background:#334155;border-radius:4px;overflow:hidden;"><div style="height:100%;width:${data.data_quality_score||0}%;background:${_scoreColor(data.data_quality_score||0)};border-radius:4px;"></div></div>
+            <div style="font-size:12px;font-weight:600;color:${_scoreColor(data.data_quality_score||0)};">${data.data_quality_score||0}%</div>
+            ${_confidenceBadge(data.analysis_confidence)}
+        </div>
+        ${data.cached ? '<div style="margin-top:8px;font-size:11px;color:#64748b;">Cached result.</div>' : ''}
+    `;
+}
+
+async function generateTrendAnalysis() {
+    const el = document.getElementById('trends-result');
+    _showLoading(el);
+    const data = await api('/step1/ai/trend-analysis');
+    if (data.error) { _showError(el, data.error); return; }
+    if (!data.ai_powered) { _showError(el, data.message); return; }
+
+    const rt = data.revenue_trend || {};
+    const dirColors = {growing:'#059669',declining:'#dc2626',stable:'#d97706',volatile:'#a78bfa'};
+
+    el.innerHTML = `
+        <div class="metric-row">
+            <div class="metric-card"><div class="metric-val" style="color:${dirColors[rt.direction]||'#38bdf8'}">${(rt.direction||'N/A').toUpperCase()}</div><div class="metric-label">Direction</div></div>
+            <div class="metric-card"><div class="metric-val">${rt.cagr_pct != null ? rt.cagr_pct.toFixed(1)+'%' : 'N/A'}</div><div class="metric-label">CAGR</div></div>
+        </div>
+        ${rt.narrative ? `<p style="font-size:13px;color:#e2e8f0;margin:12px 0;line-height:1.6;">${rt.narrative}</p>` : ''}
+        ${rt.yoy_growth_rates && rt.yoy_growth_rates.length ? `
+            <h4 style="font-size:13px;color:#94a3b8;margin:12px 0 8px;">Year-over-Year Growth</h4>
+            <table><tr><th>Period</th><th>Growth Rate</th></tr>
+            ${rt.yoy_growth_rates.map(y => `<tr><td>${y.period||''}</td><td style="color:${(y.rate_pct||0)>=0?'#6ee7b7':'#fca5a5'}">${y.rate_pct != null ? y.rate_pct.toFixed(1)+'%' : '-'}</td></tr>`).join('')}
+            </table>` : ''}
+        ${data.forecasts && data.forecasts.length ? `
+            <h4 style="font-size:13px;color:#94a3b8;margin:16px 0 8px;">Forecasts</h4>
+            <div class="metric-row">${data.forecasts.map(f => `
+                <div class="forecast-card">
+                    <div class="forecast-val">${fmtRevenue(f.revenue_estimate)}</div>
+                    <div class="forecast-range">${f.confidence_interval_low ? fmtRevenue(f.confidence_interval_low)+' — '+fmtRevenue(f.confidence_interval_high) : ''}</div>
+                    <div class="forecast-label">${f.period||'Forecast'}</div>
+                    ${f.methodology ? `<div style="font-size:10px;color:#64748b;margin-top:4px;">${f.methodology}</div>` : ''}
+                </div>`).join('')}</div>` : ''}
+        ${data.metric_trajectories && data.metric_trajectories.length ? `
+            <h4 style="font-size:13px;color:#94a3b8;margin:16px 0 8px;">Metric Trajectories</h4>
+            <table><tr><th>Metric</th><th>Current</th><th>Trajectory</th><th>Rate of Change</th></tr>
+            ${data.metric_trajectories.map(mt => {
+                const trajColor = mt.trajectory==='improving'?'#6ee7b7':mt.trajectory==='declining'?'#fca5a5':'#fbbf24';
+                const trajArrow = mt.trajectory==='improving'?'&#9650;':mt.trajectory==='declining'?'&#9660;':'&#9654;';
+                return `<tr><td>${mt.metric_name||''}</td><td>${mt.current_value!=null?mt.current_value:'-'}</td><td style="color:${trajColor}">${trajArrow} ${mt.trajectory||''}</td><td>${mt.rate_of_change||'-'}</td></tr>`;
+            }).join('')}</table>` : ''}
+        ${data.risk_indicators && data.risk_indicators.length ? `
+            <h4 style="font-size:13px;color:#fca5a5;margin:16px 0 8px;">Risk Indicators</h4>
+            <ul style="list-style:none;padding:0;">${data.risk_indicators.map(r => `<li style="font-size:13px;color:#fca5a5;margin-bottom:4px;">&#9888; ${r}</li>`).join('')}</ul>` : ''}
+    `;
+}
+
+async function runAnomalyDetection() {
+    const el = document.getElementById('anomaly-result');
+    _showLoading(el);
+    const data = await api('/step1/ai/anomaly-detection');
+    if (data.error) { _showError(el, data.error); return; }
+    if (!data.ai_powered) { _showError(el, data.message); return; }
+
+    const health = data.overall_data_health || {};
+
+    el.innerHTML = `
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
+            <div style="font-size:13px;color:#94a3b8;">Data Health Score:</div>
+            <div style="flex:1;height:10px;background:#334155;border-radius:5px;overflow:hidden;"><div style="height:100%;width:${health.score||0}%;background:${_scoreColor(health.score||0)};border-radius:5px;"></div></div>
+            <div style="font-size:14px;font-weight:700;color:${_scoreColor(health.score||0)};">${health.score||0}/100</div>
+        </div>
+        ${data.anomalies && data.anomalies.length ? `
+            <h4 style="font-size:14px;color:#fca5a5;margin-bottom:8px;">Anomalies Detected</h4>
+            ${data.anomalies.map(a => `<div class="anomaly-card">
+                <div class="anomaly-title">${a.metric_name||''} — ${a.entity||''} ${_severityBadge(a.severity)}</div>
+                <div class="anomaly-detail">Value: ${a.value!=null?a.value:'-'} | Expected: ${a.expected_range||'-'}</div>
+                ${a.explanation ? `<div class="anomaly-detail" style="color:#94a3b8;">${a.explanation}</div>` : ''}
+                ${a.possible_cause ? `<div class="anomaly-detail" style="color:#fbbf24;font-size:12px;">Possible cause: ${a.possible_cause}</div>` : ''}
+            </div>`).join('')}` : '<p style="color:#6ee7b7;font-size:13px;">No anomalies detected.</p>'}
+        ${data.data_quality_issues && data.data_quality_issues.length ? `
+            <h4 style="font-size:14px;color:#fbbf24;margin:16px 0 8px;">Data Quality Issues</h4>
+            ${data.data_quality_issues.map(dq => `<div class="warning-card">
+                <div class="warning-title">${dq.issue||''}</div>
+                <div class="warning-detail">${dq.affected_entity ? 'Affected: '+dq.affected_entity : ''}</div>
+                ${dq.recommendation ? `<div class="warning-detail" style="color:#94a3b8;font-size:12px;">Recommendation: ${dq.recommendation}</div>` : ''}
+            </div>`).join('')}` : ''}
+        ${data.benchmark_deviations && data.benchmark_deviations.length ? `
+            <h4 style="font-size:14px;color:#94a3b8;margin:16px 0 8px;">Benchmark Deviations</h4>
+            <table><tr><th>Metric</th><th>Entity</th><th>Deviation</th><th>Direction</th><th>Significance</th></tr>
+            ${data.benchmark_deviations.map(bd => `<tr>
+                <td>${bd.metric||''}</td><td>${bd.entity||''}</td>
+                <td>${bd.deviation_pct!=null?bd.deviation_pct.toFixed(1)+'%':'-'}</td>
+                <td style="color:${bd.direction==='above'?'#6ee7b7':'#fca5a5'}">${bd.direction||''}</td>
+                <td>${_severityBadge(bd.significance==='significant'?'high':bd.significance==='moderate'?'medium':'low')}</td>
+            </tr>`).join('')}</table>` : ''}
+        ${health.missing_critical_fields && health.missing_critical_fields.length ? `
+            <div style="margin-top:12px;font-size:12px;color:#94a3b8;">Missing fields: ${health.missing_critical_fields.join(', ')}</div>` : ''}
+    `;
+}
+
+async function discoverCompetitors() {
+    const el = document.getElementById('competitor-result');
+    _showLoading(el);
+    const data = await api('/step1/ai/discover-competitors', 'POST', {});
+    if (data.error) { _showError(el, data.error); return; }
+    if (!data.ai_powered) { _showError(el, data.message); return; }
+
+    const pos = data.competitive_positioning || {};
+
+    el.innerHTML = `
+        ${data.discovered_competitors && data.discovered_competitors.length ? `
+            <h4 style="font-size:14px;color:#f1f5f9;margin-bottom:8px;">Discovered Competitors</h4>
+            <table><tr><th>Name</th><th>Ticker</th><th>Relevance</th><th>Threat</th><th>Rationale</th><th></th></tr>
+            ${data.discovered_competitors.map((c,i) => {
+                const threatPct = (c.threat_score||5)*10;
+                const threatColor = c.threat_score>=7?'#dc2626':c.threat_score>=4?'#d97706':'#059669';
+                return `<tr>
+                    <td><strong>${c.name||''}</strong></td><td>${c.ticker||'-'}</td>
+                    <td><span class="severity-badge severity-${c.relevance==='direct'?'high':c.relevance==='emerging'?'medium':'low'}">${c.relevance||''}</span></td>
+                    <td><div class="threat-bar" style="width:80px;"><div class="threat-bar-fill" style="width:${threatPct}%;background:${threatColor};"></div></div> <span style="font-size:11px;color:${threatColor};">${c.threat_score}/10</span></td>
+                    <td style="font-size:12px;color:#94a3b8;max-width:200px;">${c.rationale||''}</td>
+                    <td><button class="btn btn-success btn-sm" onclick="saveDiscoveredCompetitor(${i})">Save</button></td>
+                </tr>`;
+            }).join('')}</table>` : '<p style="color:#94a3b8;font-size:13px;">No new competitors discovered.</p>'}
+        ${pos.org_position ? `
+            <div style="margin-top:16px;padding:14px;background:#0f172a;border-radius:8px;">
+                <h4 style="font-size:13px;color:#94a3b8;margin-bottom:8px;">Competitive Positioning</h4>
+                <div style="font-size:14px;font-weight:600;color:#38bdf8;margin-bottom:8px;">Position: ${(pos.org_position||'').replace('_',' ').toUpperCase()}</div>
+                ${pos.market_dynamics ? `<p style="font-size:13px;color:#e2e8f0;margin-bottom:8px;">${pos.market_dynamics}</p>` : ''}
+                ${pos.key_differentiators && pos.key_differentiators.length ? `<div style="font-size:12px;color:#6ee7b7;">Differentiators: ${pos.key_differentiators.join(', ')}</div>` : ''}
+                ${pos.vulnerability_areas && pos.vulnerability_areas.length ? `<div style="font-size:12px;color:#fca5a5;margin-top:4px;">Vulnerabilities: ${pos.vulnerability_areas.join(', ')}</div>` : ''}
+            </div>` : ''}
+        ${data.market_opportunities && data.market_opportunities.length ? `
+            <h4 style="font-size:14px;color:#f1f5f9;margin:16px 0 8px;">Market Opportunities</h4>
+            ${data.market_opportunities.map(mo => `<div style="padding:8px 12px;background:#0f172a;border-radius:6px;margin-bottom:6px;font-size:13px;">
+                <div>${mo.opportunity||''} ${_impactBadge(mo.estimated_impact)}</div>
+                ${mo.competitor_gap ? `<div style="font-size:12px;color:#94a3b8;margin-top:2px;">Gap: ${mo.competitor_gap}</div>` : ''}
+            </div>`).join('')}` : ''}
+    `;
+
+    // Store competitors data for save function
+    window._discoveredCompetitors = data.discovered_competitors || [];
+}
+
+async function saveDiscoveredCompetitor(index) {
+    const comps = window._discoveredCompetitors || [];
+    if (!comps[index]) return;
+    const result = await api('/step1/ai/discover-competitors/save', 'POST', { competitors: [comps[index]] });
+    toast(`${result.saved||0} competitor saved`);
+}
+
+async function getEnrichmentSuggestions() {
+    const el = document.getElementById('enrich-result');
+    _showLoading(el);
+    const data = await api('/step1/ai/enrichment-suggestions');
+    if (data.error) { _showError(el, data.error); return; }
+    if (!data.ai_powered) { _showError(el, data.message); return; }
+
+    el.innerHTML = `
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
+            <div style="font-size:13px;color:#94a3b8;">Data Completeness:</div>
+            <div style="flex:1;height:10px;background:#334155;border-radius:5px;overflow:hidden;"><div style="height:100%;width:${data.data_completeness_score||0}%;background:${_scoreColor(data.data_completeness_score||0)};border-radius:5px;"></div></div>
+            <div style="font-size:14px;font-weight:700;color:${_scoreColor(data.data_completeness_score||0)};">${data.data_completeness_score||0}%</div>
+        </div>
+        ${data.missing_metrics && data.missing_metrics.length ? `
+            <h4 style="font-size:14px;color:#f1f5f9;margin-bottom:8px;">Missing Metrics</h4>
+            ${data.missing_metrics.map(mm => `<div style="padding:10px 12px;background:#0f172a;border-radius:6px;margin-bottom:6px;font-size:13px;">
+                <div><strong>${mm.metric_name||''}</strong> ${_impactBadge(mm.importance)}</div>
+                ${mm.industry_typical_range ? `<div style="font-size:12px;color:#94a3b8;margin-top:2px;">Typical range: ${mm.industry_typical_range}</div>` : ''}
+                ${mm.how_to_obtain ? `<div style="font-size:12px;color:#7dd3fc;margin-top:2px;">How: ${mm.how_to_obtain}</div>` : ''}
+            </div>`).join('')}` : ''}
+        ${data.suggested_business_units && data.suggested_business_units.length ? `
+            <h4 style="font-size:14px;color:#f1f5f9;margin:16px 0 8px;">Suggested Business Units</h4>
+            <div style="display:flex;flex-wrap:wrap;gap:8px;">
+            ${data.suggested_business_units.map(bu => `<div class="nlq-chip" title="${bu.rationale||''}">${bu.name||''}</div>`).join('')}
+            </div>` : ''}
+        ${data.revenue_dimensions && data.revenue_dimensions.length ? `
+            <h4 style="font-size:14px;color:#f1f5f9;margin:16px 0 8px;">Revenue Dimensions</h4>
+            ${data.revenue_dimensions.map(rd => `<div style="padding:8px 12px;background:#0f172a;border-radius:6px;margin-bottom:4px;font-size:13px;">
+                <span class="severity-badge severity-medium">${rd.dimension||''}</span> ${rd.dimension_value||''} <span style="font-size:11px;color:#94a3b8;">— ${rd.rationale||''}</span>
+            </div>`).join('')}` : ''}
+        ${data.priority_actions && data.priority_actions.length ? `
+            <h4 style="font-size:14px;color:#f1f5f9;margin:16px 0 8px;">Priority Actions</h4>
+            <ol style="padding-left:18px;">${data.priority_actions.map(pa => `<li style="font-size:13px;color:#e2e8f0;margin-bottom:4px;">${pa}</li>`).join('')}</ol>` : ''}
+    `;
+}
+
+async function checkTransformationHealth() {
+    const el = document.getElementById('health-result');
+    _showLoading(el);
+    const data = await api('/step1/ai/transformation-health');
+    if (data.error) { _showError(el, data.error); return; }
+    if (!data.ai_powered) { _showError(el, data.message); return; }
+
+    const score = data.overall_health_score || 0;
+    const readinessColors = {ready:'#059669',nearly_ready:'#d97706',needs_work:'#f97316',not_ready:'#dc2626'};
+    const stepNames = ['','Performance Dashboard','Value Stream Analysis','SWOT/TOWS Engine','Strategy & OKRs','Initiatives & RICE','Epics & Roadmap','Features & Roadmap'];
+
+    el.innerHTML = `
+        <div style="text-align:center;margin-bottom:16px;">
+            <div class="health-score-circle" style="background:${_scoreColor(score)}22;border:3px solid ${_scoreColor(score)};">
+                <span style="color:${_scoreColor(score)};">${score}</span>
+            </div>
+            <div style="font-size:14px;font-weight:600;color:${readinessColors[data.transformation_readiness]||'#94a3b8'};">${(data.transformation_readiness||'').replace('_',' ').toUpperCase()}</div>
+        </div>
+        ${data.step_scores && data.step_scores.length ? `
+            <div class="health-score-bar">
+                ${data.step_scores.map(ss => {
+                    const s = ss.score||0;
+                    return `<div class="step-seg" style="background:${_scoreColor(s)};opacity:0.85;" title="Step ${ss.step}: ${stepNames[ss.step]||ss.name||''} — ${s}/100">
+                        <span>${ss.step||''}</span>
+                    </div>`;
+                }).join('')}
+            </div>
+            ${data.step_scores.map(ss => `<div style="padding:10px 12px;background:#0f172a;border-radius:6px;margin-bottom:6px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;">
+                    <span style="font-size:13px;font-weight:600;color:#f1f5f9;">Step ${ss.step}: ${stepNames[ss.step]||ss.name||''}</span>
+                    <span style="font-size:13px;font-weight:700;color:${_scoreColor(ss.score||0)};">${ss.score||0}/100</span>
+                </div>
+                <div style="display:flex;gap:8px;margin-top:6px;align-items:center;">
+                    <div style="flex:1;height:6px;background:#334155;border-radius:3px;overflow:hidden;"><div style="height:100%;width:${ss.completeness_pct||0}%;background:${_scoreColor(ss.completeness_pct||0)};border-radius:3px;"></div></div>
+                    <span style="font-size:11px;color:#94a3b8;">${ss.completeness_pct||0}%</span>
+                    <span class="severity-badge severity-${ss.quality_rating==='excellent'||ss.quality_rating==='good'?'low':ss.quality_rating==='fair'?'medium':'high'}">${ss.quality_rating||''}</span>
+                </div>
+                ${ss.issues && ss.issues.length ? `<div style="font-size:12px;color:#fca5a5;margin-top:4px;">${ss.issues.join('; ')}</div>` : ''}
+                ${ss.recommendations && ss.recommendations.length ? `<div style="font-size:12px;color:#7dd3fc;margin-top:2px;">${ss.recommendations.join('; ')}</div>` : ''}
+            </div>`).join('')}` : ''}
+        ${data.critical_gaps && data.critical_gaps.length ? `
+            <h4 style="font-size:14px;color:#fca5a5;margin:16px 0 8px;">Critical Gaps</h4>
+            ${data.critical_gaps.map(cg => `<div class="anomaly-card">
+                <div class="anomaly-title">${cg.gap||''} ${_severityBadge(cg.priority)}</div>
+                <div class="anomaly-detail">Affected steps: ${(cg.affected_steps||[]).join(', ')}</div>
+                ${cg.remediation ? `<div class="anomaly-detail" style="color:#7dd3fc;font-size:12px;">Remediation: ${cg.remediation}</div>` : ''}
+            </div>`).join('')}` : ''}
+        ${data.next_actions && data.next_actions.length ? `
+            <h4 style="font-size:14px;color:#f1f5f9;margin:16px 0 8px;">Recommended Next Actions</h4>
+            <ol style="padding-left:18px;">${data.next_actions.map(a => `<li style="font-size:13px;color:#e2e8f0;margin-bottom:4px;">${a}</li>`).join('')}</ol>` : ''}
+    `;
+}
+
+async function askQuestion() {
+    const input = document.getElementById('nlq-input');
+    const question = input.value.trim();
+    if (!question) return;
+
+    const el = document.getElementById('nlq-result');
+    _showLoading(el);
+    const data = await api('/step1/ai/query', 'POST', { question });
+    if (data.error) { _showError(el, data.error); return; }
+    if (!data.ai_powered) { _showError(el, data.message); return; }
+
+    el.innerHTML = `
+        <div style="padding:14px;background:#0f172a;border-radius:8px;margin-bottom:12px;">
+            <div style="font-size:14px;color:#e2e8f0;line-height:1.6;">${data.answer||''}</div>
+            ${_confidenceBadge(data.confidence)}
+        </div>
+        ${data.supporting_data && data.supporting_data.length ? `
+            <h4 style="font-size:13px;color:#94a3b8;margin-bottom:8px;">Supporting Data</h4>
+            <table><tr><th>Source</th><th>Data Point</th><th>Relevance</th></tr>
+            ${data.supporting_data.map(sd => `<tr><td>${sd.source||''}</td><td>${sd.data_point||''}</td><td style="font-size:12px;color:#94a3b8;">${sd.relevance||''}</td></tr>`).join('')}</table>` : ''}
+        ${data.caveats && data.caveats.length ? `
+            <div style="margin-top:8px;font-size:12px;color:#fbbf24;">Caveats: ${data.caveats.join('; ')}</div>` : ''}
+        ${data.follow_up_questions && data.follow_up_questions.length ? `
+            <div style="margin-top:12px;">
+                <span style="font-size:12px;color:#94a3b8;">Follow-up questions:</span><br>
+                ${data.follow_up_questions.map(q => `<span class="nlq-chip" onclick="document.getElementById('nlq-input').value='${q.replace(/'/g,"\\'")}';askQuestion();">${q}</span>`).join('')}
+            </div>` : ''}
+        ${data.data_tables_queried && data.data_tables_queried.length ? `
+            <div style="margin-top:8px;font-size:11px;color:#64748b;">Tables queried: ${data.data_tables_queried.join(', ')}</div>` : ''}
+    `;
+}
+
+async function runScenario() {
+    const scenarioType = document.getElementById('scenario-type').value;
+    const scenarioName = document.getElementById('scenario-name').value.trim() || 'Custom Scenario';
+    const description = document.getElementById('scenario-desc').value.trim();
+    if (!description) { toast('Please describe the scenario'); return; }
+
+    const el = document.getElementById('scenario-result');
+    _showLoading(el);
+    const data = await api('/step1/ai/scenario', 'POST', {
+        scenario_type: scenarioType,
+        scenario_name: scenarioName,
+        parameters: { description }
+    });
+    if (data.error) { _showError(el, data.error); return; }
+    if (!data.ai_powered) { _showError(el, data.message); return; }
+
+    const ia = data.impact_analysis || {};
+    const fi = ia.financial_impact || {};
+    const ci = ia.competitive_impact || {};
+    const oi = ia.operational_impact || {};
+    const posColors = {improves:'#059669',stable:'#d97706',weakens:'#dc2626'};
+    const compColors = {increases:'#dc2626',stable:'#d97706',decreases:'#059669'};
+
+    el.innerHTML = `
+        ${data.scenario_summary ? `<p style="font-size:14px;color:#e2e8f0;margin-bottom:16px;">${data.scenario_summary}</p>` : ''}
+        <div class="impact-grid">
+            <div class="impact-col">
+                <h5>Financial Impact</h5>
+                <div class="metric-card" style="margin-bottom:8px;"><div class="metric-val" style="font-size:18px;">${fi.revenue_change_pct!=null?(fi.revenue_change_pct>=0?'+':'')+fi.revenue_change_pct.toFixed(1)+'%':'N/A'}</div><div class="metric-label">Revenue</div></div>
+                <div class="metric-card"><div class="metric-val" style="font-size:18px;">${fi.margin_impact_pct!=null?(fi.margin_impact_pct>=0?'+':'')+fi.margin_impact_pct.toFixed(1)+'%':'N/A'}</div><div class="metric-label">Margin</div></div>
+                ${fi.narrative ? `<p style="font-size:12px;color:#94a3b8;margin-top:8px;">${fi.narrative}</p>` : ''}
+            </div>
+            <div class="impact-col">
+                <h5>Competitive Impact</h5>
+                <div style="font-size:16px;font-weight:700;color:${posColors[ci.market_position_change]||'#94a3b8'};margin-bottom:8px;">${(ci.market_position_change||'stable').toUpperCase()}</div>
+                ${ci.narrative ? `<p style="font-size:12px;color:#94a3b8;">${ci.narrative}</p>` : ''}
+            </div>
+            <div class="impact-col">
+                <h5>Operational Impact</h5>
+                <div style="font-size:16px;font-weight:700;color:${compColors[oi.complexity_change]||'#94a3b8'};margin-bottom:8px;">Complexity ${(oi.complexity_change||'stable').toUpperCase()}</div>
+                ${oi.narrative ? `<p style="font-size:12px;color:#94a3b8;">${oi.narrative}</p>` : ''}
+            </div>
+        </div>
+        ${data.risks && data.risks.length ? `
+            <h4 style="font-size:14px;color:#fca5a5;margin:16px 0 8px;">Risks</h4>
+            ${data.risks.map(r => `<div style="padding:8px 12px;background:#0f172a;border-radius:6px;margin-bottom:4px;font-size:13px;">
+                ${r.risk||''} ${_impactBadge(r.probability)}
+                ${r.mitigation ? `<div style="font-size:12px;color:#7dd3fc;margin-top:2px;">Mitigation: ${r.mitigation}</div>` : ''}
+            </div>`).join('')}` : ''}
+        ${data.opportunities && data.opportunities.length ? `
+            <h4 style="font-size:14px;color:#6ee7b7;margin:16px 0 8px;">Opportunities</h4>
+            ${data.opportunities.map(o => `<div style="padding:8px 12px;background:#0f172a;border-radius:6px;margin-bottom:4px;font-size:13px;">${o.opportunity||''} ${_impactBadge(o.probability)}</div>`).join('')}` : ''}
+        ${data.downstream_effects ? `
+            <h4 style="font-size:14px;color:#94a3b8;margin:16px 0 8px;">Downstream Effects</h4>
+            <div style="font-size:13px;color:#e2e8f0;">
+                ${data.downstream_effects.on_strategies ? `<div style="margin-bottom:4px;"><strong style="color:#94a3b8;">Strategies:</strong> ${data.downstream_effects.on_strategies}</div>` : ''}
+                ${data.downstream_effects.on_initiatives ? `<div style="margin-bottom:4px;"><strong style="color:#94a3b8;">Initiatives:</strong> ${data.downstream_effects.on_initiatives}</div>` : ''}
+                ${data.downstream_effects.on_value_streams ? `<div><strong style="color:#94a3b8;">Value Streams:</strong> ${data.downstream_effects.on_value_streams}</div>` : ''}
+            </div>` : ''}
+        ${data.recommendation ? `
+            <div style="margin-top:16px;padding:14px;background:#064e3b33;border:1px solid #065f46;border-radius:8px;">
+                <h4 style="font-size:13px;color:#6ee7b7;margin-bottom:6px;">Recommendation</h4>
+                <p style="font-size:13px;color:#e2e8f0;">${data.recommendation}</p>
+                ${_confidenceBadge(data.confidence)}
+            </div>` : ''}
+    `;
+}
+
+async function generateReport() {
+    const audience = document.getElementById('report-audience').value;
+    const el = document.getElementById('report-result');
+    _showLoading(el);
+    const data = await api('/step1/ai/generate-report', 'POST', { audience });
+    if (data.error) { _showError(el, data.error); return; }
+    if (!data.ai_powered) { _showError(el, data.message); return; }
+
+    el.innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+            <div>
+                <div style="font-size:18px;font-weight:700;color:#38bdf8;">${data.report_title||'Report'}</div>
+                <div style="font-size:12px;color:#94a3b8;">${data.date||''} | Audience: ${(data.audience||'').replace('_',' ').toUpperCase()}</div>
+            </div>
+            <button class="btn btn-sm" style="background:#334155;color:#94a3b8;" onclick="copyReport()">Copy to Clipboard</button>
+        </div>
+        ${(data.sections||[]).map(sec => `<div class="report-section">
+            <h5>${sec.title||'Section'}</h5>
+            <div class="report-content">${sec.content||''}</div>
+            ${sec.data_visualizations && sec.data_visualizations.length ? `
+                <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;">
+                ${sec.data_visualizations.map(dv => `<div style="padding:6px 12px;background:#1e293b;border-radius:6px;font-size:11px;color:#94a3b8;">
+                    <span style="color:#38bdf8;">[${dv.type||''}]</span> ${dv.title||''} ${dv.description ? '— '+dv.description : ''}
+                </div>`).join('')}</div>` : ''}
+        </div>`).join('')}
+        ${data.key_takeaways && data.key_takeaways.length ? `
+            <div style="padding:14px;background:#064e3b33;border:1px solid #065f46;border-radius:8px;margin-top:12px;">
+                <h4 style="font-size:14px;color:#6ee7b7;margin-bottom:8px;">Key Takeaways</h4>
+                <ul style="padding-left:18px;">${data.key_takeaways.map(kt => `<li style="font-size:13px;color:#e2e8f0;margin-bottom:4px;">${kt}</li>`).join('')}</ul>
+            </div>` : ''}
+        ${data.appendix_notes && data.appendix_notes.length ? `
+            <div style="margin-top:12px;font-size:11px;color:#64748b;">Appendix: ${data.appendix_notes.join(' | ')}</div>` : ''}
+    `;
+
+    // Store for clipboard
+    window._lastReport = data;
+}
+
+function copyReport() {
+    const data = window._lastReport;
+    if (!data) return;
+    let text = data.report_title + '\n' + (data.date||'') + '\nAudience: ' + (data.audience||'') + '\n\n';
+    (data.sections||[]).forEach(s => { text += '## ' + s.title + '\n' + s.content + '\n\n'; });
+    if (data.key_takeaways) { text += '## Key Takeaways\n' + data.key_takeaways.map(k => '- ' + k).join('\n') + '\n'; }
+    navigator.clipboard.writeText(text).then(() => toast('Report copied to clipboard'));
 }
 
 // ===================== STEP 2: Value Streams =====================
@@ -1688,7 +2609,7 @@ async function runAutoGenerate(buId) {
         <div class="loading-overlay" style="padding: 40px;">
             <div class="spinner"></div>
             <p>Generating SWOT entries from Step 1 & Step 2 data...</p>
-            <p class="progress-msg">Analyzing financial metrics, value streams, and benchmarks</p>
+            <p class="progress-msg">Analyzing financial metrics, value streams, and benchmarks. AI analysis will be used if available.</p>
         </div>
     `;
 
@@ -1700,12 +2621,13 @@ async function runAutoGenerate(buId) {
     }
 
     card.innerHTML = `
-        <h3 style="color: #6ee7b7;">Generation Complete</h3>
+        <h3 style="color: #6ee7b7;">Generation Complete ${result.ai_powered ? '<span class="ai-badge">AI-Powered</span>' : ''}</h3>
         <div class="vs-metrics-bar" style="margin-top: 12px;">
             <div class="vm-item"><div class="vm-val good">${result.swot_generated}</div><div class="vm-label">SWOT Entries</div></div>
             <div class="vm-item"><div class="vm-val good">${result.tows_generated}</div><div class="vm-label">TOWS Actions</div></div>
+            ${result.sources.ai ? `<div class="vm-item"><div class="vm-val" style="color:#c4b5fd;">${result.sources.ai}</div><div class="vm-label">AI Generated</div></div>` : `
             <div class="vm-item"><div class="vm-val">${result.sources.step1}</div><div class="vm-label">From Step 1</div></div>
-            <div class="vm-item"><div class="vm-val">${result.sources.step2}</div><div class="vm-label">From Step 2</div></div>
+            <div class="vm-item"><div class="vm-val">${result.sources.step2}</div><div class="vm-label">From Step 2</div></div>`}
         </div>
         <div style="margin-top: 16px;">
             <button class="btn btn-primary" onclick="step3Phase='swot'; renderStep3Swot();">View SWOT Grid</button>
@@ -1753,6 +2675,10 @@ async function renderStep3Swot() {
                         ${grouped[q.key].length ? grouped[q.key].map(s => `
                             <li style="display: flex; align-items: flex-start; gap: 6px; margin-bottom: 8px;">
                                 <span style="flex:1;">${s.description}
+                                    <span style="display:block;margin-top:3px;">
+                                        ${s.severity ? `<span class="severity-badge severity-${s.severity}">${s.severity}</span>` : ''}
+                                        ${s.confidence ? `<span class="confidence-badge confidence-${s.confidence}">${s.confidence}</span>` : ''}
+                                    </span>
                                     ${s.data_source ? `<span style="font-size:10px; color:#94a3b8; display:block; margin-top:2px;">${s.data_source}</span>` : ''}
                                 </span>
                                 <button class="btn btn-danger" style="flex-shrink:0; padding:2px 6px; font-size:11px;" onclick="deleteSwot(${s.id})">x</button>
@@ -1799,9 +2725,15 @@ async function renderStep3Tows() {
                 <h3>${info.name} <span style="font-size:12px; color:#94a3b8; font-weight:400;">(${items.length} actions)</span></h3>
                 <p style="font-size: 12px; color: #64748b; margin-bottom: 12px;">${info.desc}</p>
                 ${items.length ? `<table>
-                    <tr><th>Action</th><th>SWOT Pairing</th><th>Priority</th></tr>
+                    <tr><th>Action</th><th>Impact</th><th>SWOT Pairing</th><th>Priority</th></tr>
                     ${items.map(t => `<tr>
-                        <td>${t.action_description}</td>
+                        <td>${t.action_description}
+                            ${t.rationale ? `<div style="font-size:11px;color:#64748b;margin-top:4px;">${t.rationale}</div>` : ''}
+                        </td>
+                        <td style="white-space:nowrap;">
+                            <span class="impact-bar" style="width:${(t.impact_score || 5) * 8}px;"></span>
+                            <span class="impact-label">${t.impact_score || 5}/10</span>
+                        </td>
                         <td style="font-size: 12px; color: #94a3b8; max-width: 300px;">
                             <span style="color:#6ee7b7;">${t.swot_1_cat}:</span> ${(t.swot_1 || '').substring(0, 50)}${(t.swot_1 || '').length > 50 ? '...' : ''}
                             <br/><span style="color:#7dd3fc;">${t.swot_2_cat}:</span> ${(t.swot_2 || '').substring(0, 50)}${(t.swot_2 || '').length > 50 ? '...' : ''}
@@ -2012,9 +2944,16 @@ async function runAutoGenerate() {
 
     const result = await api('/step4/auto-generate', 'POST');
 
+    // Store AI metadata for the review page
+    if (result.cross_layer_notes) sessionStorage.setItem('cross_layer_notes', result.cross_layer_notes);
+    else sessionStorage.removeItem('cross_layer_notes');
+    if (result.initiative_suggestions && result.initiative_suggestions.length) sessionStorage.setItem('initiative_suggestions', JSON.stringify(result.initiative_suggestions));
+    else sessionStorage.removeItem('initiative_suggestions');
+
     document.getElementById('generate-result').innerHTML = `
         <div style="padding:16px;background:#064e3b;border-radius:8px;color:#6ee7b7;">
             Generated <strong>${result.strategies}</strong> strategies, <strong>${result.okrs}</strong> OKRs, and <strong>${result.key_results}</strong> key results.
+            ${result.ai_powered ? ' <span class="ai-badge" style="margin-left:8px;">AI-Powered</span>' : ''}
         </div>
     `;
     btn.innerHTML = 'Generate Strategies & OKRs';
@@ -2029,10 +2968,25 @@ async function renderStep4Review() {
     const layerNames = { business: 'Business', digital: 'Digital', data: 'Data', gen_ai: 'Gen AI' };
     const allApproved = strategies.length > 0 && strategies.every(s => s.approved);
 
-    let html = `
+    // Check if any strategy was AI-generated
+    const hasAI = strategies.some(s => (s.description || '').includes('(AI)'));
+
+    let html = '';
+
+    // Cross-layer notes (stored in sessionStorage from generation)
+    const crossNotes = sessionStorage.getItem('cross_layer_notes');
+    if (crossNotes) {
+        html += `<div class="card" style="border-left:3px solid #7c3aed;margin-bottom:16px;">
+            <h3 style="font-size:14px;">Cross-Layer Synergies ${hasAI ? '<span class="ai-badge" style="margin-left:8px;">AI</span>' : ''}</h3>
+            <p style="font-size:13px;color:#94a3b8;">${crossNotes}</p>
+        </div>`;
+    }
+
+    html += `
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
             <div>
                 <span style="font-size:14px;color:#94a3b8;">${strategies.length} strategies | ${allApproved ? '<span style="color:#6ee7b7">All Approved</span>' : '<span style="color:#fbbf24">Pending Approval</span>'}</span>
+                ${hasAI ? ' <span class="ai-badge">AI-Powered</span>' : ''}
             </div>
             <div style="display:flex;gap:8px;">
                 <button class="btn btn-primary btn-sm" onclick="addManualStrategy()">+ Add Manual Strategy</button>
@@ -2049,15 +3003,19 @@ async function renderStep4Review() {
             <h3 style="margin-bottom:12px;">${layerBadge(layer)} ${layerNames[layer]} Layer (${layerStrats.length})</h3>`;
 
         for (const s of layerStrats) {
+            const riskBadge = s.risk_level ? `<span class="risk-badge risk-${s.risk_level}" style="margin-left:8px;">${s.risk_level} risk</span>` : '';
+
             html += `<div class="strategy-card ${layer}">
                 <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
                     <div style="flex:1;">
                         <strong style="font-size:15px;cursor:pointer;" onclick="editStrategyName(${s.id}, this)" title="Click to edit">${s.name}</strong>
                         <span class="status ${s.approved ? 'status-approved' : 'status-pending'}" style="margin-left:8px;">${s.approved ? 'Approved' : 'Pending'}</span>
+                        ${riskBadge}
                     </div>
                     <button class="btn btn-danger" onclick="deleteStrategy(${s.id})">Delete</button>
                 </div>
-                <p style="font-size:13px;color:#94a3b8;margin-bottom:12px;cursor:pointer;" onclick="editStrategyDesc(${s.id}, this)" title="Click to edit">${s.description || 'No description'}</p>
+                <p style="font-size:13px;color:#94a3b8;margin-bottom:8px;cursor:pointer;" onclick="editStrategyDesc(${s.id}, this)" title="Click to edit">${s.description || 'No description'}</p>
+                ${s.risks ? `<div style="font-size:12px;color:#fbbf24;margin-bottom:8px;padding:6px 10px;background:#713f1233;border-radius:6px;cursor:pointer;" onclick="this.style.whiteSpace=this.style.whiteSpace==='nowrap'?'normal':'nowrap'" title="Click to expand">Risks: ${s.risks}</div>` : ''}
                 ${s.tows_action_id ? `<span style="font-size:11px;color:#64748b;">TOWS Action #${s.tows_action_id}</span>` : ''}`;
 
             // OKRs
@@ -2074,12 +3032,18 @@ async function renderStep4Review() {
 
                     if (okr.key_results && okr.key_results.length) {
                         html += `<table style="margin-top:6px;">
-                            <tr><th>Key Result</th><th>Metric</th><th>Current</th><th>Target</th><th>Unit</th><th></th></tr>
+                            <tr><th>Key Result</th><th>Metric</th><th>Current</th><th>Target</th><th>Scenarios</th><th>Unit</th><th></th></tr>
                             ${okr.key_results.map(kr => `<tr>
-                                <td style="font-size:13px;">${kr.key_result}</td>
+                                <td style="font-size:13px;">${kr.key_result}
+                                    ${kr.rationale ? `<div style="font-size:10px;color:#64748b;margin-top:2px;" title="${kr.rationale}">${kr.rationale.substring(0, 60)}${kr.rationale.length > 60 ? '...' : ''}</div>` : ''}
+                                </td>
                                 <td style="font-size:13px;">${kr.metric || '-'}</td>
                                 <td style="font-size:13px;">${kr.current_value}</td>
-                                <td style="font-size:13px;">${kr.target_value}</td>
+                                <td style="font-size:13px;font-weight:600;">${kr.target_value}</td>
+                                <td style="font-size:11px;color:#94a3b8;">
+                                    ${kr.target_optimistic != null || kr.target_pessimistic != null ?
+                                        `<span style="color:#6ee7b7;">${kr.target_optimistic != null ? kr.target_optimistic : '-'}</span> / <span style="color:#fca5a5;">${kr.target_pessimistic != null ? kr.target_pessimistic : '-'}</span>` : '-'}
+                                </td>
                                 <td style="font-size:13px;">${kr.unit || '-'}</td>
                                 <td><button class="btn btn-danger" onclick="deleteKeyResult(${okr.id}, ${kr.id})">X</button></td>
                             </tr>`).join('')}
@@ -2095,6 +3059,22 @@ async function renderStep4Review() {
             </div>`;
         }
         html += `</div>`;
+    }
+
+    // Initiative suggestions
+    const initSugg = sessionStorage.getItem('initiative_suggestions');
+    if (initSugg) {
+        try {
+            const suggestions = JSON.parse(initSugg);
+            if (suggestions.length) {
+                html += `<div class="card" style="border-left:3px solid #0ea5e9;">
+                    <h3 style="font-size:14px;">AI-Suggested Initiatives</h3>
+                    <ul style="padding-left:16px;">
+                        ${suggestions.map(s => `<li style="font-size:13px;color:#94a3b8;margin-bottom:6px;">${s}</li>`).join('')}
+                    </ul>
+                </div>`;
+            }
+        } catch(e) {}
     }
 
     if (allApproved) {
@@ -2220,7 +3200,9 @@ async function runInitiativeGenerate() {
 
     document.getElementById('init-generate-result').innerHTML = `
         <div style="padding:16px;background:#064e3b;border-radius:8px;color:#6ee7b7;">
+            ${result.ai_powered ? '<span class="ai-badge" style="margin-bottom:8px;display:inline-block;">AI-Powered</span> ' : ''}
             Created <strong>${result.initiatives}</strong> initiatives, <strong>${result.products}</strong> products, <strong>${result.groups}</strong> product groups.
+            ${result.ai_powered ? '<br><span style="font-size:12px;color:#c4b5fd;">Initiatives generated with context-aware RICE scoring, risks, and dependencies.</span>' : ''}
         </div>
         <button class="btn btn-primary" style="margin-top:16px;" onclick="step4Phase='roadmap';loadStep4()">View Roadmap &rarr;</button>
     `;
@@ -2327,12 +3309,15 @@ async function renderStep5Table() {
             const phase = i.roadmap_phase || (effective >= 3 && i.effort <= 2 ? 'quick_win' : effective >= 2 && i.effort <= 4 ? 'strategic' : 'long_term');
             const borderColor = { business: '#059669', digital: '#2563eb', data: '#d97706', gen_ai: '#7c3aed' }[i.strategy_layer] || '#334155';
 
+            const phaseColors = { quick_win: '#6ee7b7', strategic: '#7dd3fc', long_term: '#fbbf24' };
             html += `<div class="strategy-card" style="border-left-color:${borderColor};">
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
                     <div style="font-weight:500;font-size:14px;" title="${i.name}">${i.name}</div>
                     <div style="display:flex;gap:8px;align-items:center;">
+                        ${i.ai_generated ? '<span class="ai-badge">AI</span>' : ''}
                         ${i.strategy_layer ? layerBadge(i.strategy_layer) : ''}
-                        <span class="rice-badge ${riceClass(effective)}">RICE ${Number(effective).toFixed(1)}</span>
+                        <span class="rice-badge ${riceClass(effective)}" ${i.ai_rationale ? 'title="' + i.ai_rationale.replace(/"/g, '&quot;') + '"' : ''}>RICE ${Number(effective).toFixed(1)}</span>
+                        <span style="padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;color:${phaseColors[phase] || '#94a3b8'};border:1px solid ${phaseColors[phase] || '#475569'}">${phase.replace('_',' ')}</span>
                         ${statusHtml(i.status)}
                     </div>
                 </div>
@@ -2348,13 +3333,16 @@ async function renderStep5Table() {
                             ${[1,2,3,4,5].map(v => `<option value="${v}" ${i.size_score==v?'selected':''}>${v}</option>`).join('')}
                         </select>
                     </label>
-                    <span style="font-size:11px;color:#94a3b8;">Phase: ${phase.replace('_',' ')}</span>
+                    ${i.impacted_segments ? '<span class="dep-badge">' + i.impacted_segments + '</span>' : ''}
                     <button class="btn btn-sm" style="background:#334155;color:#e2e8f0;font-size:11px;" onclick="overrideRice(${i.id})">RICE</button>
                     <button class="btn btn-sm" style="background:#334155;color:#e2e8f0;font-size:11px;" onclick="editInitMeta(${i.id})">Edit</button>
                 </div>
                 <div style="font-size:12px;color:#64748b;margin-bottom:8px;">
                     Product: ${i.product_name}${i.strategy_name ? ' | Strategy: ' + i.strategy_name : ''}
-                </div>`;
+                </div>
+                ${i.risks ? '<div style="font-size:12px;color:#fca5a5;margin-bottom:6px;cursor:pointer;" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display===\'none\'?\'block\':\'none\'">Risks <span class="expand-toggle">[toggle]</span></div><div style="display:none;font-size:12px;color:#94a3b8;padding:8px;background:#1e293b;border-radius:6px;margin-bottom:6px;">' + i.risks + '</div>' : ''}
+                ${i.dependencies ? '<div style="font-size:12px;color:#fbbf24;margin-bottom:6px;">Dependencies: ' + i.dependencies + '</div>' : ''}
+                ${i.ai_rationale ? '<div style="font-size:11px;color:#c4b5fd;cursor:pointer;margin-bottom:4px;" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display===\'none\'?\'block\':\'none\'">AI Rationale <span class="expand-toggle">[toggle]</span></div><div style="display:none;font-size:12px;color:#94a3b8;padding:8px;background:#0f172a;border-radius:6px;margin-bottom:6px;">' + i.ai_rationale + '</div>' : ''}`;
 
             // Strategic OKRs section
             if (i.strategic_okrs && i.strategic_okrs.length) {
@@ -2524,11 +3512,15 @@ async function runStep6Generate() {
         const okrCount = res.product_okrs ? res.product_okrs.length : 0;
         const depCount = res.dependencies ? res.dependencies.length : 0;
         const skipCount = res.skipped ? res.skipped.length : 0;
+        const teamCount = res.team_assignments ? res.team_assignments.length : 0;
         resultDiv.innerHTML = `
             <div style="padding:16px;background:#064e3b;border-radius:8px;color:#6ee7b7;">
-                <strong>Generation Complete</strong><br>
+                <strong>Generation Complete</strong>
+                ${res.ai_powered ? ' <span class="ai-badge">AI-Powered</span>' : ''}<br>
                 ${epicCount} epics created, ${okrCount} product OKRs created, ${depCount} cross-layer dependencies inferred.
+                ${teamCount > 0 ? `<br>${teamCount} team assignments recommended.` : ''}
                 ${skipCount > 0 ? `<br><span style="color:#fbbf24;">${skipCount} epics skipped (already exist).</span>` : ''}
+                ${res.ai_powered ? '<br><span style="font-size:12px;color:#c4b5fd;">Epics generated with AI-powered decomposition, effort estimates, and team recommendations.</span>' : ''}
             </div>
         `;
         if (epicCount > 0) {
@@ -2575,9 +3567,17 @@ async function renderStep6Review() {
                 if (e.depends_on && e.depends_on.length) depInfo.push('Depends on: ' + e.depends_on.map(d => d.name.split(':')[0]).join(', '));
                 if (e.blocks && e.blocks.length) depInfo.push('Blocks: ' + e.blocks.map(d => d.name.split(':')[0]).join(', '));
 
+                const riskCls = 'risk-badge risk-' + (e.risk_level || 'medium');
+                const depCount = (e.depends_on ? e.depends_on.length : 0) + (e.blocks ? e.blocks.length : 0);
                 html += `<div class="strategy-card" style="border-left-color:${borderColor};">
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-                        <div style="font-weight:500;font-size:14px;">${e.name}</div>
+                        <div style="font-weight:500;font-size:14px;">
+                            ${e.name}
+                            ${e.ai_generated ? ' <span class="ai-badge">AI</span>' : ''}
+                            ${e.estimated_effort_days ? ' <span class="effort-days-badge">~' + Math.round(e.estimated_effort_days) + ' days</span>' : ''}
+                            <span class="${riskCls}">${e.risk_level || 'medium'}</span>
+                            ${depCount > 0 ? ' <span class="dep-badge">' + depCount + ' deps</span>' : ''}
+                        </div>
                         <div style="display:flex;gap:8px;align-items:center;">
                             ${statusHtml(e.status)}
                             <button class="btn btn-danger" onclick="deleteEpic(${e.id})">Delete</button>
@@ -2613,6 +3613,8 @@ async function renderStep6Review() {
                         </label>
                         <span style="font-size:13px;font-weight:600;color:#38bdf8;">Priority: ${(e.priority_score || 0).toFixed(1)}</span>
                     </div>
+                    ${e.risks ? '<div style="font-size:12px;color:#fca5a5;margin-bottom:6px;cursor:pointer;" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display===\'none\'?\'block\':\'none\'">Risks <span class="expand-toggle">[toggle]</span></div><div style="display:none;font-size:12px;color:#94a3b8;padding:8px;background:#1e293b;border-radius:6px;margin-bottom:6px;">' + e.risks + '</div>' : ''}
+                    ${e.ai_rationale ? '<div style="font-size:11px;color:#c4b5fd;cursor:pointer;margin-bottom:4px;" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display===\'none\'?\'block\':\'none\'">AI Rationale <span class="expand-toggle">[toggle]</span></div><div style="display:none;font-size:12px;color:#94a3b8;padding:8px;background:#0f172a;border-radius:6px;margin-bottom:6px;">' + e.ai_rationale + '</div>' : ''}
                     ${e.okr_objective ? `<div style="margin-top:8px;padding:10px;background:#1e293b;border-radius:8px;">
                         <strong style="font-size:13px;">Product OKR: ${e.okr_objective}</strong>
                         ${e.product_key_results && e.product_key_results.length ? `<table style="margin-top:6px;">
@@ -2698,6 +3700,8 @@ async function renderStep6Roadmap() {
                 return `<div class="roadmap-item">
                     <div class="ri-name">
                         ${e.name}
+                        ${e.ai_generated ? ' <span class="ai-badge">AI</span>' : ''}
+                        ${e.estimated_effort_days ? ' <span class="effort-days-badge">~' + Math.round(e.estimated_effort_days) + 'd</span>' : ''}
                         <span style="font-size:11px;color:#64748b;margin-left:8px;">${e.initiative_name || ''}</span>
                     </div>
                     <div class="ri-meta">
@@ -2706,7 +3710,7 @@ async function renderStep6Roadmap() {
                         <span>E:${e.effort_score||'-'}</span>
                         <span>V:${e.value_score||'-'}</span>
                         <span class="${riskCls}">${e.risk_level||'medium'}</span>
-                        ${e.dep_count ? `<span style="color:#f97316;">${e.dep_count} deps</span>` : ''}
+                        ${e.dep_count ? `<span class="dep-badge">${e.dep_count} deps</span>` : ''}
                         ${statusHtml(e.status)}
                     </div>
                 </div>`;
@@ -2796,11 +3800,15 @@ async function runStep7Generate() {
         const featCount = res.features ? res.features.length : 0;
         const dokrCount = res.delivery_okrs ? res.delivery_okrs.length : 0;
         const skipCount = res.skipped ? res.skipped.length : 0;
+        const featDepCount = res.feature_dependencies ? res.feature_dependencies.length : 0;
         resultDiv.innerHTML = `
             <div style="padding:16px;background:#064e3b;border-radius:8px;color:#6ee7b7;">
-                <strong>Generation Complete</strong><br>
+                <strong>Generation Complete</strong>
+                ${res.ai_powered ? ' <span class="ai-badge">AI-Powered</span>' : ''}<br>
                 ${featCount} features created, ${dokrCount} delivery OKRs created.
+                ${featDepCount > 0 ? ' ' + featDepCount + ' feature dependencies mapped.' : ''}
                 ${skipCount > 0 ? '<br><span style="color:#fbbf24;">' + skipCount + ' features skipped (already exist).</span>' : ''}
+                ${res.ai_powered ? '<br><span style="font-size:12px;color:#c4b5fd;">Features generated as user stories with acceptance criteria and story points.</span>' : ''}
             </div>
         `;
         if (featCount > 0) {
@@ -2864,9 +3872,16 @@ async function renderStep7Review() {
 
                 for (const f of group.features) {
                     const borderColor = { business: '#059669', digital: '#2563eb', data: '#d97706', gen_ai: '#7c3aed' }[group.layer] || '#334155';
+                    const fRiskCls = 'risk-badge risk-' + (f.risk_level || 'medium');
+                    const acId = 'ac-' + f.id;
                     html += '<div class="strategy-card" style="border-left-color:' + borderColor + ';">' +
                         '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">' +
-                            '<div style="font-weight:500;font-size:14px;">' + f.name + '</div>' +
+                            '<div style="font-weight:500;font-size:14px;">' +
+                                f.name +
+                                (f.ai_generated ? ' <span class="ai-badge">AI</span>' : '') +
+                                (f.estimated_effort ? ' <span class="sp-badge">' + f.estimated_effort + ' SP</span>' : '') +
+                                ' <span class="' + fRiskCls + '">' + (f.risk_level || 'medium') + '</span>' +
+                            '</div>' +
                             '<div style="display:flex;gap:8px;align-items:center;">' +
                                 statusHtml(f.status) +
                                 '<button class="btn btn-danger" onclick="deleteFeature(' + f.id + ')">Delete</button>' +
@@ -2896,6 +3911,9 @@ async function renderStep7Review() {
                             '</label>' +
                             '<span style="font-size:13px;font-weight:600;color:#38bdf8;">Priority: ' + (f.priority_score || 0).toFixed(1) + '</span>' +
                         '</div>' +
+                        (f.acceptance_criteria ? '<div style="font-size:12px;color:#6ee7b7;cursor:pointer;margin-bottom:4px;" onclick="var el=document.getElementById(\'' + acId + '\');el.style.display=el.style.display===\'none\'?\'block\':\'none\'">Acceptance Criteria <span class="expand-toggle">[toggle]</span></div><div id="' + acId + '" style="display:none;font-size:12px;color:#94a3b8;padding:10px;background:#0f172a;border-radius:6px;margin-bottom:6px;white-space:pre-line;">' + f.acceptance_criteria + '</div>' : '') +
+                        (f.risks ? '<div style="font-size:12px;color:#fca5a5;margin-bottom:6px;cursor:pointer;" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display===\'none\'?\'block\':\'none\'">Risks <span class="expand-toggle">[toggle]</span></div><div style="display:none;font-size:12px;color:#94a3b8;padding:8px;background:#1e293b;border-radius:6px;margin-bottom:6px;">' + f.risks + '</div>' : '') +
+                        (f.ai_rationale ? '<div style="font-size:11px;color:#c4b5fd;cursor:pointer;margin-bottom:4px;" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display===\'none\'?\'block\':\'none\'">AI Rationale <span class="expand-toggle">[toggle]</span></div><div style="display:none;font-size:12px;color:#94a3b8;padding:8px;background:#0f172a;border-radius:6px;margin-bottom:6px;">' + f.ai_rationale + '</div>' : '') +
                         '<div style="font-size:12px;color:#64748b;">' +
                             (f.delivery_okr_objective ? '<span>Delivery OKR: ' + f.delivery_okr_objective + '</span> ' : '') +
                             (f.dependencies_text ? '| Deps: ' + f.dependencies_text + ' ' : '') +
@@ -2967,6 +3985,8 @@ async function renderStep7Roadmap() {
                 return '<div class="roadmap-item">' +
                     '<div class="ri-name">' +
                         f.name +
+                        (f.ai_generated ? ' <span class="ai-badge">AI</span>' : '') +
+                        (f.estimated_effort ? ' <span class="sp-badge">' + f.estimated_effort + ' SP</span>' : '') +
                         (f.initiative_name ? '<span style="font-size:11px;color:#94a3b8;margin-left:8px;">' + f.initiative_name + '</span>' : '') +
                         '<span style="font-size:11px;color:#64748b;margin-left:8px;">' + (f.epic_name || '') + '</span>' +
                     '</div>' +

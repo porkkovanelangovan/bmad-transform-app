@@ -8,6 +8,7 @@ import os
 
 from routers import (
     step1_performance,
+    step1_ai_dashboard,
     step2_value_streams,
     step3_swot_tows,
     step4_strategy_okrs,
@@ -31,6 +32,7 @@ app.add_middleware(
 
 app.include_router(auth_router.router, prefix="/api/auth", tags=["Auth"])
 app.include_router(step1_performance.router, prefix="/api/step1", tags=["Step 1: Performance"])
+app.include_router(step1_ai_dashboard.router, prefix="/api/step1", tags=["Step 1: AI Dashboard"])
 app.include_router(step2_value_streams.router, prefix="/api/step2", tags=["Step 2: Value Streams"])
 app.include_router(step3_swot_tows.router, prefix="/api/step3", tags=["Step 3: SWOT/TOWS"])
 app.include_router(step4_strategy_okrs.router, prefix="/api/step4", tags=["Step 4: Strategy & OKRs"])
@@ -448,6 +450,93 @@ async def _migrate_sqlite(db):
                 except Exception:
                     await raw_db.execute("PRAGMA foreign_keys = ON")
 
+            # --- Phase 4 migration: new columns for AI-powered SWOT, TOWS, and Strategy ---
+            for col in [
+                "severity TEXT DEFAULT 'medium'",
+                "confidence TEXT DEFAULT 'medium'",
+            ]:
+                try:
+                    await raw_db.execute(f"ALTER TABLE swot_entries ADD COLUMN {col}")
+                except Exception:
+                    pass
+
+            for col in [
+                "impact_score INTEGER DEFAULT 5",
+                "rationale TEXT",
+            ]:
+                try:
+                    await raw_db.execute(f"ALTER TABLE tows_actions ADD COLUMN {col}")
+                except Exception:
+                    pass
+
+            for col in [
+                "risk_level TEXT DEFAULT 'medium'",
+                "risks TEXT",
+            ]:
+                try:
+                    await raw_db.execute(f"ALTER TABLE strategies ADD COLUMN {col}")
+                except Exception:
+                    pass
+
+            for col in [
+                "target_optimistic REAL",
+                "target_pessimistic REAL",
+                "rationale TEXT",
+            ]:
+                try:
+                    await raw_db.execute(f"ALTER TABLE strategic_key_results ADD COLUMN {col}")
+                except Exception:
+                    pass
+
+            # --- Phase 5 migration: AI-powered initiatives, epics, features ---
+            await raw_db.execute("""CREATE TABLE IF NOT EXISTS feature_dependencies (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                feature_id INTEGER NOT NULL REFERENCES features(id),
+                depends_on_feature_id INTEGER NOT NULL REFERENCES features(id),
+                dependency_type TEXT DEFAULT 'blocks' CHECK (dependency_type IN ('blocks', 'relates_to')),
+                notes TEXT,
+                CHECK (feature_id != depends_on_feature_id)
+            )""")
+
+            for col in [
+                "ai_generated INTEGER DEFAULT 0",
+                "ai_rationale TEXT",
+            ]:
+                try:
+                    await raw_db.execute(f"ALTER TABLE initiatives ADD COLUMN {col}")
+                except Exception:
+                    pass
+
+            for col in [
+                "ai_generated INTEGER DEFAULT 0",
+                "estimated_effort_days REAL",
+                "ai_rationale TEXT",
+            ]:
+                try:
+                    await raw_db.execute(f"ALTER TABLE epics ADD COLUMN {col}")
+                except Exception:
+                    pass
+
+            for col in [
+                "ai_generated INTEGER DEFAULT 0",
+                "ai_rationale TEXT",
+                "acceptance_criteria TEXT",
+            ]:
+                try:
+                    await raw_db.execute(f"ALTER TABLE features ADD COLUMN {col}")
+                except Exception:
+                    pass
+
+            try:
+                await raw_db.execute("ALTER TABLE product_okrs ADD COLUMN ai_generated INTEGER DEFAULT 0")
+            except Exception:
+                pass
+
+            try:
+                await raw_db.execute("ALTER TABLE delivery_okrs ADD COLUMN ai_generated INTEGER DEFAULT 0")
+            except Exception:
+                pass
+
             # --- Phase 3 migration: expand data_source CHECK constraint on value_stream_metrics ---
             try:
                 await raw_db.execute(
@@ -482,6 +571,57 @@ async def _migrate_sqlite(db):
                     await raw_db.execute("PRAGMA foreign_keys = ON")
                 except Exception:
                     await raw_db.execute("PRAGMA foreign_keys = ON")
+
+            # --- Step 1 Data Ingestion Hub: saved URLs table ---
+            await raw_db.execute("""CREATE TABLE IF NOT EXISTS step1_data_urls (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                url TEXT NOT NULL,
+                label TEXT,
+                url_type TEXT DEFAULT 'external',
+                last_fetched_at TIMESTAMP,
+                last_result_json TEXT,
+                status TEXT DEFAULT 'pending',
+                error_message TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )""")
+
+            # --- Phase 6 migration: AI Dashboard tables ---
+            await raw_db.execute("""CREATE TABLE IF NOT EXISTS ai_analysis_cache (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                analysis_type TEXT NOT NULL,
+                input_hash TEXT NOT NULL,
+                result_json TEXT NOT NULL,
+                ai_model TEXT DEFAULT 'gpt-4o-mini',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                expires_at TIMESTAMP
+            )""")
+
+            await raw_db.execute("""CREATE TABLE IF NOT EXISTS ai_scenarios (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                scenario_name TEXT NOT NULL,
+                scenario_type TEXT NOT NULL CHECK (scenario_type IN ('revenue_change', 'market_entry', 'cost_change', 'custom')),
+                parameters_json TEXT NOT NULL,
+                result_json TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )""")
+
+            await raw_db.execute("""CREATE TABLE IF NOT EXISTS nlq_history (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                question TEXT NOT NULL,
+                answer_json TEXT NOT NULL,
+                data_tables_queried TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )""")
+
+            for col in [
+                "ai_executive_summary TEXT",
+                "ai_health_score REAL",
+                "ai_summary_updated_at TIMESTAMP",
+            ]:
+                try:
+                    await raw_db.execute(f"ALTER TABLE organization ADD COLUMN {col}")
+                except Exception:
+                    pass
 
         await raw_db.commit()
 

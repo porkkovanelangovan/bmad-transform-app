@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends
 from database import get_db
 from datetime import datetime
+from ai_research import is_openai_available
 
 router = APIRouter()
 
@@ -102,8 +103,9 @@ async def list_strategies(db=Depends(get_db)):
 @router.post("/strategies")
 async def create_strategy(data: dict, db=Depends(get_db)):
     cursor = await db.execute(
-        "INSERT INTO strategies (layer, name, description, tows_action_id) VALUES (?, ?, ?, ?)",
-        (data["layer"], data["name"], data.get("description"), data.get("tows_action_id")),
+        "INSERT INTO strategies (layer, name, description, tows_action_id, risk_level, risks) VALUES (?, ?, ?, ?, ?, ?)",
+        (data["layer"], data["name"], data.get("description"), data.get("tows_action_id"),
+         data.get("risk_level", "medium"), data.get("risks")),
     )
     await db.commit()
     return {"id": cursor.lastrowid}
@@ -113,7 +115,7 @@ async def create_strategy(data: dict, db=Depends(get_db)):
 async def update_strategy(strategy_id: int, data: dict, db=Depends(get_db)):
     fields = []
     values = []
-    for key in ["name", "description", "approved"]:
+    for key in ["name", "description", "approved", "risk_level", "risks"]:
         if key in data:
             fields.append(f"{key} = ?")
             values.append(data[key])
@@ -197,10 +199,12 @@ async def list_key_results(okr_id: int, db=Depends(get_db)):
 @router.post("/okrs/{okr_id}/key-results")
 async def create_key_result(okr_id: int, data: dict, db=Depends(get_db)):
     cursor = await db.execute(
-        "INSERT INTO strategic_key_results (okr_id, key_result, metric, current_value, target_value, unit) "
-        "VALUES (?, ?, ?, ?, ?, ?)",
+        "INSERT INTO strategic_key_results (okr_id, key_result, metric, current_value, target_value, unit, "
+        "target_optimistic, target_pessimistic, rationale) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
         (okr_id, data["key_result"], data.get("metric"), data.get("current_value", 0),
-         data["target_value"], data.get("unit")),
+         data["target_value"], data.get("unit"),
+         data.get("target_optimistic"), data.get("target_pessimistic"), data.get("rationale")),
     )
     await db.commit()
     return {"id": cursor.lastrowid}
@@ -310,7 +314,7 @@ async def _gather_strategy_context(db):
             tows_grouped[stype].append(td)
     ctx["tows"] = tows_grouped
 
-    # User strategy inputs by type
+    # User strategy inputs by type (full content, not truncated)
     input_rows = await db.execute_fetchall("SELECT * FROM strategy_inputs ORDER BY input_type")
     inputs_by_type = {}
     for inp in input_rows:
@@ -320,6 +324,32 @@ async def _gather_strategy_context(db):
             inputs_by_type[itype] = []
         inputs_by_type[itype].append(inp_dict)
     ctx["user_inputs"] = inputs_by_type
+
+    # SWOT entries for AI context
+    swot_rows = await db.execute_fetchall("SELECT * FROM swot_entries ORDER BY category")
+    ctx["swot_entries"] = [dict(r) for r in swot_rows]
+
+    # Industry benchmarks (best-effort)
+    try:
+        from source_gatherers import gather_industry_benchmarks
+        org = ctx.get("organization") or {}
+        vs_list = ctx.get("value_streams", [])
+        segment = vs_list[0].get("name", "general") if vs_list else "general"
+        industry = org.get("industry", "")
+        ctx["industry_benchmarks"] = await gather_industry_benchmarks(segment, industry)
+    except Exception:
+        ctx["industry_benchmarks"] = {}
+
+    # Web search results (best-effort)
+    try:
+        from source_gatherers import gather_web_search
+        org = ctx.get("organization") or {}
+        vs_list = ctx.get("value_streams", [])
+        segment = vs_list[0].get("name", "general") if vs_list else "general"
+        industry = org.get("industry", "")
+        ctx["web_search"] = await gather_web_search(segment, industry)
+    except Exception:
+        ctx["web_search"] = {}
 
     return ctx
 
@@ -342,17 +372,33 @@ def _generate_business_strategy(ctx):
         periods = set(r.get("period", "") for r in rev_trends)
         revenue_desc = f" across {len(periods)} period(s) with ${total_rev:,.0f} total tracked revenue"
 
-    # Derive financial context
+    # Derive financial context and dynamic targets
     profit_margin = None
     for fm in financial:
         if "margin" in (fm.get("metric_name") or "").lower() and "profit" in (fm.get("metric_name") or "").lower():
             profit_margin = fm.get("metric_value")
             break
 
-    # User input context
+    # Compute actual YoY growth rate for dynamic target
+    rev_target = 15  # default growth target %
+    actual_growth = None
+    org_revenues = [r for r in rev_trends if r.get("dimension_value") == "Total Revenue" and r.get("revenue")]
+    if len(org_revenues) >= 2:
+        sorted_rev = sorted(org_revenues, key=lambda x: x.get("period", ""))
+        latest = sorted_rev[-1]["revenue"]
+        prev = sorted_rev[-2]["revenue"]
+        if prev > 0:
+            actual_growth = ((latest - prev) / prev) * 100
+            rev_target = round(actual_growth + 5, 1)  # stretch by 5%
+            if rev_target < 5:
+                rev_target = 5  # minimum target
+
+    profit_target = 5  # default improvement points
+
+    # User input context (full content)
     user_context = ""
     if user_biz:
-        user_context = f" User strategic context: {user_biz[0]['content'][:200]}."
+        user_context = f" User strategic context: {user_biz[0]['content']}."
 
     # Strategy 1: Growth
     so_desc = ""
@@ -366,28 +412,42 @@ def _generate_business_strategy(ctx):
         f"{so_desc}{user_context}"
     )
 
-    # Revenue growth KR target
-    rev_target = 15  # default growth target %
-    profit_target = 5  # default improvement points
-
     growth_okrs = [{
         "objective": f"Accelerate revenue growth and market expansion for {org_name}",
         "time_horizon": "12 months",
         "key_results": [
-            {"key_result": "Increase annual revenue growth rate", "metric": "Revenue Growth %", "current_value": 0, "target_value": rev_target, "unit": "%"},
-            {"key_result": "Expand into new market segments", "metric": "New Segments", "current_value": 0, "target_value": 2, "unit": "segments"},
+            {"key_result": "Increase annual revenue growth rate", "metric": "Revenue Growth %",
+             "current_value": round(actual_growth, 1) if actual_growth is not None else 0,
+             "target_value": rev_target,
+             "target_optimistic": round(rev_target * 1.3, 1),
+             "target_pessimistic": round(rev_target * 0.7, 1),
+             "unit": "%",
+             "rationale": f"Based on actual YoY growth of {actual_growth:.1f}% + 5% stretch" if actual_growth is not None else "Default growth target"},
+            {"key_result": "Expand into new market segments", "metric": "New Segments",
+             "current_value": 0, "target_value": 2,
+             "target_optimistic": 3, "target_pessimistic": 1,
+             "unit": "segments", "rationale": "Market expansion objective"},
         ]
     }]
 
     if profit_margin is not None:
+        pm_pct = round(profit_margin * 100, 1) if profit_margin < 1 else profit_margin
+        target_pm = round(pm_pct + profit_target, 1)
         growth_okrs[0]["key_results"].append(
-            {"key_result": "Improve profit margin", "metric": "Profit Margin", "current_value": round(profit_margin * 100, 1) if profit_margin < 1 else profit_margin, "target_value": round((profit_margin * 100 if profit_margin < 1 else profit_margin) + profit_target, 1), "unit": "%"}
+            {"key_result": "Improve profit margin", "metric": "Profit Margin",
+             "current_value": pm_pct, "target_value": target_pm,
+             "target_optimistic": round(target_pm + 2, 1),
+             "target_pessimistic": round(target_pm - 2, 1),
+             "unit": "%",
+             "rationale": f"Current margin {pm_pct}%, targeting +{profit_target}pp improvement"}
         )
 
     strategies.append({
         "name": "Revenue Growth & Market Expansion",
         "description": growth_desc,
         "tows_action_id": so_action_id,
+        "risk_level": "medium",
+        "risks": "Market entry barriers, competitive response, execution risk on new segments",
         "okrs": growth_okrs,
     })
 
@@ -403,12 +463,20 @@ def _generate_business_strategy(ctx):
         "name": "Competitive Positioning & Customer Retention",
         "description": defense_desc,
         "tows_action_id": st_action_id,
+        "risk_level": "medium",
+        "risks": "Customer churn during transition, competitor pricing pressure",
         "okrs": [{
             "objective": f"Strengthen market position and customer loyalty",
             "time_horizon": "12 months",
             "key_results": [
-                {"key_result": "Maintain or grow market share", "metric": "Market Share", "current_value": 0, "target_value": 5, "unit": "% gain"},
-                {"key_result": "Improve customer retention rate", "metric": "Retention Rate", "current_value": 80, "target_value": 92, "unit": "%"},
+                {"key_result": "Maintain or grow market share", "metric": "Market Share",
+                 "current_value": 0, "target_value": 5,
+                 "target_optimistic": 8, "target_pessimistic": 3,
+                 "unit": "% gain", "rationale": "Competitive positioning target"},
+                {"key_result": "Improve customer retention rate", "metric": "Retention Rate",
+                 "current_value": 80, "target_value": 92,
+                 "target_optimistic": 95, "target_pessimistic": 88,
+                 "unit": "%", "rationale": "Industry best-in-class retention benchmarks"},
             ]
         }],
     })
@@ -423,6 +491,8 @@ def _generate_digital_strategy(ctx):
     wo_tows = ctx.get("tows", {}).get("WO", [])
     levers = ctx.get("high_impact_levers", [])
     user_dig = ctx.get("user_inputs", {}).get("digital_strategy", [])
+    bench = ctx.get("industry_benchmarks", {})
+    bench_kpis = bench.get("industry_kpis", {}) if bench else {}
 
     # Identify bottleneck streams
     bottleneck_streams = [vs for vs in value_streams if vs.get("bottleneck_step")]
@@ -439,7 +509,7 @@ def _generate_digital_strategy(ctx):
 
     user_context = ""
     if user_dig:
-        user_context = f" User strategic context: {user_dig[0]['content'][:200]}."
+        user_context = f" User strategic context: {user_dig[0]['content']}."
 
     lever_desc = ""
     if levers:
@@ -452,7 +522,13 @@ def _generate_digital_strategy(ctx):
         f"avg flow efficiency {avg_efficiency:.1f}%.{wo_desc}{lever_desc}{user_context}"
     )
 
-    efficiency_target = min(round(avg_efficiency + 10, 0), 80) if avg_efficiency > 0 else 40
+    # Dynamic efficiency target from benchmarks
+    best_in_class_fe = bench_kpis.get("best_in_class_flow_efficiency_pct")
+    if best_in_class_fe and avg_efficiency > 0:
+        efficiency_target = min(round((avg_efficiency + best_in_class_fe) / 2, 0), 80)
+    else:
+        efficiency_target = min(round(avg_efficiency + 10, 0), 80) if avg_efficiency > 0 else 40
+
     lead_times = [vs.get("total_lead_time_hours", 0) for vs in value_streams if vs.get("total_lead_time_hours")]
     avg_lead = sum(lead_times) / len(lead_times) if lead_times else 100
 
@@ -460,13 +536,30 @@ def _generate_digital_strategy(ctx):
         "name": "Digital Process Transformation",
         "description": desc,
         "tows_action_id": wo_action_id,
+        "risk_level": "medium",
+        "risks": "Technology adoption resistance, integration complexity, training overhead",
         "okrs": [{
             "objective": "Improve operational efficiency through digital process transformation",
             "time_horizon": "12 months",
             "key_results": [
-                {"key_result": "Improve average flow efficiency across value streams", "metric": "Flow Efficiency", "current_value": round(avg_efficiency, 1), "target_value": efficiency_target, "unit": "%"},
-                {"key_result": "Reduce average lead time by 25%", "metric": "Lead Time Reduction", "current_value": round(avg_lead, 1), "target_value": round(avg_lead * 0.75, 1), "unit": "hours"},
-                {"key_result": "Launch digital platform features for core processes", "metric": "Platform Features", "current_value": 0, "target_value": max(len(value_streams), 3), "unit": "features"},
+                {"key_result": "Improve average flow efficiency across value streams", "metric": "Flow Efficiency",
+                 "current_value": round(avg_efficiency, 1), "target_value": efficiency_target,
+                 "target_optimistic": min(round(efficiency_target * 1.2, 1), 90),
+                 "target_pessimistic": round(efficiency_target * 0.8, 1),
+                 "unit": "%",
+                 "rationale": f"Current avg: {avg_efficiency:.1f}%, industry best-in-class: {best_in_class_fe:.1f}%" if best_in_class_fe else f"Current avg: {avg_efficiency:.1f}%, targeting +10pp improvement"},
+                {"key_result": "Reduce average lead time by 25%", "metric": "Lead Time Reduction",
+                 "current_value": round(avg_lead, 1), "target_value": round(avg_lead * 0.75, 1),
+                 "target_optimistic": round(avg_lead * 0.6, 1),
+                 "target_pessimistic": round(avg_lead * 0.85, 1),
+                 "unit": "hours",
+                 "rationale": f"Current avg lead time: {avg_lead:.1f}h, targeting 25% reduction"},
+                {"key_result": "Launch digital platform features for core processes", "metric": "Platform Features",
+                 "current_value": 0, "target_value": max(len(value_streams), 3),
+                 "target_optimistic": max(len(value_streams), 3) + 2,
+                 "target_pessimistic": max(len(value_streams), 3) - 1,
+                 "unit": "features",
+                 "rationale": f"One feature per value stream ({len(value_streams)} streams)"},
             ]
         }],
     })
@@ -482,7 +575,7 @@ def _generate_data_strategy(ctx):
 
     user_context = ""
     if user_data:
-        user_context = f" User strategic context: {user_data[0]['content'][:200]}."
+        user_context = f" User strategic context: {user_data[0]['content']}."
 
     vs_count = len(value_streams)
     desc = (
@@ -494,14 +587,30 @@ def _generate_data_strategy(ctx):
         "name": "Enterprise Data & Analytics Platform",
         "description": desc,
         "tows_action_id": None,
+        "risk_level": "low",
+        "risks": "Data quality challenges, cross-team alignment, privacy compliance requirements",
         "okrs": [{
             "objective": "Establish data-driven decision making across the organization",
             "time_horizon": "12 months",
             "key_results": [
-                {"key_result": "Deploy real-time dashboards per value stream", "metric": "Dashboards", "current_value": 0, "target_value": max(vs_count, 3), "unit": "dashboards"},
-                {"key_result": "Achieve data quality score above target", "metric": "Data Quality", "current_value": 0, "target_value": 85, "unit": "%"},
-                {"key_result": "Reduce reporting cycle time", "metric": "Reporting Cycle", "current_value": 5, "target_value": 1, "unit": "days"},
-                {"key_result": "Drive analytics adoption across teams", "metric": "Adoption Rate", "current_value": 20, "target_value": 75, "unit": "%"},
+                {"key_result": "Deploy real-time dashboards per value stream", "metric": "Dashboards",
+                 "current_value": 0, "target_value": max(vs_count, 3),
+                 "target_optimistic": max(vs_count, 3) + 2,
+                 "target_pessimistic": max(vs_count, 3) - 1,
+                 "unit": "dashboards",
+                 "rationale": f"One dashboard per value stream ({vs_count} streams)"},
+                {"key_result": "Achieve data quality score above target", "metric": "Data Quality",
+                 "current_value": 0, "target_value": 85,
+                 "target_optimistic": 92, "target_pessimistic": 78,
+                 "unit": "%", "rationale": "Industry standard data quality benchmark"},
+                {"key_result": "Reduce reporting cycle time", "metric": "Reporting Cycle",
+                 "current_value": 5, "target_value": 1,
+                 "target_optimistic": 0.5, "target_pessimistic": 2,
+                 "unit": "days", "rationale": "Move from weekly to daily/real-time reporting"},
+                {"key_result": "Drive analytics adoption across teams", "metric": "Adoption Rate",
+                 "current_value": 20, "target_value": 75,
+                 "target_optimistic": 85, "target_pessimistic": 60,
+                 "unit": "%", "rationale": "Target majority adoption across organization"},
             ]
         }],
     })
@@ -524,7 +633,7 @@ def _generate_gen_ai_strategy(ctx):
 
     user_context = ""
     if user_ai:
-        user_context = f" User strategic context: {user_ai[0]['content'][:200]}."
+        user_context = f" User strategic context: {user_ai[0]['content']}."
 
     candidate_count = len(automation_candidates)
     desc = (
@@ -537,14 +646,30 @@ def _generate_gen_ai_strategy(ctx):
         "name": "Gen AI Operational Transformation",
         "description": desc,
         "tows_action_id": None,
+        "risk_level": "high",
+        "risks": "AI model accuracy, data privacy concerns, governance gaps, change management challenges",
         "okrs": [{
             "objective": "Deploy Gen AI capabilities to automate and augment key processes",
             "time_horizon": "18 months",
             "key_results": [
-                {"key_result": "Automate high-wait-time processes with AI", "metric": "Processes Automated", "current_value": 0, "target_value": max(candidate_count, 2), "unit": "processes"},
-                {"key_result": "Achieve time savings through AI-powered workflows", "metric": "Time Savings", "current_value": 0, "target_value": 30, "unit": "%"},
-                {"key_result": "Establish AI governance framework", "metric": "Governance Score", "current_value": 0, "target_value": 100, "unit": "%"},
-                {"key_result": "Train teams on AI tools and responsible use", "metric": "Teams Trained", "current_value": 0, "target_value": 100, "unit": "%"},
+                {"key_result": "Automate high-wait-time processes with AI", "metric": "Processes Automated",
+                 "current_value": 0, "target_value": max(candidate_count, 2),
+                 "target_optimistic": max(candidate_count, 2) + 2,
+                 "target_pessimistic": max(candidate_count, 2) - 1,
+                 "unit": "processes",
+                 "rationale": f"{candidate_count} automation candidates identified from value stream analysis"},
+                {"key_result": "Achieve time savings through AI-powered workflows", "metric": "Time Savings",
+                 "current_value": 0, "target_value": 30,
+                 "target_optimistic": 40, "target_pessimistic": 20,
+                 "unit": "%", "rationale": "Industry benchmark for AI-driven process automation savings"},
+                {"key_result": "Establish AI governance framework", "metric": "Governance Score",
+                 "current_value": 0, "target_value": 100,
+                 "target_optimistic": 100, "target_pessimistic": 80,
+                 "unit": "%", "rationale": "Full governance framework required before scaling AI"},
+                {"key_result": "Train teams on AI tools and responsible use", "metric": "Teams Trained",
+                 "current_value": 0, "target_value": 100,
+                 "target_optimistic": 100, "target_pessimistic": 75,
+                 "unit": "%", "rationale": "Organization-wide AI literacy target"},
             ]
         }],
     })
@@ -554,7 +679,8 @@ def _generate_gen_ai_strategy(ctx):
 
 @router.post("/auto-generate")
 async def auto_generate_strategies(db=Depends(get_db)):
-    """Generate strategies + OKRs + KRs from Steps 1-3 + user inputs."""
+    """Generate strategies + OKRs + KRs from Steps 1-3 + user inputs.
+    Uses AI when OpenAI is available, falls back to rule-based generation."""
 
     # Step 1: Cleanup auto-generated strategies (cascade delete)
     auto_strategies = await db.execute_fetchall(
@@ -573,7 +699,79 @@ async def auto_generate_strategies(db=Depends(get_db)):
     # Step 2: Gather context
     ctx = await _gather_strategy_context(db)
 
-    # Step 3: Generate per layer
+    ai_powered = False
+    cross_layer_notes = ""
+    initiative_suggestions = []
+
+    # Step 3: Try AI-powered generation
+    if is_openai_available():
+        try:
+            from ai_swot_strategy import generate_ai_strategies
+
+            # Get TOWS actions for AI context
+            tows_flat = []
+            for stype_actions in ctx.get("tows", {}).values():
+                tows_flat.extend(stype_actions)
+
+            ai_result = await generate_ai_strategies(ctx, tows_flat)
+
+            if ai_result and ai_result.get("layers"):
+                ai_powered = True
+                cross_layer_notes = ai_result.get("cross_layer_notes", "")
+                initiative_suggestions = ai_result.get("initiative_suggestions", [])
+
+                strategy_count = 0
+                okr_count = 0
+                kr_count = 0
+
+                for layer_name in ["business", "digital", "data", "gen_ai"]:
+                    layer_data = ai_result["layers"].get(layer_name, {})
+                    for strat in layer_data.get("strategies", []):
+                        cursor = await db.execute(
+                            "INSERT INTO strategies (layer, name, description, tows_action_id, risk_level, risks) "
+                            "VALUES (?, ?, ?, ?, ?, ?)",
+                            (layer_name,
+                             strat.get("name", f"{layer_name.title()} Strategy"),
+                             f"Auto-generated (AI): {strat.get('description', '')}",
+                             None,  # AI doesn't map to specific TOWS action IDs
+                             strat.get("risk_level", "medium"),
+                             strat.get("risks", "")),
+                        )
+                        strategy_id = cursor.lastrowid
+                        strategy_count += 1
+
+                        for okr in strat.get("okrs", []):
+                            okr_cursor = await db.execute(
+                                "INSERT INTO strategic_okrs (strategy_id, objective, time_horizon, status) VALUES (?, ?, ?, 'draft')",
+                                (strategy_id, okr.get("objective", "Strategic objective"), okr.get("time_horizon", "12 months")),
+                            )
+                            okr_id = okr_cursor.lastrowid
+                            okr_count += 1
+
+                            for kr in okr.get("key_results", []):
+                                await db.execute(
+                                    "INSERT INTO strategic_key_results (okr_id, key_result, metric, current_value, target_value, unit, "
+                                    "target_optimistic, target_pessimistic, rationale) "
+                                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                                    (okr_id, kr.get("key_result", "Key result"),
+                                     kr.get("metric"), kr.get("current_value", 0),
+                                     kr.get("target_value", 0), kr.get("unit"),
+                                     kr.get("target_optimistic"), kr.get("target_pessimistic"),
+                                     kr.get("rationale", "")),
+                                )
+                                kr_count += 1
+
+                await db.commit()
+                return {
+                    "strategies": strategy_count, "okrs": okr_count, "key_results": kr_count,
+                    "ai_powered": True,
+                    "cross_layer_notes": cross_layer_notes,
+                    "initiative_suggestions": initiative_suggestions,
+                }
+        except Exception:
+            pass  # Fall through to rule-based
+
+    # Step 3b: Rule-based fallback
     all_layers = [
         ("business", _generate_business_strategy(ctx)),
         ("digital", _generate_digital_strategy(ctx)),
@@ -588,8 +786,9 @@ async def auto_generate_strategies(db=Depends(get_db)):
     for layer, layer_strategies in all_layers:
         for strat in layer_strategies:
             cursor = await db.execute(
-                "INSERT INTO strategies (layer, name, description, tows_action_id) VALUES (?, ?, ?, ?)",
-                (layer, strat["name"], strat["description"], strat.get("tows_action_id")),
+                "INSERT INTO strategies (layer, name, description, tows_action_id, risk_level, risks) VALUES (?, ?, ?, ?, ?, ?)",
+                (layer, strat["name"], strat["description"], strat.get("tows_action_id"),
+                 strat.get("risk_level", "medium"), strat.get("risks", "")),
             )
             strategy_id = cursor.lastrowid
             strategy_count += 1
@@ -604,12 +803,20 @@ async def auto_generate_strategies(db=Depends(get_db)):
 
                 for kr in okr.get("key_results", []):
                     await db.execute(
-                        "INSERT INTO strategic_key_results (okr_id, key_result, metric, current_value, target_value, unit) "
-                        "VALUES (?, ?, ?, ?, ?, ?)",
+                        "INSERT INTO strategic_key_results (okr_id, key_result, metric, current_value, target_value, unit, "
+                        "target_optimistic, target_pessimistic, rationale) "
+                        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
                         (okr_id, kr["key_result"], kr.get("metric"), kr.get("current_value", 0),
-                         kr["target_value"], kr.get("unit")),
+                         kr["target_value"], kr.get("unit"),
+                         kr.get("target_optimistic"), kr.get("target_pessimistic"),
+                         kr.get("rationale", "")),
                     )
                     kr_count += 1
 
     await db.commit()
-    return {"strategies": strategy_count, "okrs": okr_count, "key_results": kr_count}
+    return {
+        "strategies": strategy_count, "okrs": okr_count, "key_results": kr_count,
+        "ai_powered": False,
+        "cross_layer_notes": "",
+        "initiative_suggestions": [],
+    }
