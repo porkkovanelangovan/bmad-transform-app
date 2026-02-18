@@ -420,13 +420,13 @@ async def _run_api_ingestion(org: dict, db) -> dict:
     if summary["financials"] == 0 and fh_metrics and fh_metrics.get("enterpriseValue"):
         ev = fh_metrics["enterpriseValue"]
         existing = await db.execute_fetchall(
-            "SELECT id FROM revenue_splits WHERE business_unit_id=? AND period='TTM' AND dimension='valuation' AND dimension_value='Enterprise Value (estimated)'",
+            "SELECT id FROM revenue_splits WHERE business_unit_id=? AND period='TTM' AND dimension='segment' AND dimension_value='Enterprise Value (estimated)'",
             (bu_id,),
         )
         if not existing:
             await db.execute(
                 "INSERT INTO revenue_splits (business_unit_id, dimension, dimension_value, revenue, period) VALUES (?, ?, ?, ?, ?)",
-                (bu_id, "valuation", "Enterprise Value (estimated)", ev, "TTM"),
+                (bu_id, "segment", "Enterprise Value (estimated)", ev, "TTM"),
             )
             summary["financials"] += 1
             logger.info("Inserted enterprise value as revenue proxy for %s: %.0f", ticker, ev)
