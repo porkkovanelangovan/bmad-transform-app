@@ -354,7 +354,12 @@
 <body>
 
 <!-- Login/Register Screen (shown when not authenticated) -->
-<div id="login-screen" class="login-screen" style="display:none;"></div>
+<div id="login-screen" class="login-screen">
+    <div class="login-card">
+        <h2>Business Transformation Architect</h2>
+        <p class="subtitle">Loading...</p>
+    </div>
+</div>
 
 <!-- Main App (shown when authenticated) -->
 <div class="app" id="app-container" style="display:none;">
@@ -556,23 +561,28 @@ function showApp() {
 }
 
 async function initApp() {
-    if (authToken) {
-        // Validate existing token
-        try {
-            const res = await fetch(API + '/auth/me', {
-                headers: { 'Authorization': 'Bearer ' + authToken },
-            });
-            if (res.ok) {
-                currentUser = await res.json();
-                showApp();
-                return;
-            }
-        } catch (e) {}
-        // Token invalid/expired
-        authToken = null;
-        localStorage.removeItem('bta_token');
+    try {
+        if (authToken) {
+            // Validate existing token
+            try {
+                const res = await fetch(API + '/auth/me', {
+                    headers: { 'Authorization': 'Bearer ' + authToken },
+                });
+                if (res.ok) {
+                    currentUser = await res.json();
+                    showApp();
+                    return;
+                }
+            } catch (e) {}
+            // Token invalid/expired
+            authToken = null;
+            localStorage.removeItem('bta_token');
+        }
+        renderLoginScreen();
+    } catch (err) {
+        console.error('initApp error:', err);
+        renderLoginScreen();
     }
-    renderLoginScreen();
 }
 
 // --- Utility ---
