@@ -23,16 +23,30 @@ async def search_ticker(company_name: str) -> str | None:
     queries = [company_name]
     name_lower = company_name.lower().strip()
 
-    # Try the abbreviation/initials as a ticker symbol (e.g. "US Bank" -> "USB")
+    # Try ticker-like abbreviations (e.g. "US Bank" -> "USB", "JP Morgan" -> "JPM")
     words = company_name.strip().split()
+    ticker_candidates = set()
     if len(words) >= 2:
+        # Pure initials: "US Bank" -> "UB"
         initials = "".join(w[0] for w in words if w).upper()
         if 2 <= len(initials) <= 5:
-            queries.insert(1, initials)
-    # Also try the name with spaces removed as a ticker (e.g. "USB" for "US Bank" variations)
+            ticker_candidates.add(initials)
+        # First word + initials of rest: "US Bank" -> "USB", "JP Morgan" -> "JPM"
+        first_plus_initials = (words[0] + "".join(w[0] for w in words[1:] if w)).upper()
+        if 2 <= len(first_plus_initials) <= 5:
+            ticker_candidates.add(first_plus_initials)
+        # First N letters of each word combined: "US" + "BA" -> "USBA" (less common but catches some)
+        two_letter_combo = "".join(w[:2] for w in words if w).upper()
+        if 2 <= len(two_letter_combo) <= 5 and two_letter_combo not in ticker_candidates:
+            ticker_candidates.add(two_letter_combo)
+    # Name with spaces/dots removed as ticker: "IBM" stays "IBM"
     no_spaces = company_name.replace(" ", "").replace(".", "").upper()
-    if 2 <= len(no_spaces) <= 5 and no_spaces not in queries:
-        queries.insert(1, no_spaces)
+    if 2 <= len(no_spaces) <= 5:
+        ticker_candidates.add(no_spaces)
+    # Insert ticker candidates right after the original name
+    for tc in ticker_candidates:
+        if tc not in queries:
+            queries.insert(1, tc)
 
     # Try adding corporate suffixes
     for suffix in ["Corp", "Inc", "Corporation", "Bancorp", "Company"]:
