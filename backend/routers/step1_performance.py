@@ -527,28 +527,56 @@ async def create_organization(data: dict, db=Depends(get_db)):
 
 @router.get("/search-companies")
 async def search_companies(q: str = ""):
-    """Search for company names/tickers via Finnhub for autocomplete."""
+    """Search for company names/tickers via Finnhub for autocomplete.
+    Tries multiple query variations (ticker abbreviations, corporate suffixes)
+    to improve results for common short names like 'US Bank' → USB."""
     from data_ingestion import FINNHUB_API_KEY, FINNHUB_BASE
     q = q.strip()
     if not q or len(q) < 2:
         return []
     if not FINNHUB_API_KEY:
         return []
+
+    # Build query variations (same logic as search_ticker in data_ingestion.py)
+    queries = [q]
+    words = q.split()
+    q_lower = q.lower()
+    if len(words) >= 2:
+        abbr = (words[0] + "".join(w[0] for w in words[1:] if w)).upper()
+        if 2 <= len(abbr) <= 5:
+            queries.insert(0, abbr)
+    compact = q.replace(" ", "").replace(".", "").upper()
+    if 2 <= len(compact) <= 5 and compact not in queries:
+        queries.insert(0, compact)
+    for suffix in ["Corp", "Inc", "Bancorp"]:
+        if suffix.lower() not in q_lower:
+            queries.append(f"{q} {suffix}")
+    if q_lower.startswith("us "):
+        queries.append("U.S. " + q[3:])
+
     try:
+        seen_symbols = set()
+        merged = []
         async with httpx.AsyncClient(timeout=10) as client:
-            resp = await client.get(
-                f"{FINNHUB_BASE}/search",
-                params={"q": q, "token": FINNHUB_API_KEY},
-            )
-            data = resp.json()
-            results = data.get("result", [])
-            # Filter to US stocks (no dots in symbol) and limit to 8
-            us_results = [r for r in results if "." not in r.get("symbol", "")]
-            candidates = us_results[:8] if us_results else results[:8]
-            return [
-                {"symbol": r["symbol"], "name": r.get("description", r["symbol"])}
-                for r in candidates
-            ]
+            for query in queries:
+                if len(merged) >= 8:
+                    break
+                resp = await client.get(
+                    f"{FINNHUB_BASE}/search",
+                    params={"q": query, "token": FINNHUB_API_KEY},
+                )
+                data = resp.json()
+                results = data.get("result", [])
+                us_results = [r for r in results if "." not in r.get("symbol", "")]
+                candidates = us_results if us_results else results
+                for r in candidates:
+                    sym = r.get("symbol", "")
+                    if sym and sym not in seen_symbols:
+                        seen_symbols.add(sym)
+                        merged.append({"symbol": sym, "name": r.get("description", sym)})
+                        if len(merged) >= 8:
+                            break
+        return merged
     except Exception:
         return []
 
