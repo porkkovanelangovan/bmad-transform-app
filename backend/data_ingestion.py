@@ -22,6 +22,18 @@ async def search_ticker(company_name: str) -> str | None:
     # Build search variations: original, with common suffixes, without common prefixes
     queries = [company_name]
     name_lower = company_name.lower().strip()
+
+    # Try the abbreviation/initials as a ticker symbol (e.g. "US Bank" -> "USB")
+    words = company_name.strip().split()
+    if len(words) >= 2:
+        initials = "".join(w[0] for w in words if w).upper()
+        if 2 <= len(initials) <= 5:
+            queries.insert(1, initials)
+    # Also try the name with spaces removed as a ticker (e.g. "USB" for "US Bank" variations)
+    no_spaces = company_name.replace(" ", "").replace(".", "").upper()
+    if 2 <= len(no_spaces) <= 5 and no_spaces not in queries:
+        queries.insert(1, no_spaces)
+
     # Try adding corporate suffixes
     for suffix in ["Corp", "Inc", "Corporation", "Bancorp", "Company"]:
         if suffix.lower() not in name_lower:
