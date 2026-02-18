@@ -23,35 +23,20 @@ async def search_ticker(company_name: str) -> str | None:
     queries = [company_name]
     name_lower = company_name.lower().strip()
 
-    # Try ticker-like abbreviations (e.g. "US Bank" -> "USB", "JP Morgan" -> "JPM")
+    # Try ticker-like abbreviations — ordered by likelihood of being a real ticker
     words = company_name.strip().split()
-    ticker_candidates = set()
+    ticker_queries = []
     if len(words) >= 2:
-        # Pure initials: "US Bank" -> "UB"
-        initials = "".join(w[0] for w in words if w).upper()
-        if 2 <= len(initials) <= 5:
-            ticker_candidates.add(initials)
-        # First word + initials of rest: "US Bank" -> "USB", "JP Morgan" -> "JPM"
+        # Best: first word + initials of rest: "US Bank" -> "USB", "JP Morgan" -> "JPM"
         first_plus_initials = (words[0] + "".join(w[0] for w in words[1:] if w)).upper()
         if 2 <= len(first_plus_initials) <= 5:
-            ticker_candidates.add(first_plus_initials)
-        # First N letters of each word combined: "US" + "BA" -> "USBA" (less common but catches some)
-        two_letter_combo = "".join(w[:2] for w in words if w).upper()
-        if 2 <= len(two_letter_combo) <= 5 and two_letter_combo not in ticker_candidates:
-            ticker_candidates.add(two_letter_combo)
-    # Name with spaces/dots removed as ticker: "IBM" stays "IBM"
+            ticker_queries.append(first_plus_initials)
+    # Single word or compact form: "IBM" stays "IBM"
     no_spaces = company_name.replace(" ", "").replace(".", "").upper()
-    if 2 <= len(no_spaces) <= 5:
-        ticker_candidates.add(no_spaces)
-    # Insert ticker candidates BEFORE the original name — short ticker-like
-    # queries match more accurately than full names on Finnhub
-    ticker_list = sorted(ticker_candidates, key=len)
-    for tc in reversed(ticker_list):
-        queries.insert(0, tc)
-    # Move original company name after ticker candidates
-    if ticker_list:
-        queries.remove(company_name)
-        queries.append(company_name)
+    if 2 <= len(no_spaces) <= 5 and no_spaces not in ticker_queries:
+        ticker_queries.append(no_spaces)
+    # Search ticker candidates first, then fall back to full name
+    queries = ticker_queries + queries
 
     # Try adding corporate suffixes
     for suffix in ["Corp", "Inc", "Corporation", "Bancorp", "Company"]:
