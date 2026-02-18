@@ -43,10 +43,15 @@ async def search_ticker(company_name: str) -> str | None:
     no_spaces = company_name.replace(" ", "").replace(".", "").upper()
     if 2 <= len(no_spaces) <= 5:
         ticker_candidates.add(no_spaces)
-    # Insert ticker candidates right after the original name
-    for tc in ticker_candidates:
-        if tc not in queries:
-            queries.insert(1, tc)
+    # Insert ticker candidates BEFORE the original name — short ticker-like
+    # queries match more accurately than full names on Finnhub
+    ticker_list = sorted(ticker_candidates, key=len)
+    for tc in reversed(ticker_list):
+        queries.insert(0, tc)
+    # Move original company name after ticker candidates
+    if ticker_list:
+        queries.remove(company_name)
+        queries.append(company_name)
 
     # Try adding corporate suffixes
     for suffix in ["Corp", "Inc", "Corporation", "Bancorp", "Company"]:
