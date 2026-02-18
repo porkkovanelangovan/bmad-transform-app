@@ -33,6 +33,9 @@ CREATE TABLE IF NOT EXISTS organization (
     currency TEXT,
     competitor_1_name TEXT,
     competitor_2_name TEXT,
+    ai_executive_summary TEXT,
+    ai_health_score DOUBLE PRECISION,
+    ai_summary_updated_at TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -134,7 +137,7 @@ CREATE TABLE IF NOT EXISTS value_stream_metrics (
     flow_efficiency DOUBLE PRECISION DEFAULT 0,
     bottleneck_step TEXT,
     bottleneck_reason TEXT,
-    data_source TEXT DEFAULT 'manual' CHECK (data_source IN ('ai_generated', 'template', 'uploaded', 'manual')),
+    data_source TEXT DEFAULT 'manual' CHECK (data_source IN ('ai_generated', 'template', 'uploaded', 'manual', 'visual_upload', 'url_extraction')),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -160,6 +163,8 @@ CREATE TABLE IF NOT EXISTS swot_entries (
     category TEXT NOT NULL CHECK (category IN ('strength', 'weakness', 'opportunity', 'threat')),
     description TEXT NOT NULL,
     data_source TEXT,
+    severity TEXT DEFAULT 'medium',
+    confidence TEXT DEFAULT 'medium',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -170,6 +175,8 @@ CREATE TABLE IF NOT EXISTS tows_actions (
     swot_entry_2_id INTEGER NOT NULL REFERENCES swot_entries(id),
     action_description TEXT NOT NULL,
     priority TEXT CHECK (priority IN ('low', 'medium', 'high', 'critical')),
+    impact_score INTEGER DEFAULT 5,
+    rationale TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -196,6 +203,8 @@ CREATE TABLE IF NOT EXISTS strategies (
     description TEXT,
     tows_action_id INTEGER REFERENCES tows_actions(id),
     approved INTEGER DEFAULT 0,
+    risk_level TEXT DEFAULT 'medium',
+    risks TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -215,7 +224,10 @@ CREATE TABLE IF NOT EXISTS strategic_key_results (
     metric TEXT,
     current_value DOUBLE PRECISION DEFAULT 0,
     target_value DOUBLE PRECISION NOT NULL,
+    target_optimistic DOUBLE PRECISION,
+    target_pessimistic DOUBLE PRECISION,
     unit TEXT,
+    rationale TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -261,6 +273,8 @@ CREATE TABLE IF NOT EXISTS initiatives (
     risks TEXT,
     roadmap_phase TEXT,
     status TEXT DEFAULT 'proposed' CHECK (status IN ('proposed', 'approved', 'in_progress', 'completed', 'deferred')),
+    ai_generated INTEGER DEFAULT 0,
+    ai_rationale TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -281,6 +295,7 @@ CREATE TABLE IF NOT EXISTS product_okrs (
     digital_product_id INTEGER NOT NULL REFERENCES digital_products(id),
     objective TEXT NOT NULL,
     status TEXT DEFAULT 'draft' CHECK (status IN ('draft', 'active', 'achieved', 'at_risk')),
+    ai_generated INTEGER DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -313,6 +328,9 @@ CREATE TABLE IF NOT EXISTS epics (
     risks TEXT,
     dependencies_text TEXT,
     roadmap_phase TEXT,
+    ai_generated INTEGER DEFAULT 0,
+    estimated_effort_days DOUBLE PRECISION,
+    ai_rationale TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -335,6 +353,7 @@ CREATE TABLE IF NOT EXISTS delivery_okrs (
     team_id INTEGER NOT NULL REFERENCES teams(id),
     objective TEXT NOT NULL,
     status TEXT DEFAULT 'draft' CHECK (status IN ('draft', 'active', 'achieved', 'at_risk')),
+    ai_generated INTEGER DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -369,6 +388,9 @@ CREATE TABLE IF NOT EXISTS features (
     risks TEXT,
     dependencies_text TEXT,
     roadmap_phase TEXT,
+    ai_generated INTEGER DEFAULT 0,
+    ai_rationale TEXT,
+    acceptance_criteria TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -386,6 +408,62 @@ CREATE TABLE IF NOT EXISTS review_gates (
     review_notes TEXT,
     reviewed_at TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ============================================================
+-- Step 1: Data Ingestion Hub
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS step1_data_urls (
+    id SERIAL PRIMARY KEY,
+    url TEXT NOT NULL,
+    label TEXT,
+    url_type TEXT DEFAULT 'external',
+    last_fetched_at TIMESTAMP,
+    last_result_json TEXT,
+    status TEXT DEFAULT 'pending',
+    error_message TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ============================================================
+-- AI Dashboard Tables
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS ai_analysis_cache (
+    id SERIAL PRIMARY KEY,
+    analysis_type TEXT NOT NULL,
+    input_hash TEXT NOT NULL,
+    result_json TEXT NOT NULL,
+    ai_model TEXT DEFAULT 'gpt-4o-mini',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    expires_at TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS ai_scenarios (
+    id SERIAL PRIMARY KEY,
+    scenario_name TEXT NOT NULL,
+    scenario_type TEXT NOT NULL CHECK (scenario_type IN ('revenue_change', 'market_entry', 'cost_change', 'custom')),
+    parameters_json TEXT NOT NULL,
+    result_json TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS nlq_history (
+    id SERIAL PRIMARY KEY,
+    question TEXT NOT NULL,
+    answer_json TEXT NOT NULL,
+    data_tables_queried TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS feature_dependencies (
+    id SERIAL PRIMARY KEY,
+    feature_id INTEGER NOT NULL REFERENCES features(id),
+    depends_on_feature_id INTEGER NOT NULL REFERENCES features(id),
+    dependency_type TEXT DEFAULT 'blocks' CHECK (dependency_type IN ('blocks', 'relates_to')),
+    notes TEXT,
+    CHECK (feature_id != depends_on_feature_id)
 );
 
 -- ============================================================

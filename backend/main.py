@@ -70,11 +70,53 @@ async def run_migrations():
 
 
 async def _migrate_postgres(db):
-    """Run PostgreSQL schema (all CREATE IF NOT EXISTS)."""
+    """Run PostgreSQL schema (all CREATE IF NOT EXISTS) + column migrations."""
     schema_path = os.path.join(os.path.dirname(__file__), "..", "database", "schema_postgres.sql")
     with open(schema_path, "r") as f:
         schema_sql = f.read()
     await db.executescript(schema_sql)
+
+    # Add columns that may be missing from existing tables (ALTER TABLE IF NOT EXISTS not supported,
+    # so we catch and ignore errors for already-existing columns)
+    alter_statements = [
+        # epics
+        "ALTER TABLE epics ADD COLUMN ai_generated INTEGER DEFAULT 0",
+        "ALTER TABLE epics ADD COLUMN estimated_effort_days DOUBLE PRECISION",
+        "ALTER TABLE epics ADD COLUMN ai_rationale TEXT",
+        # features
+        "ALTER TABLE features ADD COLUMN ai_generated INTEGER DEFAULT 0",
+        "ALTER TABLE features ADD COLUMN ai_rationale TEXT",
+        "ALTER TABLE features ADD COLUMN acceptance_criteria TEXT",
+        # delivery_okrs
+        "ALTER TABLE delivery_okrs ADD COLUMN ai_generated INTEGER DEFAULT 0",
+        # organization
+        "ALTER TABLE organization ADD COLUMN ai_executive_summary TEXT",
+        "ALTER TABLE organization ADD COLUMN ai_health_score DOUBLE PRECISION",
+        "ALTER TABLE organization ADD COLUMN ai_summary_updated_at TIMESTAMP",
+        # swot_entries
+        "ALTER TABLE swot_entries ADD COLUMN severity TEXT DEFAULT 'medium'",
+        "ALTER TABLE swot_entries ADD COLUMN confidence TEXT DEFAULT 'medium'",
+        # tows_actions
+        "ALTER TABLE tows_actions ADD COLUMN impact_score INTEGER DEFAULT 5",
+        "ALTER TABLE tows_actions ADD COLUMN rationale TEXT",
+        # strategies
+        "ALTER TABLE strategies ADD COLUMN risk_level TEXT DEFAULT 'medium'",
+        "ALTER TABLE strategies ADD COLUMN risks TEXT",
+        # strategic_key_results
+        "ALTER TABLE strategic_key_results ADD COLUMN target_optimistic DOUBLE PRECISION",
+        "ALTER TABLE strategic_key_results ADD COLUMN target_pessimistic DOUBLE PRECISION",
+        "ALTER TABLE strategic_key_results ADD COLUMN rationale TEXT",
+        # initiatives
+        "ALTER TABLE initiatives ADD COLUMN ai_generated INTEGER DEFAULT 0",
+        "ALTER TABLE initiatives ADD COLUMN ai_rationale TEXT",
+        # product_okrs
+        "ALTER TABLE product_okrs ADD COLUMN ai_generated INTEGER DEFAULT 0",
+    ]
+    for stmt in alter_statements:
+        try:
+            await db.execute(stmt)
+        except Exception:
+            pass  # Column already exists
 
 
 async def _migrate_sqlite(db):
