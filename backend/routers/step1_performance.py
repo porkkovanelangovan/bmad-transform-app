@@ -523,6 +523,36 @@ async def create_organization(data: dict, db=Depends(get_db)):
     return {"id": cursor.lastrowid}
 
 
+# --- Company Search (Autocomplete) ---
+
+@router.get("/search-companies")
+async def search_companies(q: str = ""):
+    """Search for company names/tickers via Finnhub for autocomplete."""
+    from data_ingestion import FINNHUB_API_KEY, FINNHUB_BASE
+    q = q.strip()
+    if not q or len(q) < 2:
+        return []
+    if not FINNHUB_API_KEY:
+        return []
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            resp = await client.get(
+                f"{FINNHUB_BASE}/search",
+                params={"q": q, "token": FINNHUB_API_KEY},
+            )
+            data = resp.json()
+            results = data.get("result", [])
+            # Filter to US stocks (no dots in symbol) and limit to 8
+            us_results = [r for r in results if "." not in r.get("symbol", "")]
+            candidates = us_results[:8] if us_results else results[:8]
+            return [
+                {"symbol": r["symbol"], "name": r.get("description", r["symbol"])}
+                for r in candidates
+            ]
+    except Exception:
+        return []
+
+
 # --- Ingest (Auto-fetch from APIs) ---
 
 @router.post("/ingest")

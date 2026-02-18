@@ -52,6 +52,13 @@
         .form-row { display: flex; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
         .form-group { flex: 1; min-width: 200px; }
         .form-group label { display: block; font-size: 12px; color: #94a3b8; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .autocomplete-wrapper { position: relative; }
+        .autocomplete-list { position: absolute; top: 100%; left: 0; right: 0; background: #1e293b; border: 1px solid #475569; border-top: none; border-radius: 0 0 8px 8px; max-height: 240px; overflow-y: auto; z-index: 100; display: none; }
+        .autocomplete-list.show { display: block; }
+        .autocomplete-item { padding: 10px 12px; cursor: pointer; font-size: 13px; border-bottom: 1px solid #334155; display: flex; justify-content: space-between; align-items: center; }
+        .autocomplete-item:hover, .autocomplete-item.active { background: #334155; }
+        .autocomplete-item .ac-name { color: #e2e8f0; }
+        .autocomplete-item .ac-ticker { color: #38bdf8; font-size: 12px; font-weight: 600; }
         input, select, textarea { width: 100%; padding: 10px 12px; background: #0f172a; border: 1px solid #334155; border-radius: 8px; color: #e2e8f0; font-size: 14px; }
         input:focus, select:focus, textarea:focus { outline: none; border-color: #0ea5e9; }
         textarea { resize: vertical; min-height: 80px; }
@@ -674,7 +681,10 @@ function renderStep1Setup() {
                 <div class="form-row">
                     <div class="form-group">
                         <label>Organization Name</label>
-                        <input type="text" id="org-name" placeholder="e.g. Apple, Microsoft, Tesla" />
+                        <div class="autocomplete-wrapper">
+                            <input type="text" id="org-name" placeholder="Start typing a company name..." autocomplete="off" oninput="onOrgNameInput(this.value)" onkeydown="onOrgNameKeydown(event)" />
+                            <div class="autocomplete-list" id="org-name-suggestions"></div>
+                        </div>
                     </div>
                 </div>
                 <div class="form-row">
@@ -704,6 +714,51 @@ function renderStep1Setup() {
         <div id="step1-gates" style="margin-top:20px;"></div>
     `;
     renderStepGates(1, 'step1-gates');
+}
+
+// --- Organization Name Autocomplete ---
+let _acTimer = null;
+let _acIndex = -1;
+
+async function onOrgNameInput(val) {
+    clearTimeout(_acTimer);
+    const list = document.getElementById('org-name-suggestions');
+    if (!list) return;
+    if (val.trim().length < 2) { list.classList.remove('show'); list.innerHTML = ''; return; }
+    _acTimer = setTimeout(async () => {
+        try {
+            const results = await api('/step1/search-companies?q=' + encodeURIComponent(val.trim()));
+            if (!results || !results.length) { list.classList.remove('show'); list.innerHTML = ''; return; }
+            _acIndex = -1;
+            list.innerHTML = results.map((r, i) =>
+                `<div class="autocomplete-item" data-name="${r.name}" data-symbol="${r.symbol}" onmousedown="selectOrgSuggestion('${r.name.replace(/'/g, "\\'")}', '${r.symbol}')" onmouseenter="_acIndex=${i}">
+                    <span class="ac-name">${r.name}</span><span class="ac-ticker">${r.symbol}</span>
+                </div>`
+            ).join('');
+            list.classList.add('show');
+        } catch (e) { list.classList.remove('show'); }
+    }, 300);
+}
+
+function onOrgNameKeydown(e) {
+    const list = document.getElementById('org-name-suggestions');
+    if (!list || !list.classList.contains('show')) return;
+    const items = list.querySelectorAll('.autocomplete-item');
+    if (e.key === 'ArrowDown') { e.preventDefault(); _acIndex = Math.min(_acIndex + 1, items.length - 1); updateAcHighlight(items); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); _acIndex = Math.max(_acIndex - 1, 0); updateAcHighlight(items); }
+    else if (e.key === 'Enter' && _acIndex >= 0) { e.preventDefault(); items[_acIndex].onmousedown(); }
+    else if (e.key === 'Escape') { list.classList.remove('show'); }
+}
+
+function updateAcHighlight(items) {
+    items.forEach((el, i) => el.classList.toggle('active', i === _acIndex));
+    if (_acIndex >= 0 && items[_acIndex]) items[_acIndex].scrollIntoView({ block: 'nearest' });
+}
+
+function selectOrgSuggestion(name, symbol) {
+    document.getElementById('org-name').value = name;
+    const list = document.getElementById('org-name-suggestions');
+    if (list) { list.classList.remove('show'); list.innerHTML = ''; }
 }
 
 async function submitOrganization() {
