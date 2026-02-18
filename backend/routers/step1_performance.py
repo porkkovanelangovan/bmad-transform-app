@@ -874,8 +874,12 @@ def _map_rows_to_data(rows: list, table_type: str, mapping: dict) -> dict:
 @router.get("/urls")
 async def list_urls(db=Depends(get_db)):
     """List all saved data ingestion URLs."""
-    rows = await db.execute_fetchall("SELECT * FROM step1_data_urls ORDER BY created_at DESC")
-    return [dict(r) for r in rows]
+    try:
+        rows = await db.execute_fetchall("SELECT * FROM step1_data_urls ORDER BY created_at DESC")
+        return [dict(r) for r in rows]
+    except Exception as e:
+        import traceback
+        return {"error": str(e), "trace": traceback.format_exc()}
 
 
 @router.post("/urls")

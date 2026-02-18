@@ -71,10 +71,26 @@ async def run_migrations():
 
 async def _migrate_postgres(db):
     """Run PostgreSQL schema (all CREATE IF NOT EXISTS) + column migrations."""
+    import logging
+    logger = logging.getLogger("migration")
     schema_path = os.path.join(os.path.dirname(__file__), "..", "database", "schema_postgres.sql")
     with open(schema_path, "r") as f:
         schema_sql = f.read()
-    await db.executescript(schema_sql)
+    try:
+        await db.executescript(schema_sql)
+        logger.info("PostgreSQL schema executed successfully")
+    except Exception as e:
+        logger.error(f"Schema execution failed: {e}")
+        # Try executing statements one by one
+        for stmt in schema_sql.split(";"):
+            stmt = stmt.strip()
+            if not stmt or stmt.startswith("--"):
+                continue
+            try:
+                await db.executescript(stmt + ";")
+            except Exception as stmt_err:
+                logger.warning(f"Statement failed (continuing): {stmt_err}")
+                logger.warning(f"  Statement was: {stmt[:120]}...")
 
     # Add columns that may be missing from existing tables (ALTER TABLE IF NOT EXISTS not supported,
     # so we catch and ignore errors for already-existing columns)
