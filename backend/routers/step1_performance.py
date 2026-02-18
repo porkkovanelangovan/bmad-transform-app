@@ -739,7 +739,13 @@ async def ingest_data(db=Depends(get_db)):
     if not org_rows:
         return {"error": "No organization set. Create one first."}
     org = dict(org_rows[0])
-    return await _run_api_ingestion(org, db)
+    try:
+        return await _run_api_ingestion(org, db)
+    except Exception as e:
+        import traceback
+        tb = traceback.format_exc()
+        logger.error("Ingestion failed: %s\n%s", e, tb)
+        return {"error": f"Ingestion failed: {e}", "traceback": tb}
 
 
 # --- File Upload ---
