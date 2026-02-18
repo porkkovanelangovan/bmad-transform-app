@@ -16,6 +16,7 @@ from data_ingestion import (
     fetch_peers,
     fetch_company_overview,
     fetch_financials,
+    fetch_finnhub_metrics,
 )
 from ai_research import is_openai_available
 
@@ -301,7 +302,9 @@ async def _extract_financial_from_url(url: str) -> dict:
 
 
 async def _run_api_ingestion(org: dict, db) -> dict:
-    """Core API ingestion logic (Finnhub + Alpha Vantage). Extracted from ingest_data for reuse."""
+    """Core API ingestion logic (Finnhub primary + Alpha Vantage supplement).
+    Uses Finnhub /stock/metric as the primary data source (60 calls/min)
+    and Alpha Vantage INCOME_STATEMENT + OVERVIEW as supplements (25 calls/day)."""
     from data_ingestion import FINNHUB_API_KEY, ALPHA_VANTAGE_API_KEY
 
     org_name = org["name"]
@@ -312,10 +315,13 @@ async def _run_api_ingestion(org: dict, db) -> dict:
         return {"skipped": True, "message": "Finnhub/Alpha Vantage API keys not configured. You can still add data manually, via file upload, or URL extraction.", "summary": summary}
 
     # 1. Search for ticker
+    logger.info("Searching ticker for '%s'", org_name)
     ticker = await search_ticker(org_name)
     if not ticker:
+        logger.warning("No ticker found for '%s'", org_name)
         return {"skipped": True, "message": f"Could not find stock ticker for '{org_name}'. You can still add data manually, via file upload, or URL extraction.", "summary": summary}
     summary["ticker"] = ticker
+    logger.info("Found ticker %s for '%s'", ticker, org_name)
 
     # 2. Fetch company profile and update organization
     profile = await fetch_company_profile(ticker)
@@ -326,6 +332,9 @@ async def _run_api_ingestion(org: dict, db) -> dict:
              profile.get("country"), profile.get("currency"), org["id"]),
         )
         summary["profile"] = True
+        logger.info("Profile updated for %s", ticker)
+    else:
+        logger.warning("No profile returned for %s", ticker)
 
     # 3. Ensure a business unit exists for this company
     existing_bu = await db.execute_fetchall(
@@ -340,9 +349,20 @@ async def _run_api_ingestion(org: dict, db) -> dict:
         )
         bu_id = cursor.lastrowid
 
-    # 4. Fetch financials (income statement) -> revenue_splits
+    # 4. Fetch Finnhub metrics (PRIMARY source — 60 calls/min, always available)
+    logger.info("Fetching Finnhub metrics for %s", ticker)
+    fh_metrics = await fetch_finnhub_metrics(ticker)
+    if fh_metrics:
+        logger.info("Finnhub metrics available for %s", ticker)
+    else:
+        logger.warning("Finnhub metrics unavailable for %s", ticker)
+
+    # 5. Fetch Alpha Vantage financials (income statement) -> revenue_splits
+    logger.info("Fetching Alpha Vantage financials for %s", ticker)
     financials = await fetch_financials(ticker)
     if financials and financials.get("annual_reports"):
+        logger.info("Alpha Vantage INCOME_STATEMENT returned %d annual reports for %s",
+                     len(financials["annual_reports"]), ticker)
         for report in financials["annual_reports"]:
             period = report["fiscal_date"][:4] if report.get("fiscal_date") else "Unknown"
             revenue = report.get("total_revenue")
@@ -357,32 +377,106 @@ async def _run_api_ingestion(org: dict, db) -> dict:
                         (bu_id, "product", "Total Revenue", revenue, period),
                     )
                     summary["financials"] += 1
+    else:
+        logger.warning("Alpha Vantage INCOME_STATEMENT returned no data for %s (likely rate limited)", ticker)
 
-    # 5. Fetch company overview -> ops_efficiency metrics
+    # 6. Fetch Alpha Vantage company overview (supplementary)
+    logger.info("Fetching Alpha Vantage overview for %s", ticker)
     overview = await fetch_company_overview(ticker)
     if overview:
-        metrics = {
-            "Profit Margin": overview.get("profit_margin"),
-            "Operating Margin": overview.get("operating_margin"),
-            "Return on Equity": overview.get("return_on_equity"),
-            "Return on Assets": overview.get("return_on_assets"),
-            "PE Ratio": overview.get("pe_ratio"),
-            "EPS": overview.get("eps"),
-        }
-        for metric_name, metric_value in metrics.items():
-            if metric_value is not None:
-                existing = await db.execute_fetchall(
-                    "SELECT id FROM ops_efficiency WHERE business_unit_id=? AND metric_name=? AND period='TTM'",
-                    (bu_id, metric_name),
-                )
-                if not existing:
-                    await db.execute(
-                        "INSERT INTO ops_efficiency (business_unit_id, metric_name, metric_value, period) VALUES (?, ?, ?, ?)",
-                        (bu_id, metric_name, metric_value, "TTM"),
-                    )
-                    summary["ops_metrics"] += 1
+        logger.info("Alpha Vantage OVERVIEW available for %s", ticker)
+    else:
+        logger.warning("Alpha Vantage OVERVIEW unavailable for %s (likely rate limited)", ticker)
 
-    # 6. Fetch named competitors with full financial data
+    # 6a. Revenue fallback: if no revenue from INCOME_STATEMENT, try OVERVIEW TTM
+    if summary["financials"] == 0 and overview:
+        revenue_ttm = overview.get("revenue_ttm")
+        if revenue_ttm:
+            existing = await db.execute_fetchall(
+                "SELECT id FROM revenue_splits WHERE business_unit_id=? AND period='TTM' AND dimension='product' AND dimension_value='Total Revenue'",
+                (bu_id,),
+            )
+            if not existing:
+                await db.execute(
+                    "INSERT INTO revenue_splits (business_unit_id, dimension, dimension_value, revenue, period) VALUES (?, ?, ?, ?, ?)",
+                    (bu_id, "product", "Total Revenue", revenue_ttm, "TTM"),
+                )
+                summary["financials"] += 1
+                logger.info("Inserted TTM revenue from OVERVIEW fallback for %s: %.0f", ticker, revenue_ttm)
+        gross_profit_ttm = overview.get("gross_profit_ttm")
+        if gross_profit_ttm:
+            existing = await db.execute_fetchall(
+                "SELECT id FROM revenue_splits WHERE business_unit_id=? AND period='TTM' AND dimension='product' AND dimension_value='Gross Profit'",
+                (bu_id,),
+            )
+            if not existing:
+                await db.execute(
+                    "INSERT INTO revenue_splits (business_unit_id, dimension, dimension_value, revenue, period) VALUES (?, ?, ?, ?, ?)",
+                    (bu_id, "product", "Gross Profit", gross_profit_ttm, "TTM"),
+                )
+                summary["financials"] += 1
+
+    # 6b. Revenue last resort: if still 0, use Finnhub enterprise value as proxy
+    if summary["financials"] == 0 and fh_metrics and fh_metrics.get("enterpriseValue"):
+        ev = fh_metrics["enterpriseValue"]
+        existing = await db.execute_fetchall(
+            "SELECT id FROM revenue_splits WHERE business_unit_id=? AND period='TTM' AND dimension='valuation' AND dimension_value='Enterprise Value (estimated)'",
+            (bu_id,),
+        )
+        if not existing:
+            await db.execute(
+                "INSERT INTO revenue_splits (business_unit_id, dimension, dimension_value, revenue, period) VALUES (?, ?, ?, ?, ?)",
+                (bu_id, "valuation", "Enterprise Value (estimated)", ev, "TTM"),
+            )
+            summary["financials"] += 1
+            logger.info("Inserted enterprise value as revenue proxy for %s: %.0f", ticker, ev)
+
+    # 7. Build merged ops metrics: Finnhub primary, Alpha Vantage supplement
+    # Define metric mappings: (display_name, finnhub_key, av_key, period, finnhub_is_pct)
+    ops_metric_defs = [
+        ("Net Profit Margin", "netProfitMarginTTM", "profit_margin", "TTM", True),
+        ("Operating Margin", "operatingMarginTTM", "operating_margin", "TTM", True),
+        ("Return on Equity (ROE)", "roeTTM", "return_on_equity", "TTM", True),
+        ("Return on Assets (ROA)", "roaTTM", "return_on_assets", "TTM", True),
+        ("EPS", "epsTTM", "eps", "TTM", False),
+        ("Beta", "beta", None, "TTM", False),
+        ("Dividend Yield", "currentDividendYieldTTM", None, "TTM", True),
+        ("Revenue Growth (YoY)", "revenueGrowthTTMYoy", None, "TTM", True),
+        ("Revenue Growth (5Y)", "revenueGrowth5Y", None, "5Y", True),
+        ("EPS Growth (3Y)", "epsGrowth3Y", None, "3Y", True),
+        ("Book Value Per Share", "bookValuePerShareAnnual", None, "Annual", False),
+        ("Net Profit Margin (5Y Avg)", "netProfitMargin5Y", None, "5Y", True),
+        ("Gross Margin", "grossMarginTTM", None, "TTM", True),
+    ]
+
+    for metric_name, fh_key, av_key, period, fh_is_pct in ops_metric_defs:
+        # Try Finnhub first, fall back to Alpha Vantage
+        value = None
+        if fh_metrics and fh_key:
+            raw = fh_metrics.get(fh_key)
+            if raw is not None:
+                # Finnhub returns percentages as e.g. 20.01 (meaning 20.01%)
+                # Convert to decimal form for consistency (0.2001)
+                value = raw / 100.0 if fh_is_pct else raw
+        if value is None and overview and av_key:
+            value = overview.get(av_key)
+
+        if value is not None:
+            existing = await db.execute_fetchall(
+                "SELECT id FROM ops_efficiency WHERE business_unit_id=? AND metric_name=? AND period=?",
+                (bu_id, metric_name, period),
+            )
+            if not existing:
+                await db.execute(
+                    "INSERT INTO ops_efficiency (business_unit_id, metric_name, metric_value, period) VALUES (?, ?, ?, ?)",
+                    (bu_id, metric_name, value, period),
+                )
+                summary["ops_metrics"] += 1
+
+    logger.info("Inserted %d revenue splits, %d ops metrics for %s",
+                summary["financials"], summary["ops_metrics"], ticker)
+
+    # 8. Fetch named competitors with full financial data
     competitor_names = []
     if org.get("competitor_1_name"):
         competitor_names.append(org["competitor_1_name"])
@@ -392,13 +486,58 @@ async def _run_api_ingestion(org: dict, db) -> dict:
     for comp_name in competitor_names:
         comp_ticker = await search_ticker(comp_name)
         if not comp_ticker:
+            logger.warning("No ticker found for competitor '%s'", comp_name)
             continue
 
         comp_profile = await fetch_company_profile(comp_ticker)
+        comp_fh_metrics = await fetch_finnhub_metrics(comp_ticker)
         comp_overview = await fetch_company_overview(comp_ticker)
         comp_financials = await fetch_financials(comp_ticker)
 
         display_name = comp_profile.get("name", comp_name) if comp_profile else comp_name
+
+        # Build competitor financial values from merged sources
+        comp_revenue = None
+        comp_profit_margin = None
+        comp_operating_margin = None
+        comp_roe = None
+        comp_roa = None
+        comp_pe = None
+        comp_eps = None
+
+        # Finnhub metrics as primary
+        if comp_fh_metrics:
+            comp_profit_margin = comp_fh_metrics.get("netProfitMarginTTM")
+            if comp_profit_margin is not None:
+                comp_profit_margin = comp_profit_margin / 100.0
+            comp_operating_margin = comp_fh_metrics.get("operatingMarginTTM")
+            if comp_operating_margin is not None:
+                comp_operating_margin = comp_operating_margin / 100.0
+            comp_roe = comp_fh_metrics.get("roeTTM")
+            if comp_roe is not None:
+                comp_roe = comp_roe / 100.0
+            comp_roa = comp_fh_metrics.get("roaTTM")
+            if comp_roa is not None:
+                comp_roa = comp_roa / 100.0
+            comp_pe = comp_fh_metrics.get("peTTM")
+            comp_eps = comp_fh_metrics.get("epsTTM")
+
+        # Alpha Vantage as supplement (fill gaps)
+        if comp_overview:
+            if comp_revenue is None:
+                comp_revenue = comp_overview.get("revenue_ttm")
+            if comp_profit_margin is None:
+                comp_profit_margin = comp_overview.get("profit_margin")
+            if comp_operating_margin is None:
+                comp_operating_margin = comp_overview.get("operating_margin")
+            if comp_roe is None:
+                comp_roe = comp_overview.get("return_on_equity")
+            if comp_roa is None:
+                comp_roa = comp_overview.get("return_on_assets")
+            if comp_pe is None:
+                comp_pe = comp_overview.get("pe_ratio")
+            if comp_eps is None:
+                comp_eps = comp_overview.get("eps")
 
         existing = await db.execute_fetchall(
             "SELECT id FROM competitors WHERE name = ?", (display_name,)
@@ -413,13 +552,13 @@ async def _run_api_ingestion(org: dict, db) -> dict:
                 (
                     display_name,
                     comp_ticker,
-                    comp_overview.get("revenue_ttm") if comp_overview else None,
-                    comp_overview.get("profit_margin") if comp_overview else None,
-                    comp_overview.get("operating_margin") if comp_overview else None,
-                    comp_overview.get("return_on_equity") if comp_overview else None,
-                    comp_overview.get("return_on_assets") if comp_overview else None,
-                    comp_overview.get("pe_ratio") if comp_overview else None,
-                    comp_overview.get("eps") if comp_overview else None,
+                    comp_revenue,
+                    comp_profit_margin,
+                    comp_operating_margin,
+                    comp_roe,
+                    comp_roa,
+                    comp_pe,
+                    comp_eps,
                     comp_profile.get("market_cap") if comp_profile else None,
                     f"Market Cap: ${comp_profile['market_cap']:,.0f}M" if comp_profile and comp_profile.get("market_cap") else None,
                     f"Finnhub + Alpha Vantage (ticker: {comp_ticker})",
@@ -440,6 +579,7 @@ async def _run_api_ingestion(org: dict, db) -> dict:
             )
             comp_bu_id = cursor.lastrowid
 
+        # Insert competitor revenue splits
         if comp_financials and comp_financials.get("annual_reports"):
             for report in comp_financials["annual_reports"]:
                 period = report["fiscal_date"][:4] if report.get("fiscal_date") else "Unknown"
@@ -455,28 +595,36 @@ async def _run_api_ingestion(org: dict, db) -> dict:
                             (comp_bu_id, "product", "Total Revenue", revenue, period),
                         )
 
-        if comp_overview:
-            comp_metrics = {
-                "Profit Margin": comp_overview.get("profit_margin"),
-                "Operating Margin": comp_overview.get("operating_margin"),
-                "Return on Equity": comp_overview.get("return_on_equity"),
-                "Return on Assets": comp_overview.get("return_on_assets"),
-                "PE Ratio": comp_overview.get("pe_ratio"),
-                "EPS": comp_overview.get("eps"),
-            }
-            for metric_name, metric_value in comp_metrics.items():
-                if metric_value is not None:
-                    existing = await db.execute_fetchall(
-                        "SELECT id FROM ops_efficiency WHERE business_unit_id=? AND metric_name=? AND period='TTM'",
-                        (comp_bu_id, metric_name),
-                    )
-                    if not existing:
-                        await db.execute(
-                            "INSERT INTO ops_efficiency (business_unit_id, metric_name, metric_value, period) VALUES (?, ?, ?, ?)",
-                            (comp_bu_id, metric_name, metric_value, "TTM"),
-                        )
+        # Insert competitor ops metrics from merged sources
+        comp_merged_metrics = {
+            "Net Profit Margin": comp_profit_margin,
+            "Operating Margin": comp_operating_margin,
+            "Return on Equity (ROE)": comp_roe,
+            "Return on Assets (ROA)": comp_roa,
+            "PE Ratio": comp_pe,
+            "EPS": comp_eps,
+        }
+        if comp_fh_metrics:
+            beta = comp_fh_metrics.get("beta")
+            if beta is not None:
+                comp_merged_metrics["Beta"] = beta
+            div_yield = comp_fh_metrics.get("currentDividendYieldTTM")
+            if div_yield is not None:
+                comp_merged_metrics["Dividend Yield"] = div_yield / 100.0
 
-    # 7. Also fetch peers for additional context
+        for metric_name, metric_value in comp_merged_metrics.items():
+            if metric_value is not None:
+                existing = await db.execute_fetchall(
+                    "SELECT id FROM ops_efficiency WHERE business_unit_id=? AND metric_name=? AND period='TTM'",
+                    (comp_bu_id, metric_name),
+                )
+                if not existing:
+                    await db.execute(
+                        "INSERT INTO ops_efficiency (business_unit_id, metric_name, metric_value, period) VALUES (?, ?, ?, ?)",
+                        (comp_bu_id, metric_name, metric_value, "TTM"),
+                    )
+
+    # 9. Also fetch peers for additional context
     peers = await fetch_peers(ticker)
     for peer_ticker in peers[:4]:
         peer_profile = await fetch_company_profile(peer_ticker)
@@ -500,6 +648,7 @@ async def _run_api_ingestion(org: dict, db) -> dict:
                 summary["competitors"] += 1
 
     await db.commit()
+    logger.info("Ingestion complete for %s: %s", ticker, summary)
     return {"success": True, "summary": summary}
 
 
@@ -1344,8 +1493,16 @@ def _generate_auto_swot(org, revenue_trends, ops_metrics, competitors, competito
             return "medium"
         return "low"
 
+    # Helper to look up metric by multiple possible names
+    def _get_metric(*names):
+        for n in names:
+            v = metrics_by_name.get(n)
+            if v is not None:
+                return v
+        return None
+
     # Benchmark profit margin against competitors
-    profit_margin = metrics_by_name.get("Profit Margin")
+    profit_margin = _get_metric("Net Profit Margin", "Profit Margin")
     comp_pm = comp_avgs.get("Profit Margin")
     if profit_margin is not None:
         if comp_pm is not None:
@@ -1376,7 +1533,7 @@ def _generate_auto_swot(org, revenue_trends, ops_metrics, competitors, competito
             weaknesses.append({"description": f"Below-average operating margin ({op_margin:.1%})", "severity": _severity(op_margin, om_weak), "confidence": _confidence(False)})
 
     # Benchmark ROE
-    roe = metrics_by_name.get("Return on Equity")
+    roe = _get_metric("Return on Equity (ROE)", "Return on Equity")
     comp_roe = comp_avgs.get("Return on Equity")
     if roe is not None:
         if comp_roe is not None:
@@ -1391,7 +1548,7 @@ def _generate_auto_swot(org, revenue_trends, ops_metrics, competitors, competito
             weaknesses.append({"description": f"Low return on equity ({roe:.1%})", "severity": _severity(roe, roe_weak), "confidence": _confidence(False)})
 
     # ROA analysis
-    roa = metrics_by_name.get("Return on Assets")
+    roa = _get_metric("Return on Assets (ROA)", "Return on Assets")
     if roa is not None:
         if roa > 0.10:
             strengths.append({"description": f"Efficient asset utilization (ROA: {roa:.1%})", "severity": _severity(roa, 0.10), "confidence": _confidence(bool(comp_avgs))})

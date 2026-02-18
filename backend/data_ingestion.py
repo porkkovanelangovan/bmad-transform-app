@@ -3,8 +3,12 @@ Data Ingestion Module — Finnhub & Alpha Vantage API Client
 Fetches company profiles, financials, peers, and key ratios from free APIs.
 """
 
+import logging
 import os
+
 import httpx
+
+logger = logging.getLogger("data_ingestion")
 
 FINNHUB_API_KEY = os.getenv("FINNHUB_API_KEY", "")
 ALPHA_VANTAGE_API_KEY = os.getenv("ALPHA_VANTAGE_API_KEY", "")
@@ -114,75 +118,165 @@ async def fetch_peers(ticker: str) -> list[str]:
         return []
 
 
+async def fetch_finnhub_metrics(ticker: str) -> dict | None:
+    """Fetch comprehensive financial metrics from Finnhub /stock/metric endpoint.
+    Returns a flat dict of the most useful metrics, or None on failure."""
+    if not FINNHUB_API_KEY:
+        return None
+    try:
+        async with httpx.AsyncClient(timeout=15) as client:
+            resp = await client.get(
+                f"{FINNHUB_BASE}/stock/metric",
+                params={"symbol": ticker, "metric": "all", "token": FINNHUB_API_KEY},
+            )
+            data = resp.json()
+            metric = data.get("metric", {})
+            series = data.get("series", {})
+            if not metric:
+                logger.warning("Finnhub metrics returned empty for %s", ticker)
+                return None
+
+            result = {
+                # Revenue & growth
+                "revenuePerShareTTM": _parse_float(metric.get("revenuePerShareTTM")),
+                "revenuePerShareAnnual": _parse_float(metric.get("revenuePerShareAnnual")),
+                "revenueGrowthTTMYoy": _parse_float(metric.get("revenueGrowthTTMYoy")),
+                "revenueGrowth5Y": _parse_float(metric.get("revenueGrowth5Y")),
+                # Margins
+                "netProfitMarginTTM": _parse_float(metric.get("netProfitMarginTTM")),
+                "netProfitMarginAnnual": _parse_float(metric.get("netProfitMarginAnnual")),
+                "netProfitMargin5Y": _parse_float(metric.get("netProfitMargin5Y")),
+                "operatingMarginTTM": _parse_float(metric.get("operatingMarginTTM")),
+                "operatingMarginAnnual": _parse_float(metric.get("operatingMarginAnnual")),
+                "grossMarginTTM": _parse_float(metric.get("grossMarginTTM")),
+                "grossMarginAnnual": _parse_float(metric.get("grossMarginAnnual")),
+                # Returns
+                "roeTTM": _parse_float(metric.get("roeTTM")),
+                "roeRfy": _parse_float(metric.get("roeRfy")),
+                "roaTTM": _parse_float(metric.get("roaTTM")),
+                "roaRfy": _parse_float(metric.get("roaRfy")),
+                "roicTTM": _parse_float(metric.get("roicTTM")),
+                # Valuation
+                "peAnnual": _parse_float(metric.get("peAnnual")),
+                "peTTM": _parse_float(metric.get("peTTM")),
+                "pbAnnual": _parse_float(metric.get("pbAnnual")),
+                "pbQuarterly": _parse_float(metric.get("pbQuarterly")),
+                "epsAnnual": _parse_float(metric.get("epsAnnual")),
+                "epsTTM": _parse_float(metric.get("epsTTM")),
+                "epsGrowthTTMYoy": _parse_float(metric.get("epsGrowthTTMYoy")),
+                "epsGrowth3Y": _parse_float(metric.get("epsGrowth3Y")),
+                "epsGrowth5Y": _parse_float(metric.get("epsGrowth5Y")),
+                # Dividends & other
+                "currentDividendYieldTTM": _parse_float(metric.get("currentDividendYieldTTM")),
+                "dividendYieldIndicatedAnnual": _parse_float(metric.get("dividendYieldIndicatedAnnual")),
+                "dividendGrowthRate5Y": _parse_float(metric.get("dividendGrowthRate5Y")),
+                "beta": _parse_float(metric.get("beta")),
+                "bookValuePerShareAnnual": _parse_float(metric.get("bookValuePerShareAnnual")),
+                "bookValuePerShareQuarterly": _parse_float(metric.get("bookValuePerShareQuarterly")),
+                "enterpriseValue": _parse_float(metric.get("enterpriseValue")),
+                "52WeekHigh": _parse_float(metric.get("52WeekHigh")),
+                "52WeekLow": _parse_float(metric.get("52WeekLow")),
+                "marketCapitalization": _parse_float(metric.get("marketCapitalization")),
+            }
+
+            # Extract annual time-series data (for historical trends)
+            annual_series = series.get("annual", {})
+            for series_key in ["roe", "roa", "pe", "pb", "eps", "currentRatio", "netMargin"]:
+                series_data = annual_series.get(series_key, [])
+                if series_data:
+                    result[f"annual_{series_key}"] = series_data[:5]  # Last 5 years
+
+            logger.info("Finnhub metrics fetched for %s: %d non-null values", ticker,
+                        sum(1 for v in result.values() if v is not None and not isinstance(v, list)))
+            return result
+    except Exception as e:
+        logger.error("Finnhub metrics fetch failed for %s: %s", ticker, e)
+        return None
+
+
 async def fetch_company_overview(ticker: str) -> dict | None:
     """Fetch company overview from Alpha Vantage OVERVIEW function."""
     if not ALPHA_VANTAGE_API_KEY:
         return None
-    async with httpx.AsyncClient(timeout=15) as client:
-        resp = await client.get(
-            ALPHA_VANTAGE_BASE,
-            params={
-                "function": "OVERVIEW",
-                "symbol": ticker,
-                "apikey": ALPHA_VANTAGE_API_KEY,
-            },
-        )
-        data = resp.json()
-        if "Symbol" not in data:
-            return None
-        return {
-            "name": data.get("Name", ""),
-            "description": data.get("Description", ""),
-            "sector": data.get("Sector", ""),
-            "industry": data.get("Industry", ""),
-            "market_cap": _parse_float(data.get("MarketCapitalization")),
-            "pe_ratio": _parse_float(data.get("PERatio")),
-            "eps": _parse_float(data.get("EPS")),
-            "revenue_ttm": _parse_float(data.get("RevenueTTM")),
-            "gross_profit_ttm": _parse_float(data.get("GrossProfitTTM")),
-            "profit_margin": _parse_float(data.get("ProfitMargin")),
-            "operating_margin": _parse_float(data.get("OperatingMarginTTM")),
-            "return_on_equity": _parse_float(data.get("ReturnOnEquityTTM")),
-            "return_on_assets": _parse_float(data.get("ReturnOnAssetsTTM")),
-            "dividend_yield": _parse_float(data.get("DividendYield")),
-            "beta": _parse_float(data.get("Beta")),
-            "52_week_high": _parse_float(data.get("52WeekHigh")),
-            "52_week_low": _parse_float(data.get("52WeekLow")),
-            "analyst_target": _parse_float(data.get("AnalystTargetPrice")),
-        }
+    try:
+        async with httpx.AsyncClient(timeout=15) as client:
+            resp = await client.get(
+                ALPHA_VANTAGE_BASE,
+                params={
+                    "function": "OVERVIEW",
+                    "symbol": ticker,
+                    "apikey": ALPHA_VANTAGE_API_KEY,
+                },
+            )
+            data = resp.json()
+            if "Note" in data or "Information" in data:
+                logger.warning("Alpha Vantage OVERVIEW rate limited for %s: %s", ticker, data.get("Note") or data.get("Information"))
+                return None
+            if "Symbol" not in data:
+                return None
+    except Exception as e:
+        logger.error("Alpha Vantage OVERVIEW failed for %s: %s", ticker, e)
+        return None
+    return {
+        "name": data.get("Name", ""),
+        "description": data.get("Description", ""),
+        "sector": data.get("Sector", ""),
+        "industry": data.get("Industry", ""),
+        "market_cap": _parse_float(data.get("MarketCapitalization")),
+        "pe_ratio": _parse_float(data.get("PERatio")),
+        "eps": _parse_float(data.get("EPS")),
+        "revenue_ttm": _parse_float(data.get("RevenueTTM")),
+        "gross_profit_ttm": _parse_float(data.get("GrossProfitTTM")),
+        "profit_margin": _parse_float(data.get("ProfitMargin")),
+        "operating_margin": _parse_float(data.get("OperatingMarginTTM")),
+        "return_on_equity": _parse_float(data.get("ReturnOnEquityTTM")),
+        "return_on_assets": _parse_float(data.get("ReturnOnAssetsTTM")),
+        "dividend_yield": _parse_float(data.get("DividendYield")),
+        "beta": _parse_float(data.get("Beta")),
+        "52_week_high": _parse_float(data.get("52WeekHigh")),
+        "52_week_low": _parse_float(data.get("52WeekLow")),
+        "analyst_target": _parse_float(data.get("AnalystTargetPrice")),
+    }
 
 
 async def fetch_financials(ticker: str) -> dict | None:
     """Fetch income statement from Alpha Vantage."""
     if not ALPHA_VANTAGE_API_KEY:
         return None
-    async with httpx.AsyncClient(timeout=15) as client:
-        resp = await client.get(
-            ALPHA_VANTAGE_BASE,
-            params={
-                "function": "INCOME_STATEMENT",
-                "symbol": ticker,
-                "apikey": ALPHA_VANTAGE_API_KEY,
-            },
-        )
-        data = resp.json()
-        annual = data.get("annualReports", [])
-        if not annual:
-            return None
+    try:
+        async with httpx.AsyncClient(timeout=15) as client:
+            resp = await client.get(
+                ALPHA_VANTAGE_BASE,
+                params={
+                    "function": "INCOME_STATEMENT",
+                    "symbol": ticker,
+                    "apikey": ALPHA_VANTAGE_API_KEY,
+                },
+            )
+            data = resp.json()
+            if "Note" in data or "Information" in data:
+                logger.warning("Alpha Vantage INCOME_STATEMENT rate limited for %s: %s", ticker, data.get("Note") or data.get("Information"))
+                return None
+            annual = data.get("annualReports", [])
+            if not annual:
+                return None
 
-        periods = []
-        for report in annual[:5]:  # Last 5 years
-            periods.append({
-                "fiscal_date": report.get("fiscalDateEnding", ""),
-                "total_revenue": _parse_float(report.get("totalRevenue")),
-                "gross_profit": _parse_float(report.get("grossProfit")),
-                "operating_income": _parse_float(report.get("operatingIncome")),
-                "net_income": _parse_float(report.get("netIncome")),
-                "ebitda": _parse_float(report.get("ebitda")),
-                "cost_of_revenue": _parse_float(report.get("costOfRevenue")),
-                "rd_expense": _parse_float(report.get("researchAndDevelopment")),
-            })
-        return {"annual_reports": periods}
+            periods = []
+            for report in annual[:5]:  # Last 5 years
+                periods.append({
+                    "fiscal_date": report.get("fiscalDateEnding", ""),
+                    "total_revenue": _parse_float(report.get("totalRevenue")),
+                    "gross_profit": _parse_float(report.get("grossProfit")),
+                    "operating_income": _parse_float(report.get("operatingIncome")),
+                    "net_income": _parse_float(report.get("netIncome")),
+                    "ebitda": _parse_float(report.get("ebitda")),
+                    "cost_of_revenue": _parse_float(report.get("costOfRevenue")),
+                    "rd_expense": _parse_float(report.get("researchAndDevelopment")),
+                })
+            return {"annual_reports": periods}
+    except Exception as e:
+        logger.error("Alpha Vantage INCOME_STATEMENT failed for %s: %s", ticker, e)
+        return None
 
 
 def _parse_float(val) -> float | None:
