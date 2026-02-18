@@ -628,3 +628,13 @@ async def _migrate_sqlite(db):
 
 frontend_path = os.path.join(os.path.dirname(__file__), "..", "frontend")
 app.mount("/", StaticFiles(directory=frontend_path, html=True), name="frontend")
+
+
+@app.middleware("http")
+async def add_no_cache_headers(request, call_next):
+    response = await call_next(request)
+    if request.url.path == "/" or request.url.path.endswith(".html"):
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+    return response
