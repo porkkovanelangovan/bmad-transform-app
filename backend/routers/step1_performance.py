@@ -302,13 +302,19 @@ async def _extract_financial_from_url(url: str) -> dict:
 
 async def _run_api_ingestion(org: dict, db) -> dict:
     """Core API ingestion logic (Finnhub + Alpha Vantage). Extracted from ingest_data for reuse."""
+    from data_ingestion import FINNHUB_API_KEY, ALPHA_VANTAGE_API_KEY
+
     org_name = org["name"]
     summary = {"ticker": None, "profile": False, "financials": 0, "ops_metrics": 0, "competitors": 0}
+
+    # Check if API keys are configured
+    if not FINNHUB_API_KEY and not ALPHA_VANTAGE_API_KEY:
+        return {"skipped": True, "message": "Finnhub/Alpha Vantage API keys not configured. You can still add data manually, via file upload, or URL extraction.", "summary": summary}
 
     # 1. Search for ticker
     ticker = await search_ticker(org_name)
     if not ticker:
-        return {"error": f"Could not find ticker for '{org_name}'.", "summary": summary}
+        return {"skipped": True, "message": f"Could not find stock ticker for '{org_name}'. You can still add data manually, via file upload, or URL extraction.", "summary": summary}
     summary["ticker"] = ticker
 
     # 2. Fetch company profile and update organization

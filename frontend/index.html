@@ -738,6 +738,14 @@ async function submitOrganization() {
         return;
     }
 
+    if (result.skipped) {
+        document.getElementById('ingest-status').textContent = 'Organization saved!';
+        document.getElementById('ingest-progress').textContent = result.message || 'Add data via file upload, URLs, or manual entry.';
+        toast('Organization saved — add data from the Data Tables tab');
+        setTimeout(() => { step1Phase = 'data'; loadStep1(); }, 1500);
+        return;
+    }
+
     const s = result.summary || {};
     document.getElementById('ingest-status').textContent = 'Data fetched successfully!';
     document.getElementById('ingest-progress').innerHTML =
