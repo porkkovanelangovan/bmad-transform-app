@@ -730,6 +730,19 @@ async def search_companies(q: str = ""):
         return []
 
 
+# --- Reset All Step 1 Data ---
+
+@router.post("/reset-data")
+async def reset_all_data(db=Depends(get_db)):
+    """Delete all Step 1 data (revenue splits, ops metrics, competitors, BUs) for a clean slate."""
+    await db.execute("DELETE FROM revenue_splits")
+    await db.execute("DELETE FROM ops_efficiency")
+    await db.execute("DELETE FROM competitors")
+    await db.execute("DELETE FROM business_units")
+    await db.commit()
+    return {"reset": True}
+
+
 # --- Ingest (Auto-fetch from APIs) ---
 
 @router.post("/ingest")
