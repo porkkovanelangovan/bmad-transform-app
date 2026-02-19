@@ -23,9 +23,14 @@ async def get_step_gates(step_number: int, db=Depends(get_db)):
 
 @router.post("/")
 async def create_gate(data: dict, db=Depends(get_db)):
+    status = data.get("status", "pending")
+    reviewer = data.get("reviewer")
+    review_notes = data.get("review_notes")
+    reviewed_at = "CURRENT_TIMESTAMP" if status == "approved" else None
     cursor = await db.execute(
-        "INSERT INTO review_gates (step_number, gate_number, gate_name, status) VALUES (?, ?, ?, ?)",
-        (data["step_number"], data["gate_number"], data["gate_name"], data.get("status", "pending")),
+        "INSERT INTO review_gates (step_number, gate_number, gate_name, status, reviewer, review_notes, reviewed_at) "
+        "VALUES (?, ?, ?, ?, ?, ?, " + ("CURRENT_TIMESTAMP" if status == "approved" else "NULL") + ")",
+        (data["step_number"], data["gate_number"], data["gate_name"], status, reviewer, review_notes),
     )
     await db.commit()
     return {"id": cursor.lastrowid}
