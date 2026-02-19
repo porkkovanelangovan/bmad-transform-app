@@ -357,6 +357,39 @@
         .refresh-result.skipped { background: #1e293b; color: #64748b; }
         .btn-lg { padding: 14px 28px; font-size: 15px; font-weight: 600; }
 
+        /* Generate All Overlay */
+        .gen-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 1000; display: flex; align-items: center; justify-content: center; }
+        .gen-modal { background: #1e293b; border: 1px solid #334155; border-radius: 16px; padding: 32px; width: 100%; max-width: 600px; max-height: 90vh; overflow-y: auto; }
+        .gen-modal h2 { font-size: 20px; color: #f1f5f9; margin-bottom: 20px; text-align: center; }
+        .gen-step-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 24px; }
+        .gen-step-item { display: flex; align-items: center; gap: 12px; padding: 12px 16px; background: #0f172a; border-radius: 8px; border: 1px solid #334155; }
+        .gen-step-icon { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; flex-shrink: 0; }
+        .gen-step-icon.pending { background: #334155; color: #94a3b8; }
+        .gen-step-icon.running { background: #1e3a5f; color: #7dd3fc; animation: pulse 1.5s infinite; }
+        .gen-step-icon.done { background: #065f46; color: #6ee7b7; }
+        .gen-step-icon.failed { background: #7f1d1d; color: #fca5a5; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        .gen-step-info { flex: 1; }
+        .gen-step-name { font-size: 14px; font-weight: 500; color: #e2e8f0; }
+        .gen-step-status { font-size: 12px; color: #64748b; margin-top: 2px; }
+        .gen-msg { text-align: center; font-size: 14px; color: #94a3b8; margin-bottom: 16px; }
+        .gen-actions { display: flex; gap: 12px; justify-content: center; }
+        .btn-outline { padding: 10px 20px; border-radius: 8px; border: 1px solid #475569; background: transparent; color: #94a3b8; cursor: pointer; font-size: 14px; transition: all 0.2s; }
+        .btn-outline:hover { border-color: #e2e8f0; color: #e2e8f0; }
+        .gen-progress-bar { height: 6px; background: #334155; border-radius: 3px; margin-bottom: 16px; overflow: hidden; }
+        .gen-progress-fill { height: 100%; background: linear-gradient(90deg, #0ea5e9, #38bdf8); border-radius: 3px; transition: width 0.5s ease; }
+
+        /* Review wizard */
+        .review-step-card { display: flex; align-items: center; gap: 12px; padding: 14px 16px; background: #0f172a; border-radius: 8px; border: 1px solid #334155; margin-bottom: 8px; }
+        .review-step-card .rsc-info { flex: 1; }
+        .review-step-card .rsc-name { font-size: 14px; font-weight: 500; color: #e2e8f0; }
+        .review-step-card .rsc-counts { font-size: 12px; color: #64748b; margin-top: 2px; }
+        .review-step-card .rsc-actions { display: flex; gap: 8px; }
+
+        /* Generate All button */
+        .btn-generate-all { background: linear-gradient(135deg, #7c3aed, #2563eb); color: white; padding: 12px 24px; border-radius: 8px; border: none; cursor: pointer; font-size: 15px; font-weight: 600; transition: all 0.2s; }
+        .btn-generate-all:hover { opacity: 0.9; transform: translateY(-1px); }
+
         /* Responsive */
         @media (max-width: 768px) {
             .app { flex-direction: column; }
@@ -577,6 +610,7 @@ function showApp() {
     }
 
     showStep(1);
+    checkActiveGeneration();
 }
 
 async function initApp() {
@@ -830,6 +864,7 @@ async function renderStep1Data(org) {
             <button class="phase-tab active">Data Tables</button>
             <button class="phase-tab" onclick="step1Phase='analysis'; renderStep1Analysis()">Analysis Dashboard</button>
             <button class="phase-tab" onclick="step1Phase='ai'; renderStep1AI()">AI Insights</button>
+            <button class="btn-generate-all" onclick="startGenerateAll()" title="AI generates all 7 steps automatically">Generate All Steps</button>
         </div>
 
         <div class="metric-row">
@@ -4211,6 +4246,235 @@ async function approveStepGate(gateId, stepNumber, targetDivId) {
     await api('/gates/' + gateId, 'PUT', { status: 'approved', reviewer: 'User', review_notes: notes });
     toast('Gate approved');
     renderStepGates(stepNumber, targetDivId);
+}
+
+// ===================== GENERATE ALL STEPS =====================
+const STEP_NAMES = {
+    1: 'Business Performance',
+    2: 'Value Stream Analysis',
+    3: 'SWOT / TOWS Engine',
+    4: 'Strategy & OKRs',
+    5: 'Initiatives & RICE',
+    6: 'Epics & Roadmap',
+    7: 'Features & Roadmap',
+};
+
+let _genPollTimer = null;
+let _currentRunId = null;
+
+async function startGenerateAll() {
+    const org = await api('/step1/organization');
+    if (!org) { alert('Please set up your organization first.'); return; }
+
+    // Check for existing running generation
+    const latest = await api('/generate-all/latest');
+    if (latest && latest.status === 'running') {
+        _currentRunId = latest.run_id;
+        showGenOverlay(latest);
+        startGenPolling();
+        return;
+    }
+
+    // Start new generation
+    const result = await api('/generate-all/start', 'POST', { org_id: org.id });
+    if (result.error) { alert(result.error); return; }
+    _currentRunId = result.run_id;
+    showGenOverlay({ run_id: result.run_id, status: 'running', current_step: 0, steps_completed: [], steps_failed: [], message: 'Starting...' });
+    startGenPolling();
+}
+
+function showGenOverlay(runData) {
+    // Remove existing overlay if any
+    const existing = document.getElementById('gen-overlay');
+    if (existing) existing.remove();
+
+    const overlay = document.createElement('div');
+    overlay.id = 'gen-overlay';
+    overlay.className = 'gen-overlay';
+    overlay.innerHTML = buildGenModalHtml(runData);
+    document.body.appendChild(overlay);
+}
+
+function buildGenModalHtml(d) {
+    const status = d.status || 'running';
+    const currentStep = d.current_step || 0;
+    const completed = d.steps_completed || [];
+    const failed = d.steps_failed || [];
+    const pct = Math.round((completed.length / 7) * 100);
+
+    let title = 'Generating All Steps...';
+    if (status === 'completed') title = 'Generation Complete!';
+    else if (status === 'failed') title = 'Generation Failed';
+    else if (status === 'partial') title = 'Generation Partially Complete';
+
+    let stepsHtml = '';
+    for (let i = 1; i <= 7; i++) {
+        let iconClass = 'pending';
+        let iconText = i;
+        let statusText = 'Pending';
+        if (completed.includes(i)) {
+            iconClass = 'done';
+            iconText = '\u2713';
+            statusText = 'Complete';
+        } else if (failed.includes(i)) {
+            iconClass = 'failed';
+            iconText = '\u2717';
+            statusText = 'Failed';
+        } else if (i === currentStep && status === 'running') {
+            iconClass = 'running';
+            statusText = 'Running...';
+        }
+        stepsHtml += `<div class="gen-step-item">
+            <div class="gen-step-icon ${iconClass}">${iconText}</div>
+            <div class="gen-step-info">
+                <div class="gen-step-name">Step ${i}: ${STEP_NAMES[i]}</div>
+                <div class="gen-step-status">${statusText}</div>
+            </div>
+        </div>`;
+    }
+
+    let actionsHtml = '';
+    if (status === 'running') {
+        actionsHtml = `<div class="gen-actions"><button class="btn-outline" onclick="closeGenOverlay()">Run in Background</button></div>`;
+    } else if (status === 'completed') {
+        actionsHtml = `<div class="gen-actions">
+            <button class="btn btn-primary" onclick="showReviewWizard()">Review & Approve Steps</button>
+            <button class="btn-outline" onclick="closeGenOverlay(); showStep(1);">View Results</button>
+        </div>`;
+    } else if (status === 'failed' || status === 'partial') {
+        actionsHtml = `<div class="gen-actions">
+            <button class="btn btn-primary" onclick="retryGeneration()">Retry</button>
+            <button class="btn-outline" onclick="closeGenOverlay()">Close</button>
+        </div>`;
+    }
+
+    return `<div class="gen-modal">
+        <h2>${title}</h2>
+        <div class="gen-progress-bar"><div class="gen-progress-fill" style="width:${pct}%"></div></div>
+        <div class="gen-msg">${d.message || ''}</div>
+        <div class="gen-step-list">${stepsHtml}</div>
+        ${d.error_message ? `<div style="background:#7f1d1d;border-radius:8px;padding:12px;margin-bottom:16px;font-size:13px;color:#fca5a5;">${d.error_message}</div>` : ''}
+        ${actionsHtml}
+    </div>`;
+}
+
+function startGenPolling() {
+    stopGenPolling();
+    _genPollTimer = setInterval(async () => {
+        if (!_currentRunId) { stopGenPolling(); return; }
+        const data = await api('/generate-all/status/' + _currentRunId);
+        if (!data || data.error) return;
+
+        const overlay = document.getElementById('gen-overlay');
+        if (overlay) {
+            overlay.innerHTML = buildGenModalHtml(data);
+        }
+
+        if (data.status !== 'running') {
+            stopGenPolling();
+            if (data.status === 'completed') {
+                toast('All 7 steps generated successfully!');
+            }
+        }
+    }, 2000);
+}
+
+function stopGenPolling() {
+    if (_genPollTimer) { clearInterval(_genPollTimer); _genPollTimer = null; }
+}
+
+function closeGenOverlay() {
+    const overlay = document.getElementById('gen-overlay');
+    if (overlay) overlay.remove();
+}
+
+async function retryGeneration() {
+    if (!_currentRunId) return;
+    const result = await api('/generate-all/retry/' + _currentRunId, 'POST');
+    if (result.error) { alert(result.error); return; }
+    showGenOverlay({ run_id: _currentRunId, status: 'running', current_step: 0, steps_completed: [], steps_failed: [], message: 'Retrying...' });
+    startGenPolling();
+}
+
+// ===================== REVIEW WIZARD =====================
+async function showReviewWizard() {
+    closeGenOverlay();
+
+    const [gates, runData] = await Promise.all([
+        api('/gates/'),
+        _currentRunId ? api('/generate-all/status/' + _currentRunId) : Promise.resolve(null),
+    ]);
+
+    const overlay = document.createElement('div');
+    overlay.id = 'gen-overlay';
+    overlay.className = 'gen-overlay';
+
+    const approvedCount = (gates || []).filter(g => g.status === 'approved').length;
+    const totalGates = (gates || []).length || 7;
+
+    // Group gates by step
+    const gatesByStep = {};
+    (gates || []).forEach(g => {
+        if (!gatesByStep[g.step_number]) gatesByStep[g.step_number] = [];
+        gatesByStep[g.step_number].push(g);
+    });
+
+    let stepsHtml = '';
+    for (let i = 1; i <= 7; i++) {
+        const stepGates = gatesByStep[i] || [];
+        const allApproved = stepGates.length > 0 && stepGates.every(g => g.status === 'approved');
+        const iconClass = allApproved ? 'done' : 'pending';
+        const iconText = allApproved ? '\u2713' : i;
+
+        stepsHtml += `<div class="review-step-card">
+            <div class="gen-step-icon ${iconClass}">${iconText}</div>
+            <div class="rsc-info">
+                <div class="rsc-name">Step ${i}: ${STEP_NAMES[i]}</div>
+                <div class="rsc-counts">${stepGates.length} gate${stepGates.length !== 1 ? 's' : ''} — ${allApproved ? 'All approved' : 'Pending review'}</div>
+            </div>
+            <div class="rsc-actions">
+                <button class="btn btn-sm btn-primary" onclick="closeGenOverlay(); showStep(${i});">Review & Edit</button>
+                ${!allApproved ? `<button class="btn btn-sm btn-success" onclick="approveAllStepGates(${i})">Approve</button>` : ''}
+            </div>
+        </div>`;
+    }
+
+    const pct = Math.round((approvedCount / totalGates) * 100);
+
+    overlay.innerHTML = `<div class="gen-modal">
+        <h2>Review & Approve Steps</h2>
+        <div class="gen-progress-bar"><div class="gen-progress-fill" style="width:${pct}%;background:linear-gradient(90deg,#059669,#6ee7b7);"></div></div>
+        <div class="gen-msg">${approvedCount}/${totalGates} gates approved</div>
+        <div style="margin-bottom:16px;">${stepsHtml}</div>
+        <div class="gen-actions">
+            <button class="btn-outline" onclick="closeGenOverlay()">Close</button>
+        </div>
+    </div>`;
+
+    document.body.appendChild(overlay);
+}
+
+async function approveAllStepGates(stepNumber) {
+    const gates = await api('/gates/step/' + stepNumber);
+    for (const g of gates) {
+        if (g.status !== 'approved') {
+            await api('/gates/' + g.id, 'PUT', { status: 'approved', reviewer: 'Auto-Review', review_notes: 'Bulk approved after AI generation' });
+        }
+    }
+    toast('Step ' + stepNumber + ' approved');
+    showReviewWizard();
+}
+
+// Check for in-progress generation on page load
+async function checkActiveGeneration() {
+    try {
+        const latest = await api('/generate-all/latest');
+        if (latest && latest.status === 'running') {
+            _currentRunId = latest.run_id;
+            showGenOverlay(latest);
+            startGenPolling();
+        }
+    } catch (e) {}
 }
 
 // --- Init ---

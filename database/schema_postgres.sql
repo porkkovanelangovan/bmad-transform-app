@@ -467,6 +467,23 @@ CREATE TABLE IF NOT EXISTS feature_dependencies (
 );
 
 -- ============================================================
+-- Generate All: Orchestrator Runs
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS generation_runs (
+    id SERIAL PRIMARY KEY,
+    org_id INTEGER NOT NULL REFERENCES organization(id),
+    status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'running', 'completed', 'failed', 'partial')),
+    current_step INTEGER DEFAULT 0,
+    steps_completed TEXT DEFAULT '[]',
+    steps_failed TEXT DEFAULT '[]',
+    message TEXT,
+    error_message TEXT,
+    started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    completed_at TIMESTAMP
+);
+
+-- ============================================================
 -- Indexes for performance
 -- ============================================================
 

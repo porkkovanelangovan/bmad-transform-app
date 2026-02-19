@@ -17,6 +17,7 @@ from routers import (
     step7_features,
     review_gates,
     auth_router,
+    generate_all,
 )
 
 app = FastAPI(title="Business Transformation Architect", version="1.0.0")
@@ -40,6 +41,7 @@ app.include_router(step5_initiatives.router, prefix="/api/step5", tags=["Step 5:
 app.include_router(step6_epics_teams.router, prefix="/api/step6", tags=["Step 6: Epics & Teams"])
 app.include_router(step7_features.router, prefix="/api/step7", tags=["Step 7: Features & Roadmap"])
 app.include_router(review_gates.router, prefix="/api/gates", tags=["Review Gates"])
+app.include_router(generate_all.router, prefix="/api/generate-all", tags=["Generate All"])
 
 
 @app.on_event("startup")
@@ -641,6 +643,20 @@ async def _migrate_sqlite(db):
                 status TEXT DEFAULT 'pending',
                 error_message TEXT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )""")
+
+            # --- Generate All: generation_runs table ---
+            await raw_db.execute("""CREATE TABLE IF NOT EXISTS generation_runs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                org_id INTEGER NOT NULL REFERENCES organization(id),
+                status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'running', 'completed', 'failed', 'partial')),
+                current_step INTEGER DEFAULT 0,
+                steps_completed TEXT DEFAULT '[]',
+                steps_failed TEXT DEFAULT '[]',
+                message TEXT,
+                error_message TEXT,
+                started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                completed_at TIMESTAMP
             )""")
 
             # --- Phase 6 migration: AI Dashboard tables ---
