@@ -12,6 +12,11 @@ post() {
 
 echo "=== Seeding test data for Apple at $BASE ==="
 
+# Reset existing data
+echo -e "\n--- Resetting all data ---"
+post "$API/step1/reset-data" '{}'
+echo " done"
+
 # ============================================================
 # Organization
 # ============================================================
@@ -422,6 +427,20 @@ post "$API/step7/features" "{\"epic_id\":$EPIC5_ID,\"delivery_okr_id\":$DOKR3_ID
 post "$API/step7/features" "{\"epic_id\":$EPIC6_ID,\"name\":\"Unit Test Skeleton Generator\",\"description\":\"Generate XCTest stubs with assertions from function signatures and docstrings\",\"priority\":\"medium\",\"status\":\"backlog\",\"estimated_effort\":8,\"roadmap_phase\":\"Phase 2\"}"
 post "$API/step7/features" "{\"epic_id\":$EPIC6_ID,\"name\":\"UI Test Recorder with AI\",\"description\":\"AI-enhanced UI test recording that generates maintainable, readable test code\",\"priority\":\"low\",\"status\":\"backlog\",\"estimated_effort\":12,\"roadmap_phase\":\"Phase 2\"}"
 
+# ============================================================
+# Review Gates (HITL checkpoints)
+# ============================================================
+echo -e "\n--- Review Gates ---"
+post "$API/gates/" '{"step_number":1,"gate_number":1,"gate_name":"Org Setup & Market Data Review","status":"approved","reviewer":"CFO","review_notes":"Revenue splits validated against 10-K filing. Competitor financials confirmed via Bloomberg terminal."}'
+post "$API/gates/" '{"step_number":2,"gate_number":1,"gate_name":"Value Stream Mapping Review","status":"approved","reviewer":"SVP Operations","review_notes":"iPhone dev cycle and App Store review VSMs validated with engineering leads. Bottlenecks confirmed."}'
+post "$API/gates/" '{"step_number":3,"gate_number":1,"gate_name":"SWOT & Competitive Analysis Review","status":"approved","reviewer":"Chief Strategy Officer","review_notes":"SWOT entries validated. TOWS actions aligned with FY2026 strategic priorities."}'
+post "$API/gates/" '{"step_number":4,"gate_number":1,"gate_name":"Strategy & OKR Alignment Gate","status":"approved","reviewer":"CEO","review_notes":"All six strategies approved. Health platform and Apple Intelligence are top investment priorities for FY2026-2027."}'
+post "$API/gates/" '{"step_number":5,"gate_number":1,"gate_name":"Initiative RICE Prioritization Review","status":"approved","reviewer":"CTO","review_notes":"RICE scores reviewed. On-device LLM and health monitoring prioritized. Blood glucose moved to Phase 2."}'
+post "$API/gates/" '{"step_number":6,"gate_number":1,"gate_name":"Epic & Team Allocation Review","status":"pending","reviewer":"VP Engineering","review_notes":"Pending capacity review — Health Sensors team may need additional biomedical engineers for FDA submission."}'
+post "$API/gates/" '{"step_number":7,"gate_number":1,"gate_name":"Feature Roadmap & Release Planning","status":"pending","reviewer":"Product Council","review_notes":"Awaiting WWDC 2026 keynote decisions before finalizing Xcode AI feature set for public beta."}'
+
+echo " done"
+
 echo -e "\n\n=== SEEDING COMPLETE ==="
 echo "Summary:"
 echo "  Organization: Apple (Technology)"
@@ -432,3 +451,4 @@ echo "  Step 4: 4 strategy inputs, 6 strategies, 5 OKRs, 12 key results"
 echo "  Step 5: 3 product groups, 4 digital products, 6 initiatives (RICE scored)"
 echo "  Step 6: 4 teams, 3 product OKRs, 6 epics, 3 dependencies"
 echo "  Step 7: 3 delivery OKRs, 14 features"
+echo "  Review Gates: 7 gates (5 approved, 2 pending)"
