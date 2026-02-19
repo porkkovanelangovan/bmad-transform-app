@@ -1695,9 +1695,14 @@ async def list_competitors(db=Depends(get_db)):
 @router.post("/competitors")
 async def create_competitor(data: dict, db=Depends(get_db)):
     cursor = await db.execute(
-        "INSERT INTO competitors (name, market_share, strengths, weaknesses, data_source) "
-        "VALUES (?, ?, ?, ?, ?)",
-        (data["name"], data.get("market_share"), data.get("strengths"), data.get("weaknesses"), data.get("data_source")),
+        "INSERT INTO competitors (name, ticker, market_share, revenue, profit_margin, operating_margin, "
+        "return_on_equity, return_on_assets, pe_ratio, eps, market_cap_value, strengths, weaknesses, data_source) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        (data["name"], data.get("ticker"), data.get("market_share"), data.get("revenue"),
+         data.get("profit_margin"), data.get("operating_margin"),
+         data.get("return_on_equity"), data.get("return_on_assets"),
+         data.get("pe_ratio"), data.get("eps"), data.get("market_cap_value"),
+         data.get("strengths"), data.get("weaknesses"), data.get("data_source")),
     )
     await db.commit()
     return {"id": cursor.lastrowid}

@@ -35,10 +35,10 @@ FEATURE_TEMPLATES = {
 @router.get("/delivery-okrs")
 async def list_delivery_okrs(db=Depends(get_db)):
     rows = await db.execute_fetchall(
-        "SELECT do.*, po.objective as product_objective, t.name as team_name "
-        "FROM delivery_okrs do "
-        "JOIN product_okrs po ON do.product_okr_id = po.id "
-        "JOIN teams t ON do.team_id = t.id"
+        "SELECT dokr.*, po.objective as product_objective, t.name as team_name "
+        "FROM delivery_okrs dokr "
+        "JOIN product_okrs po ON dokr.product_okr_id = po.id "
+        "JOIN teams t ON dokr.team_id = t.id"
     )
     return [dict(r) for r in rows]
 
@@ -492,7 +492,7 @@ async def get_features_full(db=Depends(get_db)):
         "dp.name as product_name, "
         "pg.name as product_group_name, "
         "t.name as team_name, "
-        "do2.objective as delivery_okr_objective, "
+        "dokr.objective as delivery_okr_objective, "
         "po.objective as product_okr_objective "
         "FROM features f "
         "JOIN epics e ON f.epic_id = e.id "
@@ -501,7 +501,7 @@ async def get_features_full(db=Depends(get_db)):
         "LEFT JOIN digital_products dp ON i.digital_product_id = dp.id "
         "LEFT JOIN product_groups pg ON dp.product_group_id = pg.id "
         "LEFT JOIN teams t ON e.team_id = t.id "
-        "LEFT JOIN delivery_okrs do2 ON f.delivery_okr_id = do2.id "
+        "LEFT JOIN delivery_okrs dokr ON f.delivery_okr_id = dokr.id "
         "LEFT JOIN product_okrs po ON e.product_okr_id = po.id "
         "ORDER BY f.priority_score DESC, f.id"
     )
