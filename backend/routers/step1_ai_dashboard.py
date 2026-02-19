@@ -211,7 +211,7 @@ async def generate_executive_summary(data: dict = None, db=Depends(get_db)):
         # Store on organization record
         try:
             await db.execute(
-                "UPDATE organization SET ai_executive_summary = ?, ai_summary_updated_at = datetime('now') WHERE id = ?",
+                "UPDATE organization SET ai_executive_summary = ?, ai_summary_updated_at = CURRENT_TIMESTAMP WHERE id = ?",
                 (json.dumps(result, default=str), ctx["organization"]["id"]),
             )
             await db.commit()

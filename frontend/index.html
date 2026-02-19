@@ -1538,7 +1538,7 @@ function _initReportSection() {
 // --- AI Section JS Functions ---
 
 function _showLoading(el) { el.innerHTML = '<div class="ai-loading"><div class="spinner"></div><p style="color:#94a3b8;font-size:13px;margin-top:8px;">Analyzing with AI...</p></div>'; }
-function _showError(el, msg) { el.innerHTML = `<div style="color:#fca5a5;font-size:13px;">${msg}</div>`; }
+function _showError(el, msg) { el.innerHTML = `<div style="color:#fca5a5;font-size:13px;padding:12px;background:#7f1d1d33;border:1px solid #7f1d1d;border-radius:8px;">${msg}<br><span style="color:#94a3b8;font-size:12px;margin-top:4px;display:inline-block;">Check that OPENAI_API_KEY is valid on Render. The AI features require a working OpenAI API key.</span></div>`; }
 function _severityBadge(s) { return `<span class="severity-badge severity-${s||'medium'}">${s||'medium'}</span>`; }
 function _confidenceBadge(c) { return `<span class="confidence-badge confidence-${c||'medium'}">${c||'medium'}</span>`; }
 function _impactBadge(i) {
@@ -2740,21 +2740,10 @@ async function runAutoGenerate(buId) {
         return;
     }
 
-    card.innerHTML = `
-        <h3 style="color: #6ee7b7;">Generation Complete ${result.ai_powered ? '<span class="ai-badge">AI-Powered</span>' : ''}</h3>
-        <div class="vs-metrics-bar" style="margin-top: 12px;">
-            <div class="vm-item"><div class="vm-val good">${result.swot_generated}</div><div class="vm-label">SWOT Entries</div></div>
-            <div class="vm-item"><div class="vm-val good">${result.tows_generated}</div><div class="vm-label">TOWS Actions</div></div>
-            ${result.sources.ai ? `<div class="vm-item"><div class="vm-val" style="color:#c4b5fd;">${result.sources.ai}</div><div class="vm-label">AI Generated</div></div>` : `
-            <div class="vm-item"><div class="vm-val">${result.sources.step1}</div><div class="vm-label">From Step 1</div></div>
-            <div class="vm-item"><div class="vm-val">${result.sources.step2}</div><div class="vm-label">From Step 2</div></div>`}
-        </div>
-        <div style="margin-top: 16px;">
-            <button class="btn btn-primary" onclick="step3Phase='swot'; renderStep3Swot();">View SWOT Grid</button>
-            <button class="btn btn-sm" style="background:#334155;color:#e2e8f0;margin-left:8px;" onclick="step3Phase='tows'; renderStep3Tows();">View TOWS Actions</button>
-        </div>
-    `;
     toast(`Generated ${result.swot_generated} SWOT entries and ${result.tows_generated} TOWS actions`);
+    // Auto-navigate to SWOT Grid after successful generation
+    step3Phase = 'swot';
+    renderStep3Swot();
 }
 
 async function renderStep3Swot() {
@@ -3293,11 +3282,20 @@ async function approveAllStrategies() {
 }
 
 async function renderStep4Initiatives() {
+    // Check if strategies are approved first
+    const strategies = await api('/step4/strategies');
+    const approved = (strategies || []).filter(s => s.approved === 1 || s.approved === true);
+    const hasApproved = approved.length > 0;
+
     document.getElementById('step4-content').innerHTML = `
         <div class="card" style="text-align:center;padding:40px;">
             <h3 style="justify-content:center;">Define Digital Initiatives from Strategies</h3>
             <p style="color:#94a3b8;margin-bottom:20px;">This will create product groups, digital products, and initiatives from your approved strategies and OKRs.</p>
-            <button class="btn btn-primary" style="padding:14px 40px;font-size:16px;" onclick="runInitiativeGenerate()" id="btn-init-generate">Define Digital Initiatives & OKRs</button>
+            ${!hasApproved ? `<div style="background:#713f12;border:1px solid #92400e;border-radius:8px;padding:16px;margin-bottom:20px;color:#fbbf24;font-size:14px;">
+                No approved strategies found. Go to the <strong>Review</strong> tab and click <strong>"Approve All Strategies"</strong> first.
+                <br><button class="btn btn-primary btn-sm" style="margin-top:12px;" onclick="step4Phase='review';loadStep4()">Go to Review Tab</button>
+            </div>` : ''}
+            <button class="btn btn-primary" style="padding:14px 40px;font-size:16px;" onclick="runInitiativeGenerate()" id="btn-init-generate" ${!hasApproved ? 'disabled' : ''}>Define Digital Initiatives & OKRs</button>
             <div id="init-generate-result" style="margin-top:20px;"></div>
         </div>
     `;

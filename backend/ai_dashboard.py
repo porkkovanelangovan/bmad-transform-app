@@ -5,8 +5,11 @@ Uses OpenAI GPT-4o-mini for AI-powered analysis, falls back gracefully when unav
 
 import hashlib
 import json
+import logging
 
 from ai_research import is_openai_available
+
+logger = logging.getLogger(__name__)
 
 
 # ─── Context Gatherer ────────────────────────────────────────────────────────
@@ -136,7 +139,7 @@ async def _get_cached_analysis(db, analysis_type: str, input_hash: str) -> dict 
         row = await db.execute_fetchone(
             "SELECT result_json FROM ai_analysis_cache "
             "WHERE analysis_type = ? AND input_hash = ? "
-            "AND (expires_at IS NULL OR expires_at > datetime('now')) "
+            "AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP) "
             "ORDER BY created_at DESC LIMIT 1",
             (analysis_type, input_hash),
         )
@@ -149,11 +152,13 @@ async def _get_cached_analysis(db, analysis_type: str, input_hash: str) -> dict 
 
 async def _cache_analysis(db, analysis_type: str, input_hash: str, result: dict):
     """Store analysis result in cache with 24-hour expiry."""
+    from datetime import datetime, timedelta
     try:
+        expires = (datetime.utcnow() + timedelta(hours=24)).isoformat()
         await db.execute(
             "INSERT INTO ai_analysis_cache (analysis_type, input_hash, result_json, expires_at) "
-            "VALUES (?, ?, ?, datetime('now', '+24 hours'))",
-            (analysis_type, input_hash, json.dumps(result, default=str)),
+            "VALUES (?, ?, ?, ?)",
+            (analysis_type, input_hash, json.dumps(result, default=str), expires),
         )
         await db.commit()
     except Exception:
@@ -339,7 +344,8 @@ async def ai_financial_analysis(org, ops_metrics, competitors, revenue_trends) -
 
         return result
 
-    except Exception:
+    except Exception as e:
+        logger.error("AI dashboard call failed: %s", e)
         return None
 
 
@@ -423,7 +429,8 @@ async def ai_discover_competitors(org_name, industry, existing_competitors) -> d
 
         return result
 
-    except Exception:
+    except Exception as e:
+        logger.error("AI dashboard call failed: %s", e)
         return None
 
 
@@ -510,7 +517,8 @@ async def ai_trend_analysis(revenue_trends, ops_metrics, org_name) -> dict | Non
 
         return result
 
-    except Exception:
+    except Exception as e:
+        logger.error("AI dashboard call failed: %s", e)
         return None
 
 
@@ -597,7 +605,8 @@ async def ai_anomaly_detection(org_data, ops_metrics, competitors, revenue_trend
 
         return result
 
-    except Exception:
+    except Exception as e:
+        logger.error("AI dashboard call failed: %s", e)
         return None
 
 
@@ -675,7 +684,8 @@ async def ai_executive_summary(org_data, ops_metrics, competitors, revenue_trend
 
         return result
 
-    except Exception:
+    except Exception as e:
+        logger.error("AI dashboard call failed: %s", e)
         return None
 
 
@@ -754,7 +764,8 @@ async def ai_data_enrichment_suggestions(org_data, industry, existing_data_summa
 
         return result
 
-    except Exception:
+    except Exception as e:
+        logger.error("AI dashboard call failed: %s", e)
         return None
 
 
@@ -856,7 +867,8 @@ async def ai_transformation_health(all_step_data: dict) -> dict | None:
 
         return result
 
-    except Exception:
+    except Exception as e:
+        logger.error("AI dashboard call failed: %s", e)
         return None
 
 
@@ -927,7 +939,8 @@ async def ai_natural_language_query(question: str, all_data_context: dict) -> di
 
         return result
 
-    except Exception:
+    except Exception as e:
+        logger.error("AI dashboard call failed: %s", e)
         return None
 
 
@@ -1024,7 +1037,8 @@ async def ai_whatif_scenario(scenario_params: dict, org_data, competitors, reven
 
         return result
 
-    except Exception:
+    except Exception as e:
+        logger.error("AI dashboard call failed: %s", e)
         return None
 
 
@@ -1105,5 +1119,6 @@ async def ai_generate_report(org_data, ops_metrics, competitors, revenue_trends,
 
         return result
 
-    except Exception:
+    except Exception as e:
+        logger.error("AI dashboard call failed: %s", e)
         return None
