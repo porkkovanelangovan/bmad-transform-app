@@ -663,6 +663,10 @@ async def get_organization(db=Depends(get_db)):
 @router.post("/organization")
 async def create_organization(data: dict, db=Depends(get_db)):
     # Upsert: delete existing, insert new
+    # Must clear FK-dependent tables first (org_documents, generation_runs -> organization)
+    await db.execute("DELETE FROM document_chunks WHERE document_id IN (SELECT id FROM org_documents)")
+    await db.execute("DELETE FROM org_documents")
+    await db.execute("DELETE FROM generation_runs")
     await db.execute("DELETE FROM organization")
     cursor = await db.execute(
         "INSERT INTO organization (name, industry, competitor_1_name, competitor_2_name) VALUES (?, ?, ?, ?)",
