@@ -262,8 +262,8 @@ async def approve_all_strategies(db=Depends(get_db)):
             (now,),
         )
     await db.commit()
-    count = await db.execute_fetchall("SELECT COUNT(*) as c FROM strategies")
-    return {"approved": dict(count[0])["c"]}
+    row = await db.execute_fetchone("SELECT COUNT(*) as c FROM strategies")
+    return {"approved": row["c"] if row else 0}
 
 
 # ===================== Auto-Generate Engine =====================
