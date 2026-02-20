@@ -145,8 +145,8 @@ async def list_documents(db=Depends(get_db)):
     rows = await db.execute_fetchall(
         "SELECT d.id, d.filename, d.file_type, d.doc_category, d.upload_source, "
         "d.step_number, d.created_at, LENGTH(d.content_text) as text_length, "
-        "(SELECT COUNT(*) FROM document_chunks WHERE document_id = d.id) as chunk_count, "
-        "(SELECT COUNT(*) FROM document_chunks WHERE document_id = d.id AND embedding_json IS NOT NULL) as embedded_count "
+        "(SELECT COUNT(*) FROM document_chunks WHERE document_id = d.id) as chunks, "
+        "(SELECT COUNT(*) FROM document_chunks WHERE document_id = d.id AND embedding_json IS NOT NULL) as embedded_chunks "
         "FROM org_documents d ORDER BY d.created_at DESC"
     )
     return [dict(r) for r in rows]

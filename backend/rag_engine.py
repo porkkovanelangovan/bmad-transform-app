@@ -87,11 +87,12 @@ async def store_document(
     stored_text = content_text[:50000]
 
     # Insert document record
-    doc_id = await db.execute(
+    cursor = await db.execute(
         "INSERT INTO org_documents (org_id, filename, file_type, content_text, "
         "doc_category, upload_source, step_number) VALUES (?, ?, ?, ?, ?, ?, ?)",
         [org_id, filename, file_type, stored_text, doc_category, upload_source, step_number],
     )
+    doc_id = cursor.lastrowid
     await db.commit()
 
     # Chunk text
