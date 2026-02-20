@@ -253,7 +253,7 @@ async def approve_all_strategies(db=Depends(get_db)):
         existing = await db.execute_fetchall(
             "SELECT id FROM review_gates WHERE step_number = 4 AND gate_number = 1"
         )
-        now = datetime.now().isoformat()
+        now = datetime.now()
         if existing:
             await db.execute(
                 "UPDATE review_gates SET status = 'approved', reviewed_at = ? WHERE step_number = 4 AND gate_number = 1",
