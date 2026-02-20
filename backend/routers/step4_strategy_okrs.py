@@ -245,25 +245,31 @@ async def list_strategies_full(db=Depends(get_db)):
 
 @router.post("/approve-all")
 async def approve_all_strategies(db=Depends(get_db)):
-    await db.execute("UPDATE strategies SET approved = 1")
-    # Update review gate for step 4
-    existing = await db.execute_fetchall(
-        "SELECT id FROM review_gates WHERE step_number = 4 AND gate_number = 1"
-    )
-    now = datetime.now().isoformat()
-    if existing:
-        await db.execute(
-            "UPDATE review_gates SET status = 'approved', reviewed_at = ? WHERE step_number = 4 AND gate_number = 1",
-            (now,),
+    import logging
+    logger = logging.getLogger(__name__)
+    try:
+        await db.execute("UPDATE strategies SET approved = 1")
+        # Update review gate for step 4
+        existing = await db.execute_fetchall(
+            "SELECT id FROM review_gates WHERE step_number = 4 AND gate_number = 1"
         )
-    else:
-        await db.execute(
-            "INSERT INTO review_gates (step_number, gate_number, gate_name, status, reviewed_at) VALUES (4, 1, 'Strategy Approval', 'approved', ?)",
-            (now,),
-        )
-    await db.commit()
-    row = await db.execute_fetchone("SELECT COUNT(*) as c FROM strategies")
-    return {"approved": row["c"] if row else 0}
+        now = datetime.now().isoformat()
+        if existing:
+            await db.execute(
+                "UPDATE review_gates SET status = 'approved', reviewed_at = ? WHERE step_number = 4 AND gate_number = 1",
+                [now],
+            )
+        else:
+            await db.execute(
+                "INSERT INTO review_gates (step_number, gate_number, gate_name, status, reviewed_at) VALUES (4, 1, 'Strategy Approval', 'approved', ?)",
+                [now],
+            )
+        await db.commit()
+        row = await db.execute_fetchone("SELECT COUNT(*) as c FROM strategies")
+        return {"approved": row["c"] if row else 0}
+    except Exception as e:
+        logger.error("approve-all failed: %s", e, exc_info=True)
+        return {"error": str(e), "approved": 0}
 
 
 # ===================== Auto-Generate Engine =====================
