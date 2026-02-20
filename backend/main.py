@@ -18,6 +18,7 @@ from routers import (
     review_gates,
     auth_router,
     generate_all,
+    documents,
 )
 
 app = FastAPI(title="Business Transformation Architect", version="1.0.0")
@@ -42,6 +43,7 @@ app.include_router(step6_epics_teams.router, prefix="/api/step6", tags=["Step 6:
 app.include_router(step7_features.router, prefix="/api/step7", tags=["Step 7: Features & Roadmap"])
 app.include_router(review_gates.router, prefix="/api/gates", tags=["Review Gates"])
 app.include_router(generate_all.router, prefix="/api/generate-all", tags=["Generate All"])
+app.include_router(documents.router, prefix="/api/kb", tags=["Knowledge Base & RAG"])
 
 
 @app.on_event("startup")
@@ -129,6 +131,8 @@ async def _migrate_postgres(db):
         "ALTER TABLE initiatives ADD COLUMN ai_rationale TEXT",
         # product_okrs
         "ALTER TABLE product_okrs ADD COLUMN ai_generated INTEGER DEFAULT 0",
+        # organization: data_mode for demo/live toggle
+        "ALTER TABLE organization ADD COLUMN data_mode TEXT DEFAULT 'demo'",
     ]
     for stmt in alter_statements:
         try:
@@ -691,11 +695,36 @@ async def _migrate_sqlite(db):
                 "ai_executive_summary TEXT",
                 "ai_health_score REAL",
                 "ai_summary_updated_at TIMESTAMP",
+                "data_mode TEXT DEFAULT 'demo'",
             ]:
                 try:
                     await raw_db.execute(f"ALTER TABLE organization ADD COLUMN {col}")
                 except Exception:
                     pass
+
+            # --- RAG: Organization Knowledge Base tables ---
+            await raw_db.execute("""CREATE TABLE IF NOT EXISTS org_documents (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                org_id INTEGER NOT NULL REFERENCES organization(id),
+                filename TEXT NOT NULL,
+                file_type TEXT,
+                content_text TEXT,
+                doc_category TEXT DEFAULT 'general',
+                upload_source TEXT DEFAULT 'manual',
+                step_number INTEGER,
+                metadata_json TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )""")
+
+            await raw_db.execute("""CREATE TABLE IF NOT EXISTS document_chunks (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                document_id INTEGER NOT NULL REFERENCES org_documents(id),
+                chunk_index INTEGER NOT NULL,
+                chunk_text TEXT NOT NULL,
+                embedding_json TEXT,
+                token_count INTEGER,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )""")
 
         await raw_db.commit()
 

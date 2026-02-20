@@ -141,6 +141,18 @@ async def gather_initiative_context(db) -> dict:
     except Exception:
         ctx["finnhub_data"] = {}
 
+    # RAG: Include relevant document context when in live mode
+    try:
+        from rag_engine import build_rag_context, is_live_mode
+        if await is_live_mode(db):
+            org_id = ctx["organization"].get("id")
+            query = f"{org_name} {industry} digital initiatives strategy transformation capabilities"
+            rag_text = await build_rag_context(db, query, org_id=org_id, top_k=8)
+            if rag_text:
+                ctx["rag_context"] = rag_text
+    except Exception:
+        pass
+
     return ctx
 
 

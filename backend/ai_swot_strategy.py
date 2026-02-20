@@ -116,6 +116,18 @@ async def gather_full_context(db, business_unit_id: int) -> dict:
     except Exception:
         ctx["finnhub_data"] = {}
 
+    # RAG: Include relevant document context when in live mode
+    try:
+        from rag_engine import build_rag_context, is_live_mode
+        if await is_live_mode(db):
+            org_id = ctx["organization"].get("id")
+            query = f"{org_name} {industry} business performance financial metrics strategy value stream"
+            rag_text = await build_rag_context(db, query, org_id=org_id, top_k=8)
+            if rag_text:
+                ctx["rag_context"] = rag_text
+    except Exception:
+        pass
+
     return ctx
 
 
@@ -235,6 +247,11 @@ def _build_context_prompt(context: dict) -> str:
     if tows:
         tows_strs = [f"[{t.get('strategy_type')}] {t.get('action_description', '')}" for t in tows[:10]]
         parts.append(f"TOWS Actions: {'; '.join(tows_strs)}")
+
+    # RAG: Retrieved document context (only present in live mode)
+    rag = context.get("rag_context", "")
+    if rag:
+        parts.append(f"\n--- Organization Knowledge Base (Retrieved Documents) ---\n{rag}")
 
     return "\n".join(parts)
 

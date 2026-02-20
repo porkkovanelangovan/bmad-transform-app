@@ -121,6 +121,20 @@ async def gather_dashboard_context(db) -> dict:
     except Exception:
         ctx["review_gates"] = []
 
+    # RAG: Include relevant document context when in live mode
+    try:
+        from rag_engine import build_rag_context, is_live_mode
+        if await is_live_mode(db):
+            org_name = ctx["organization"].get("name", "")
+            industry = ctx["organization"].get("industry", "")
+            org_id = ctx["organization"].get("id")
+            query = f"{org_name} {industry} business performance financial analysis transformation"
+            rag_text = await build_rag_context(db, query, org_id=org_id, top_k=6)
+            if rag_text:
+                ctx["rag_context"] = rag_text
+    except Exception:
+        pass
+
     return ctx
 
 

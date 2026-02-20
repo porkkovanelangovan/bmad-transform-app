@@ -412,6 +412,46 @@
         .btn-generate-all { background: linear-gradient(135deg, #7c3aed, #2563eb); color: white; padding: 12px 24px; border-radius: 8px; border: none; cursor: pointer; font-size: 15px; font-weight: 600; transition: all 0.2s; }
         .btn-generate-all:hover { opacity: 0.9; transform: translateY(-1px); }
 
+        /* Knowledge Base & Data Mode */
+        .kb-modal { background: #1e293b; border: 1px solid #334155; border-radius: 16px; padding: 32px; width: 100%; max-width: 700px; max-height: 90vh; overflow-y: auto; }
+        .kb-modal h2 { font-size: 20px; color: #f1f5f9; margin-bottom: 8px; text-align: center; }
+        .kb-subtitle { font-size: 13px; color: #64748b; text-align: center; margin-bottom: 20px; }
+        .data-mode-toggle { display: flex; align-items: center; justify-content: center; gap: 12px; padding: 12px 16px; background: #0f172a; border-radius: 10px; margin-bottom: 20px; }
+        .data-mode-toggle .mode-label { font-size: 14px; font-weight: 500; }
+        .data-mode-toggle .mode-label.active { color: #38bdf8; }
+        .data-mode-toggle .mode-label.inactive { color: #475569; }
+        .toggle-switch { position: relative; width: 48px; height: 26px; background: #334155; border-radius: 13px; cursor: pointer; transition: background 0.3s; }
+        .toggle-switch.live { background: #0ea5e9; }
+        .toggle-switch .toggle-knob { position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; background: #f1f5f9; border-radius: 50%; transition: left 0.3s; }
+        .toggle-switch.live .toggle-knob { left: 25px; }
+        .kb-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 20px; }
+        .kb-stat { background: #0f172a; border: 1px solid #334155; border-radius: 8px; padding: 12px; text-align: center; }
+        .kb-stat-val { font-size: 24px; font-weight: 700; color: #38bdf8; }
+        .kb-stat-label { font-size: 11px; color: #64748b; margin-top: 4px; }
+        .kb-upload-area { border: 2px dashed #334155; border-radius: 10px; padding: 20px; text-align: center; margin-bottom: 16px; cursor: pointer; transition: border-color 0.2s; }
+        .kb-upload-area:hover { border-color: #0ea5e9; }
+        .kb-upload-area input[type="file"] { display: none; }
+        .kb-doc-list { max-height: 250px; overflow-y: auto; }
+        .kb-doc-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: #0f172a; border: 1px solid #334155; border-radius: 8px; margin-bottom: 6px; }
+        .kb-doc-info { flex: 1; }
+        .kb-doc-name { font-size: 13px; font-weight: 500; color: #e2e8f0; }
+        .kb-doc-meta { font-size: 11px; color: #64748b; margin-top: 2px; }
+        .kb-doc-badge { font-size: 10px; padding: 2px 8px; border-radius: 4px; background: #334155; color: #94a3b8; font-weight: 500; }
+        .kb-search { display: flex; gap: 8px; margin-bottom: 16px; }
+        .kb-search input { flex: 1; }
+        .kb-search-results { max-height: 200px; overflow-y: auto; margin-bottom: 16px; }
+        .kb-search-result { padding: 10px 12px; background: #0f172a; border: 1px solid #334155; border-radius: 8px; margin-bottom: 6px; }
+        .kb-search-result .chunk-text { font-size: 12px; color: #cbd5e1; line-height: 1.5; }
+        .kb-search-result .chunk-meta { font-size: 11px; color: #64748b; margin-top: 4px; }
+        .sidebar-divider { height: 1px; background: #334155; margin: 8px 20px; }
+        .nav-item-kb .step-num { background: #7c3aed; font-size: 11px; }
+        .nav-item-kb:hover { background: #334155; }
+        .data-mode-badge { display: flex; align-items: center; gap: 6px; padding: 6px 20px; font-size: 11px; color: #64748b; cursor: pointer; transition: all 0.2s; }
+        .data-mode-badge:hover { color: #e2e8f0; }
+        .data-mode-badge .mode-dot { width: 8px; height: 8px; border-radius: 50%; }
+        .data-mode-badge .mode-dot.demo { background: #f59e0b; }
+        .data-mode-badge .mode-dot.live { background: #10b981; }
+
         /* Responsive */
         @media (max-width: 768px) {
             .app { flex-direction: column; }
@@ -469,6 +509,15 @@
         <div class="nav-item" onclick="showStep(7)">
             <span class="step-num">7</span>
             <span class="step-label">Features & Roadmap</span>
+        </div>
+        <div class="sidebar-divider"></div>
+        <div class="nav-item nav-item-kb" onclick="showKnowledgeBase()">
+            <span class="step-num" style="background:#7c3aed;font-size:11px;">KB</span>
+            <span class="step-label">Knowledge Base</span>
+        </div>
+        <div class="data-mode-badge" id="data-mode-badge" onclick="showKnowledgeBase()">
+            <span class="mode-dot demo" id="mode-dot"></span>
+            <span id="mode-text">Demo Mode</span>
         </div>
         <div class="user-info" id="user-info"></div>
     </nav>
@@ -633,6 +682,7 @@ function showApp() {
 
     showStep(1);
     checkActiveGeneration();
+    loadDataMode();
 }
 
 async function initApp() {
@@ -2154,6 +2204,9 @@ async function renderStep2Input() {
                         <input type="checkbox" class="pull-source-cb" value="openai_research" /> OpenAI Research (GPT)
                     </label>
                     <label style="display:flex;align-items:center;gap:6px;margin-bottom:6px;font-size:13px;cursor:pointer;">
+                        <input type="checkbox" class="pull-source-cb" value="competitor_operations" /> Competitor Operations (AI)
+                    </label>
+                    <label style="display:flex;align-items:center;gap:6px;margin-bottom:6px;font-size:13px;cursor:pointer;">
                         <input type="checkbox" class="pull-source-cb" value="jira" /> Jira (workflow data)
                     </label>
                     <label style="display:flex;align-items:center;gap:6px;margin-bottom:6px;font-size:13px;cursor:pointer;">
@@ -2449,9 +2502,15 @@ async function renderStep2Edit() {
             </table>` : '<div class="empty"><p>No steps yet. Generate or add steps manually.</p></div>'}
         </div>
 
-        ${benchmarks.length ? `<div class="card">
-            <h3>Competitor Benchmarks</h3>
-            <table class="comparison-table">
+        <div class="card">
+            <h3>Competitor Benchmarks
+                <span>
+                    <button class="btn btn-sm" style="background:#7c3aed;color:#fff;" onclick="refreshCompetitorBenchmarks(${vs.id})">
+                        ${benchmarks.length ? 'Refresh Benchmarks' : 'Generate Benchmarks'}
+                    </button>
+                </span>
+            </h3>
+            ${benchmarks.length ? `<table class="comparison-table">
                 <tr><th>Company</th><th>Lead Time (h)</th><th>Process Time (h)</th><th>Flow Efficiency</th><th>Bottleneck</th><th>Notes</th></tr>
                 <tr style="background:#0ea5e911;">
                     <td><strong>${vs.name} (Org)</strong></td>
@@ -2461,16 +2520,21 @@ async function renderStep2Edit() {
                     <td>${m.bottleneck_step || '-'}</td>
                     <td>-</td>
                 </tr>
-                ${benchmarks.map(b => `<tr>
+                ${benchmarks.map(b => {
+                    let extra = '';
+                    try { const info = JSON.parse(b.notes || '{}'); extra = info.key_differentiator || info.notes || b.notes || '-'; } catch(e) { extra = b.notes || '-'; }
+                    return `<tr>
                     <td>${b.competitor_name}</td>
                     <td>${b.total_lead_time_hours != null ? Number(b.total_lead_time_hours).toFixed(1) : '-'}</td>
                     <td>${b.total_process_time_hours != null ? Number(b.total_process_time_hours).toFixed(1) : '-'}</td>
                     <td>${b.flow_efficiency != null ? Number(b.flow_efficiency).toFixed(1) + '%' : '-'}</td>
                     <td>${b.bottleneck_step || '-'}</td>
-                    <td>${b.notes || '-'}</td>
-                </tr>`).join('')}
-            </table>
-        </div>` : ''}
+                    <td style="max-width:200px;font-size:12px;">${extra}</td>
+                </tr>`;
+                }).join('')}
+            </table>` : '<div class="empty"><p>No competitor benchmarks yet. Click "Generate Benchmarks" to create AI-powered comparisons.</p></div>'}
+            <div id="competitor-bp-${vs.id}"></div>
+        </div>
         <div id="step2-gates" style="margin-top:20px;"></div>
     `;
     renderStepGates(2, 'step2-gates');
@@ -4223,6 +4287,248 @@ async function approveGate(id) {
     await api(`/gates/${id}`, 'PUT', { status: 'approved', reviewer: 'User', review_notes: notes });
     toast('Gate approved');
     loadGates();
+}
+
+// ===================== KNOWLEDGE BASE & DATA MODE =====================
+let currentDataMode = 'demo';
+
+async function loadDataMode() {
+    try {
+        const res = await api('/kb/data-mode');
+        if (res && res.data_mode) {
+            currentDataMode = res.data_mode;
+            updateDataModeBadge();
+        }
+    } catch (e) {}
+}
+
+function updateDataModeBadge() {
+    const dot = document.getElementById('mode-dot');
+    const text = document.getElementById('mode-text');
+    if (dot && text) {
+        dot.className = 'mode-dot ' + currentDataMode;
+        text.textContent = currentDataMode === 'live' ? 'Live Mode' : 'Demo Mode';
+    }
+}
+
+async function toggleDataMode() {
+    const newMode = currentDataMode === 'demo' ? 'live' : 'demo';
+    try {
+        const res = await api('/kb/data-mode', 'POST', { data_mode: newMode });
+        if (res && res.data_mode) {
+            currentDataMode = res.data_mode;
+            updateDataModeBadge();
+            toast('Switched to ' + (currentDataMode === 'live' ? 'Live' : 'Demo') + ' mode');
+            // Update modal toggle if open
+            const toggle = document.getElementById('kb-toggle');
+            if (toggle) toggle.className = 'toggle-switch' + (currentDataMode === 'live' ? ' live' : '');
+            const demoLabel = document.getElementById('kb-demo-label');
+            const liveLabel = document.getElementById('kb-live-label');
+            if (demoLabel) demoLabel.className = 'mode-label ' + (currentDataMode === 'demo' ? 'active' : 'inactive');
+            if (liveLabel) liveLabel.className = 'mode-label ' + (currentDataMode === 'live' ? 'active' : 'inactive');
+        }
+    } catch (e) {
+        toast('Failed to switch mode');
+    }
+}
+
+async function showKnowledgeBase() {
+    // Deselect step nav items
+    document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+
+    const existing = document.getElementById('gen-overlay');
+    if (existing) existing.remove();
+
+    const overlay = document.createElement('div');
+    overlay.id = 'gen-overlay';
+    overlay.className = 'gen-overlay';
+    overlay.innerHTML = `<div class="kb-modal">
+        <h2>Knowledge Base</h2>
+        <p class="kb-subtitle">Manage organization documents and data mode for RAG-enhanced AI analysis</p>
+
+        <div class="data-mode-toggle">
+            <span id="kb-demo-label" class="mode-label ${currentDataMode === 'demo' ? 'active' : 'inactive'}">Demo</span>
+            <div id="kb-toggle" class="toggle-switch${currentDataMode === 'live' ? ' live' : ''}" onclick="toggleDataMode()">
+                <div class="toggle-knob"></div>
+            </div>
+            <span id="kb-live-label" class="mode-label ${currentDataMode === 'live' ? 'active' : 'inactive'}">Live</span>
+        </div>
+
+        <div id="kb-stats-area" class="kb-stats"></div>
+
+        <div class="kb-upload-area" id="kb-upload-area" onclick="document.getElementById('kb-file-input').click()">
+            <input type="file" id="kb-file-input" accept=".pdf,.docx,.xlsx,.csv,.txt,.json,.md" onchange="uploadKbDocument()" />
+            <p style="color:#94a3b8;font-size:14px;margin-bottom:4px;">Click to upload a document</p>
+            <p style="color:#475569;font-size:12px;">PDF, DOCX, XLSX, CSV, TXT, JSON, MD</p>
+        </div>
+
+        <div style="margin-bottom:12px;">
+            <label style="font-size:13px;color:#94a3b8;">Document Category:</label>
+            <select id="kb-doc-category" style="margin-left:8px;padding:4px 8px;">
+                <option value="general">General</option>
+                <option value="financial">Financial</option>
+                <option value="strategy">Strategy</option>
+                <option value="operations">Operations</option>
+                <option value="value_stream">Value Stream</option>
+                <option value="competitor">Competitor</option>
+                <option value="technology">Technology</option>
+                <option value="market">Market</option>
+            </select>
+        </div>
+
+        <div class="kb-search">
+            <input type="text" id="kb-search-input" placeholder="Search knowledge base..." onkeydown="if(event.key==='Enter')searchKb()" />
+            <button class="btn btn-primary btn-sm" onclick="searchKb()">Search</button>
+        </div>
+        <div id="kb-search-results" class="kb-search-results"></div>
+
+        <h3 style="font-size:15px;margin-bottom:10px;">Documents</h3>
+        <div id="kb-doc-list" class="kb-doc-list">
+            <p style="color:#64748b;text-align:center;">Loading...</p>
+        </div>
+
+        <div class="gen-actions" style="margin-top:20px;">
+            <button class="btn-outline" onclick="closeGenOverlay(); if(currentStep) showStep(currentStep);">Close</button>
+        </div>
+    </div>`;
+
+    document.body.appendChild(overlay);
+    loadKbStats();
+    loadKbDocuments();
+}
+
+async function loadKbStats() {
+    try {
+        const stats = await api('/kb/stats');
+        if (!stats) return;
+        document.getElementById('kb-stats-area').innerHTML = `
+            <div class="kb-stat"><div class="kb-stat-val">${stats.documents || 0}</div><div class="kb-stat-label">Documents</div></div>
+            <div class="kb-stat"><div class="kb-stat-val">${stats.chunks || 0}</div><div class="kb-stat-label">Chunks</div></div>
+            <div class="kb-stat"><div class="kb-stat-val">${stats.embedded_chunks || 0}</div><div class="kb-stat-label">Embedded</div></div>
+            <div class="kb-stat"><div class="kb-stat-val" style="font-size:14px;color:${stats.data_mode === 'live' ? '#10b981' : '#f59e0b'}">${stats.data_mode || 'demo'}</div><div class="kb-stat-label">Data Mode</div></div>
+        `;
+    } catch (e) {}
+}
+
+async function loadKbDocuments() {
+    try {
+        const docs = await api('/kb/list');
+        const container = document.getElementById('kb-doc-list');
+        if (!docs || !docs.length) {
+            container.innerHTML = '<p style="color:#64748b;text-align:center;font-size:13px;">No documents uploaded yet. Upload files to build the knowledge base.</p>';
+            return;
+        }
+        container.innerHTML = docs.map(d => `
+            <div class="kb-doc-item">
+                <div class="kb-doc-info">
+                    <div class="kb-doc-name">${d.filename}</div>
+                    <div class="kb-doc-meta">${d.file_type} | ${d.chunks || 0} chunks | ${d.embedded_chunks || 0} embedded | ${d.upload_source || 'manual'}</div>
+                </div>
+                <span class="kb-doc-badge">${d.doc_category || 'general'}</span>
+                <button class="btn btn-danger" style="padding:4px 10px;font-size:11px;" onclick="deleteKbDoc(${d.id})">Del</button>
+            </div>
+        `).join('');
+    } catch (e) {
+        document.getElementById('kb-doc-list').innerHTML = '<p style="color:#f87171;">Failed to load documents.</p>';
+    }
+}
+
+async function uploadKbDocument() {
+    const fileInput = document.getElementById('kb-file-input');
+    if (!fileInput.files.length) return;
+
+    const file = fileInput.files[0];
+    const category = document.getElementById('kb-doc-category').value;
+
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('doc_category', category);
+
+    try {
+        const headers = {};
+        if (authToken) headers['Authorization'] = 'Bearer ' + authToken;
+        const res = await fetch(API + '/kb/upload', { method: 'POST', body: formData, headers });
+        const result = await res.json();
+        if (result.error) {
+            toast(result.error);
+        } else {
+            toast(`Uploaded: ${result.filename} (${result.chunks} chunks)`);
+            loadKbStats();
+            loadKbDocuments();
+        }
+    } catch (e) {
+        toast('Upload failed');
+    }
+    fileInput.value = '';
+}
+
+async function deleteKbDoc(docId) {
+    if (!confirm('Delete this document and all its chunks?')) return;
+    await api('/kb/' + docId, 'DELETE');
+    toast('Document deleted');
+    loadKbStats();
+    loadKbDocuments();
+}
+
+async function searchKb() {
+    const query = document.getElementById('kb-search-input').value.trim();
+    if (!query) return;
+
+    const container = document.getElementById('kb-search-results');
+    container.innerHTML = '<p style="color:#64748b;text-align:center;">Searching...</p>';
+
+    try {
+        const results = await api('/kb/search', 'POST', { query, top_k: 8 });
+        if (!results || !results.length) {
+            container.innerHTML = '<p style="color:#64748b;text-align:center;font-size:13px;">No matching results.</p>';
+            return;
+        }
+        container.innerHTML = results.map(r => `
+            <div class="kb-search-result">
+                <div class="chunk-text">${r.chunk_text ? r.chunk_text.substring(0, 300) + (r.chunk_text.length > 300 ? '...' : '') : ''}</div>
+                <div class="chunk-meta">Source: ${r.filename || 'Unknown'} | Category: ${r.doc_category || 'general'}${r.similarity != null ? ' | Relevance: ' + Number(r.similarity).toFixed(3) : ''}</div>
+            </div>
+        `).join('');
+    } catch (e) {
+        container.innerHTML = '<p style="color:#f87171;">Search failed.</p>';
+    }
+}
+
+async function refreshCompetitorBenchmarks(vsId) {
+    const bpDiv = document.getElementById('competitor-bp-' + vsId);
+    if (bpDiv) bpDiv.innerHTML = '<div class="loading-overlay" style="position:static;padding:20px;"><div class="spinner"></div><p>Generating competitor benchmarks with AI...</p></div>';
+
+    try {
+        const result = await api(`/step2/value-streams/${vsId}/competitor-benchmarks`, 'POST');
+        if (result.error) {
+            toast(result.error);
+            if (bpDiv) bpDiv.innerHTML = '';
+            return;
+        }
+        toast(`Generated ${result.benchmarks} competitor benchmarks`);
+
+        // Show best practices if available
+        if (result.industry_best_practices && result.industry_best_practices.length && bpDiv) {
+            bpDiv.innerHTML = `
+                <h4 style="margin-top:16px;font-size:14px;color:#38bdf8;">Industry Best Practices</h4>
+                <div style="display:flex;flex-direction:column;gap:6px;margin-top:8px;">
+                    ${result.industry_best_practices.map(bp => `
+                        <div style="background:#0f172a;border:1px solid #334155;border-radius:8px;padding:10px 14px;">
+                            <div style="font-size:13px;font-weight:500;color:#e2e8f0;">${bp.practice || ''}</div>
+                            <div style="font-size:12px;color:#94a3b8;margin-top:4px;">${bp.description || ''}</div>
+                            <div style="font-size:11px;color:#64748b;margin-top:4px;">Adoption: ${bp.adoption_rate || 'N/A'} | Impact: ${bp.impact || 'N/A'}</div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+
+        // Reload the full edit view to show new benchmark data
+        setTimeout(() => renderStep2Edit(), 500);
+    } catch (e) {
+        toast('Failed to generate benchmarks');
+        if (bpDiv) bpDiv.innerHTML = '';
+    }
 }
 
 // ===================== SHARED REVIEW GATES =====================

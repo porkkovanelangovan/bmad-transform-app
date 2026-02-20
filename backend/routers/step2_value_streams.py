@@ -12,6 +12,7 @@ from source_gatherers import (
     gather_industry_benchmarks,
     gather_finnhub_data,
     gather_web_search,
+    gather_competitor_operations,
     gather_jira,
     gather_servicenow,
 )
@@ -314,6 +315,29 @@ async def upload_visual(business_unit_id: int, file: UploadFile = File(...), db=
 
     await _recalculate_metrics(vs_id, db, data_source="visual_upload")
     await db.commit()
+
+    # In live mode, persist to RAG knowledge base
+    try:
+        from rag_engine import store_document, is_live_mode
+        if await is_live_mode(db):
+            raw_text = ""
+            if ext in (".bpmn", ".xml"):
+                raw_text = content.decode("utf-8-sig", errors="replace")
+            elif ext == ".pdf":
+                import fitz
+                doc_pdf = fitz.open(stream=content, filetype="pdf")
+                raw_text = "\n".join(page.get_text() for page in doc_pdf).strip()
+            if raw_text and len(raw_text.strip()) > 50:
+                org = await db.execute_fetchone("SELECT id FROM organization LIMIT 1")
+                if org:
+                    await store_document(
+                        db, org["id"], file.filename, ext.lstrip("."), raw_text,
+                        doc_category="value_stream", upload_source="step2_upload", step_number=2,
+                    )
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning("RAG indexing failed (non-fatal): %s", e)
+
     return {"id": vs_id, "steps": len(steps), "source_type": "visual_upload"}
 
 
@@ -395,7 +419,7 @@ async def pull_from_url(data: dict, db=Depends(get_db)):
 # NEW — Pull from Sources
 # ──────────────────────────────────────────────
 
-VALID_SOURCES = {"app_data", "erp_simulation", "industry_benchmarks", "finnhub", "web_search", "openai_research", "jira", "servicenow"}
+VALID_SOURCES = {"app_data", "erp_simulation", "industry_benchmarks", "finnhub", "web_search", "openai_research", "competitor_operations", "jira", "servicenow"}
 
 GATHERER_MAP = {
     "app_data": lambda db, segment, industry, org_name, competitors: gather_app_data(db),
@@ -403,6 +427,7 @@ GATHERER_MAP = {
     "industry_benchmarks": lambda db, segment, industry, org_name, competitors: gather_industry_benchmarks(segment, industry),
     "finnhub": lambda db, segment, industry, org_name, competitors: gather_finnhub_data(org_name, industry, competitors),
     "web_search": lambda db, segment, industry, org_name, competitors: gather_web_search(segment, industry),
+    "competitor_operations": lambda db, segment, industry, org_name, competitors: gather_competitor_operations(db, segment, industry, org_name, competitors),
     "jira": lambda db, segment, industry, org_name, competitors: gather_jira(segment, industry),
     "servicenow": lambda db, segment, industry, org_name, competitors: gather_servicenow(segment, industry),
 }
@@ -463,6 +488,22 @@ async def pull_from_sources(data: dict, db=Depends(get_db)):
     result = None
 
     if "openai_research" in sources and is_openai_available():
+        # Get RAG context in live mode
+        rag_context = ""
+        try:
+            from rag_engine import build_rag_context, is_live_mode
+            if await is_live_mode(db):
+                org_row_rag = await db.execute_fetchone("SELECT id FROM organization LIMIT 1")
+                if org_row_rag:
+                    rag_context = await build_rag_context(
+                        db,
+                        f"{segment_name} value stream {industry} {org_name} operations process",
+                        org_id=org_row_rag["id"],
+                        top_k=8,
+                    )
+        except Exception:
+            pass
+
         result = await research_value_stream(
             segment_name=segment_name,
             industry=industry,
@@ -470,6 +511,7 @@ async def pull_from_sources(data: dict, db=Depends(get_db)):
             org_context=org,
             competitor_data=finnhub_data,
             sources_context=gathered_data,
+            rag_context=rag_context,
         )
         if result:
             synthesis_method = "ai_generated"
@@ -556,13 +598,23 @@ async def pull_from_sources(data: dict, db=Depends(get_db)):
 
     await db.commit()
 
-    return {
+    # Collect industry best practices from competitor_operations source if available
+    best_practices = []
+    for gd in gathered_data:
+        if gd.get("source") == "competitor_operations" and gd.get("industry_best_practices"):
+            best_practices = gd["industry_best_practices"]
+            break
+
+    resp = {
         "id": vs_id,
         "steps": len(result.get("steps", [])),
         "benchmarks": len(benchmarks),
         "sources_used": sources_used,
         "synthesis_method": synthesis_method,
     }
+    if best_practices:
+        resp["industry_best_practices"] = best_practices
+    return resp
 
 
 def _enhanced_template_generation(
@@ -706,6 +758,116 @@ async def delete_step(vs_id: int, step_id: int, db=Depends(get_db)):
     await db.execute("DELETE FROM value_stream_steps WHERE id = ? AND value_stream_id = ?", (step_id, vs_id))
     await db.commit()
     return {"deleted": True}
+
+
+# ──────────────────────────────────────────────
+# NEW — Competitor Benchmarks (standalone)
+# ──────────────────────────────────────────────
+
+@router.post("/value-streams/{vs_id}/competitor-benchmarks")
+async def fetch_competitor_benchmarks(vs_id: int, db=Depends(get_db)):
+    """Generate or refresh detailed competitor operational benchmarks for a value stream.
+
+    Uses AI to analyze competitor operations and compare against the org's value stream.
+    Results are stored in value_stream_benchmarks table.
+    """
+    from ai_research import research_competitor_benchmarks, is_openai_available as ai_available
+
+    if not ai_available():
+        return {"error": "OpenAI API not available. Set OPENAI_API_KEY to enable competitor benchmarking."}
+
+    # Get value stream details
+    vs_rows = await db.execute_fetchall(
+        "SELECT vs.*, bu.name as business_unit_name FROM value_streams vs "
+        "JOIN business_units bu ON vs.business_unit_id = bu.id WHERE vs.id = ?",
+        (vs_id,),
+    )
+    if not vs_rows:
+        return {"error": "Value stream not found"}
+    vs = dict(vs_rows[0])
+
+    # Get org info
+    org_row = await db.execute_fetchall("SELECT * FROM organization LIMIT 1")
+    org = dict(org_row[0]) if org_row else {}
+    org_name = org.get("name", "the organization")
+    industry = org.get("industry", "general")
+    competitors = [c for c in [org.get("competitor_1_name"), org.get("competitor_2_name")] if c]
+
+    # Get current steps & metrics
+    steps = [dict(r) for r in await db.execute_fetchall(
+        "SELECT * FROM value_stream_steps WHERE value_stream_id = ? ORDER BY step_order", (vs_id,),
+    )]
+    metrics_rows = await db.execute_fetchall(
+        "SELECT * FROM value_stream_metrics WHERE value_stream_id = ?", (vs_id,),
+    )
+    metrics = dict(metrics_rows[0]) if metrics_rows else {}
+
+    org_vs_data = {"steps": steps, "metrics": metrics}
+
+    # Get RAG context in live mode
+    rag_context = ""
+    try:
+        from rag_engine import build_rag_context, is_live_mode
+        if await is_live_mode(db):
+            rag_context = await build_rag_context(
+                db,
+                f"{vs['name']} competitor operations benchmarks {industry}",
+                org_id=org.get("id"),
+                top_k=5,
+                doc_category="competitor",
+            )
+    except Exception:
+        pass
+
+    result = await research_competitor_benchmarks(
+        segment_name=vs["name"],
+        industry=industry,
+        org_name=org_name,
+        competitors=competitors,
+        org_value_stream_data=org_vs_data,
+        rag_context=rag_context,
+    )
+
+    if not result:
+        return {"error": "Failed to generate competitor benchmarks"}
+
+    # Clear existing benchmarks and store new ones
+    await db.execute("DELETE FROM value_stream_benchmarks WHERE value_stream_id = ?", (vs_id,))
+
+    benchmarks = result.get("benchmarks", [])
+    for bm in benchmarks:
+        await db.execute(
+            "INSERT INTO value_stream_benchmarks "
+            "(value_stream_id, competitor_name, total_lead_time_hours, total_process_time_hours, "
+            "flow_efficiency, bottleneck_step, notes) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (
+                vs_id,
+                bm.get("competitor_name", "Competitor"),
+                bm.get("total_lead_time_hours"),
+                bm.get("total_process_time_hours"),
+                bm.get("flow_efficiency"),
+                bm.get("bottleneck_step"),
+                json.dumps({
+                    "key_differentiator": bm.get("key_differentiator"),
+                    "automation_level": bm.get("automation_level"),
+                    "technology_stack": bm.get("technology_stack"),
+                    "digital_maturity": bm.get("digital_maturity"),
+                    "process_innovations": bm.get("process_innovations", []),
+                    "estimated_cost_per_transaction": bm.get("estimated_cost_per_transaction"),
+                    "customer_satisfaction_score": bm.get("customer_satisfaction_score"),
+                    "notes": bm.get("notes"),
+                }),
+            ),
+        )
+
+    await db.commit()
+
+    return {
+        "value_stream_id": vs_id,
+        "benchmarks": len(benchmarks),
+        "industry_best_practices": result.get("industry_best_practices", []),
+        "data": result,
+    }
 
 
 # ──────────────────────────────────────────────

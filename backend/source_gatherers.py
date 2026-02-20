@@ -208,7 +208,98 @@ async def gather_web_search(segment: str, industry: str) -> dict:
 
 
 # ──────────────────────────────────────────────
-# 6. Jira Connector
+# 6. Competitor Operations — AI-synthesized benchmarks
+# ──────────────────────────────────────────────
+
+async def gather_competitor_operations(
+    db, segment: str, industry: str, org_name: str, competitors: list[str]
+) -> dict:
+    """Use AI to synthesize competitor operational benchmarks from web + existing data.
+
+    Combines web search results with AI analysis to produce detailed
+    competitor process/operational data for value stream benchmarking.
+    """
+    try:
+        from ai_research import research_competitor_benchmarks, is_openai_available
+
+        if not is_openai_available():
+            return {}
+
+        # Gather org's current value stream data for comparison context
+        org_vs_data = {}
+        try:
+            vs_rows = await db.execute_fetchall(
+                "SELECT vs.id, vs.name FROM value_streams vs "
+                "WHERE LOWER(vs.name) LIKE ?",
+                (f"%{segment.lower()[:20]}%",),
+            )
+            if vs_rows:
+                vs_id = dict(vs_rows[0])["id"]
+                steps = [dict(r) for r in await db.execute_fetchall(
+                    "SELECT step_name, process_time_hours, wait_time_hours "
+                    "FROM value_stream_steps WHERE value_stream_id = ? ORDER BY step_order",
+                    (vs_id,),
+                )]
+                metrics_rows = await db.execute_fetchall(
+                    "SELECT * FROM value_stream_metrics WHERE value_stream_id = ?", (vs_id,),
+                )
+                org_vs_data = {
+                    "steps": steps,
+                    "metrics": dict(metrics_rows[0]) if metrics_rows else {},
+                }
+        except Exception:
+            pass
+
+        # Get RAG context if in live mode
+        rag_context = ""
+        try:
+            from rag_engine import build_rag_context, is_live_mode
+            if await is_live_mode(db):
+                org_row = await db.execute_fetchone("SELECT id FROM organization LIMIT 1")
+                if org_row:
+                    rag_context = await build_rag_context(
+                        db,
+                        f"{segment} competitor operations benchmarks {industry}",
+                        org_id=org_row["id"],
+                        top_k=5,
+                        doc_category="competitor",
+                    )
+        except Exception:
+            pass
+
+        # Ensure we have competitor names
+        if not competitors:
+            # Get from org table
+            org_row = await db.execute_fetchall("SELECT * FROM organization LIMIT 1")
+            if org_row:
+                org = dict(org_row[0])
+                competitors = [c for c in [
+                    org.get("competitor_1_name"), org.get("competitor_2_name")
+                ] if c]
+
+        result = await research_competitor_benchmarks(
+            segment_name=segment,
+            industry=industry,
+            org_name=org_name,
+            competitors=competitors,
+            org_value_stream_data=org_vs_data,
+            rag_context=rag_context,
+        )
+
+        if not result:
+            return {}
+
+        return {
+            "source": "competitor_operations",
+            "benchmarks": result.get("benchmarks", []),
+            "industry_best_practices": result.get("industry_best_practices", []),
+        }
+    except Exception:
+        return {}
+
+
+# ──────────────────────────────────────────────
+# 7. Jira Connector
 # ──────────────────────────────────────────────
 
 async def gather_jira(segment: str, industry: str) -> dict:

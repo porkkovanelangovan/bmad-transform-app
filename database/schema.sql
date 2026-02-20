@@ -35,6 +35,7 @@ CREATE TABLE organization (
     currency TEXT,
     competitor_1_name TEXT,
     competitor_2_name TEXT,
+    data_mode TEXT DEFAULT 'demo' CHECK (data_mode IN ('demo', 'live')),
     ai_executive_summary TEXT,
     ai_health_score REAL,
     ai_summary_updated_at TIMESTAMP,
@@ -486,9 +487,38 @@ CREATE TABLE generation_runs (
 );
 
 -- ============================================================
+-- RAG: Organization Knowledge Base
+-- ============================================================
+
+CREATE TABLE org_documents (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    org_id INTEGER NOT NULL REFERENCES organization(id),
+    filename TEXT NOT NULL,
+    file_type TEXT,
+    content_text TEXT,
+    doc_category TEXT DEFAULT 'general' CHECK (doc_category IN ('general', 'financial', 'strategy', 'operations', 'value_stream', 'competitor', 'technology', 'market')),
+    upload_source TEXT DEFAULT 'manual' CHECK (upload_source IN ('manual', 'step1_upload', 'step2_upload', 'url_fetch', 'api_ingest')),
+    step_number INTEGER,
+    metadata_json TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE document_chunks (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    document_id INTEGER NOT NULL REFERENCES org_documents(id) ON DELETE CASCADE,
+    chunk_index INTEGER NOT NULL,
+    chunk_text TEXT NOT NULL,
+    embedding_json TEXT,
+    token_count INTEGER,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ============================================================
 -- Indexes for performance
 -- ============================================================
 
+CREATE INDEX idx_org_documents_org ON org_documents(org_id);
+CREATE INDEX idx_document_chunks_doc ON document_chunks(document_id);
 CREATE INDEX idx_value_stream_steps_vs ON value_stream_steps(value_stream_id, step_order);
 CREATE INDEX idx_value_stream_benchmarks_vs ON value_stream_benchmarks(value_stream_id);
 CREATE INDEX idx_revenue_splits_period ON revenue_splits(period);

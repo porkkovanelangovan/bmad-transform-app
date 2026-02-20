@@ -799,7 +799,8 @@ async def ingest_data(db=Depends(get_db)):
 
 @router.post("/upload")
 async def upload_file(file: UploadFile = File(...), db=Depends(get_db)):
-    """Upload a file (CSV/Excel/JSON/PDF/Word/Image) and extract financial data."""
+    """Upload a file (CSV/Excel/JSON/PDF/Word/Image) and extract financial data.
+    In live mode, also persists document text + embeddings to the RAG knowledge base."""
     if not file.filename:
         return {"error": "No file provided"}
 
@@ -808,22 +809,75 @@ async def upload_file(file: UploadFile = File(...), db=Depends(get_db)):
 
     try:
         if ext == "csv":
-            return await _parse_csv(content, db)
+            result = await _parse_csv(content, db)
         elif ext == "xlsx":
-            return await _parse_excel(content, db)
+            result = await _parse_excel(content, db)
         elif ext == "json":
-            return await _parse_json(content, db)
+            result = await _parse_json(content, db)
         elif ext == "pdf":
-            return await _parse_pdf(content, db)
+            result = await _parse_pdf(content, db)
         elif ext == "docx":
-            return await _parse_docx(content, db)
+            result = await _parse_docx(content, db)
         elif ext in ("png", "jpg", "jpeg"):
-            return await _parse_image(content, ext, db)
+            result = await _parse_image(content, ext, db)
         else:
             return {"error": f"Unsupported file type: .{ext}. Supported: csv, xlsx, json, pdf, docx, png, jpg, jpeg"}
+
+        # In live mode, also persist raw text to RAG knowledge base
+        try:
+            from rag_engine import store_document, is_live_mode
+            if await is_live_mode(db):
+                raw_text = _extract_raw_text(content, ext)
+                if raw_text and len(raw_text.strip()) > 50:
+                    org = await db.execute_fetchone("SELECT id FROM organization LIMIT 1")
+                    if org:
+                        doc_id = await store_document(
+                            db, org["id"], file.filename, ext, raw_text,
+                            doc_category="financial", upload_source="step1_upload", step_number=1,
+                        )
+                        result["rag_document_id"] = doc_id
+                        result["rag_indexed"] = True
+        except Exception as e:
+            logger.warning("RAG indexing failed (non-fatal): %s", e)
+
+        return result
     except Exception as e:
         logger.error("File upload processing error: %s", e)
         return {"error": f"Processing error: {e}"}
+
+
+def _extract_raw_text(content: bytes, ext: str) -> str:
+    """Extract raw text from uploaded file for RAG indexing."""
+    try:
+        if ext in ("csv", "json", "txt"):
+            return content.decode("utf-8-sig", errors="replace")
+        elif ext == "pdf":
+            import fitz
+            doc = fitz.open(stream=content, filetype="pdf")
+            return "\n".join(page.get_text() for page in doc).strip()
+        elif ext == "docx":
+            import docx as docx_mod
+            doc = docx_mod.Document(io.BytesIO(content))
+            parts = [p.text for p in doc.paragraphs if p.text.strip()]
+            for table in doc.tables:
+                for row in table.rows:
+                    cells = [c.text.strip() for c in row.cells if c.text.strip()]
+                    if cells:
+                        parts.append(" | ".join(cells))
+            return "\n".join(parts)
+        elif ext == "xlsx":
+            import openpyxl
+            wb = openpyxl.load_workbook(io.BytesIO(content), read_only=True)
+            parts = []
+            for ws in wb.worksheets:
+                for row in ws.iter_rows(values_only=True):
+                    vals = [str(c) for c in row if c is not None]
+                    if vals:
+                        parts.append(" | ".join(vals))
+            return "\n".join(parts)
+    except Exception:
+        pass
+    return ""
 
 
 async def _parse_csv(content: bytes, db) -> dict:
