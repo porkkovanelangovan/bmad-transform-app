@@ -508,22 +508,38 @@ async def get_features_full(db=Depends(get_db)):
     return [dict(r) for r in rows]
 
 
-# --- Roadmap (features grouped by phase) ---
+# --- Roadmap (features grouped by quarterly timeline — 1 year) ---
 
 @router.get("/roadmap")
 async def get_roadmap(db=Depends(get_db)):
+    from datetime import datetime
+
     rows = await db.execute_fetchall(
         "SELECT f.*, e.name as epic_name, "
         "i.name as initiative_name, i.rice_score, i.rice_override, "
-        "s.layer as strategy_layer, t.name as team_name "
+        "dp.name as product_name, s.layer as strategy_layer, t.name as team_name "
         "FROM features f "
         "JOIN epics e ON f.epic_id = e.id "
         "JOIN initiatives i ON e.initiative_id = i.id "
+        "JOIN digital_products dp ON i.digital_product_id = dp.id "
         "LEFT JOIN strategies s ON i.strategy_id = s.id "
         "LEFT JOIN teams t ON e.team_id = t.id "
         "ORDER BY f.priority_score DESC"
     )
     features = [dict(r) for r in rows]
+
+    now = datetime.now()
+    # Build 4 quarter labels starting from current quarter
+    quarters = []
+    q_month = ((now.month - 1) // 3) * 3 + 1
+    q_year = now.year
+    for _ in range(4):
+        q_num = (q_month - 1) // 3 + 1
+        quarters.append({"label": f"Q{q_num} {q_year}", "year": q_year, "quarter": q_num, "items": []})
+        q_month += 3
+        if q_month > 12:
+            q_month -= 12
+            q_year += 1
 
     quick_wins = []
     strategic = []
@@ -540,6 +556,7 @@ async def get_roadmap(db=Depends(get_db)):
                 phase = "strategic"
             else:
                 phase = "long_term"
+        f["computed_phase"] = phase
         if phase == "quick_win":
             quick_wins.append(f)
         elif phase == "strategic":
@@ -547,9 +564,19 @@ async def get_roadmap(db=Depends(get_db)):
         else:
             long_term.append(f)
 
+    # Distribute across all 4 quarters proportionally by priority
+    all_items = quick_wins + strategic + long_term
+    per_q = max(1, len(all_items) // 4)
+    for idx, it in enumerate(all_items):
+        q_idx = min(idx // per_q, 3)
+        quarters[q_idx]["items"].append(it)
+
     return {
-        "quick_wins": quick_wins,
-        "strategic": strategic,
-        "long_term": long_term,
+        "quarters": quarters,
         "total": len(features),
+        "phase_counts": {
+            "quick_wins": len(quick_wins),
+            "strategic": len(strategic),
+            "long_term": len(long_term),
+        },
     }

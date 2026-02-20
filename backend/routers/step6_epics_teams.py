@@ -618,15 +618,18 @@ async def get_epics_full(db=Depends(get_db)):
     return epics
 
 
-# --- Roadmap (epics grouped by phase) ---
+# --- Roadmap (epics grouped by quarterly timeline — 1 year) ---
 
 @router.get("/roadmap")
 async def get_roadmap(db=Depends(get_db)):
+    from datetime import datetime
+
     rows = await db.execute_fetchall(
         "SELECT e.*, i.name as initiative_name, i.rice_score, i.rice_override, "
-        "s.layer as strategy_layer, t.name as team_name "
+        "dp.name as product_name, s.layer as strategy_layer, t.name as team_name "
         "FROM epics e "
         "JOIN initiatives i ON e.initiative_id = i.id "
+        "JOIN digital_products dp ON i.digital_product_id = dp.id "
         "LEFT JOIN strategies s ON i.strategy_id = s.id "
         "LEFT JOIN teams t ON e.team_id = t.id "
         "ORDER BY e.priority_score DESC"
@@ -639,13 +642,25 @@ async def get_roadmap(db=Depends(get_db)):
     )
     dep_counts = {d["epic_id"]: d["cnt"] for d in dep_rows}
 
+    now = datetime.now()
+    # Build 4 quarter labels starting from current quarter
+    quarters = []
+    q_month = ((now.month - 1) // 3) * 3 + 1
+    q_year = now.year
+    for _ in range(4):
+        q_num = (q_month - 1) // 3 + 1
+        quarters.append({"label": f"Q{q_num} {q_year}", "year": q_year, "quarter": q_num, "items": []})
+        q_month += 3
+        if q_month > 12:
+            q_month -= 12
+            q_year += 1
+
     quick_wins = []
     strategic = []
     long_term = []
 
     for e in epics:
         e["dep_count"] = dep_counts.get(e["id"], 0)
-        # Manual override takes precedence
         phase = e.get("roadmap_phase")
         if not phase:
             priority = e.get("priority_score") or 0
@@ -656,6 +671,7 @@ async def get_roadmap(db=Depends(get_db)):
                 phase = "strategic"
             else:
                 phase = "long_term"
+        e["computed_phase"] = phase
         if phase == "quick_win":
             quick_wins.append(e)
         elif phase == "strategic":
@@ -663,16 +679,26 @@ async def get_roadmap(db=Depends(get_db)):
         else:
             long_term.append(e)
 
-    # Dependency edges for visualization
+    # Distribute across all 4 quarters proportionally by priority
+    all_items = quick_wins + strategic + long_term
+    per_q = max(1, len(all_items) // 4)
+    for idx, it in enumerate(all_items):
+        q_idx = min(idx // per_q, 3)
+        quarters[q_idx]["items"].append(it)
+
+    # Dependency edges
     edge_rows = await db.execute_fetchall(
         "SELECT epic_id, depends_on_epic_id FROM epic_dependencies"
     )
     edges = [{"from": r["epic_id"], "to": r["depends_on_epic_id"]} for r in edge_rows]
 
     return {
-        "quick_wins": quick_wins,
-        "strategic": strategic,
-        "long_term": long_term,
+        "quarters": quarters,
         "total": len(epics),
+        "phase_counts": {
+            "quick_wins": len(quick_wins),
+            "strategic": len(strategic),
+            "long_term": len(long_term),
+        },
         "dependency_edges": edges,
     }

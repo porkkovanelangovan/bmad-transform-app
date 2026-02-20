@@ -255,6 +255,28 @@
         .roadmap-item .ri-name { font-size: 14px; font-weight: 500; flex: 1; }
         .roadmap-item .ri-meta { display: flex; gap: 12px; align-items: center; font-size: 12px; color: #94a3b8; }
 
+        /* Quarterly timeline roadmap */
+        .qt-roadmap { display: flex; gap: 0; overflow-x: auto; padding-bottom: 8px; }
+        .qt-quarter { flex: 1; min-width: 220px; border-right: 1px solid #334155; }
+        .qt-quarter:last-child { border-right: none; }
+        .qt-header { padding: 12px 16px; background: #1e293b; border-bottom: 2px solid #0ea5e9; text-align: center; font-weight: 600; font-size: 14px; color: #38bdf8; position: sticky; top: 0; }
+        .qt-header .qt-count { font-size: 11px; color: #64748b; font-weight: 400; }
+        .qt-items { padding: 12px 10px; min-height: 80px; }
+        .qt-card { background: #1e293b; border: 1px solid #334155; border-radius: 8px; padding: 12px; margin-bottom: 10px; transition: border-color 0.2s; }
+        .qt-card:hover { border-color: #0ea5e9; }
+        .qt-card .qt-name { font-size: 13px; font-weight: 500; margin-bottom: 6px; line-height: 1.3; }
+        .qt-card .qt-parent { font-size: 11px; color: #64748b; margin-bottom: 6px; display: flex; flex-wrap: wrap; gap: 4px; }
+        .qt-card .qt-parent span { background: #0f172a; padding: 1px 6px; border-radius: 4px; }
+        .qt-card .qt-meta { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: 11px; color: #94a3b8; }
+        .qt-phase-badge { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 10px; font-weight: 600; }
+        .qt-phase-badge.qw { background: #064e3b; color: #6ee7b7; }
+        .qt-phase-badge.st { background: #1e3a5f; color: #7dd3fc; }
+        .qt-phase-badge.lt { background: #713f12; color: #fbbf24; }
+        .qt-summary { display: flex; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
+        .qt-summary-card { background: #1e293b; border: 1px solid #334155; border-radius: 10px; padding: 16px 24px; text-align: center; flex: 1; min-width: 120px; }
+        .qt-summary-card .qt-val { font-size: 28px; font-weight: 700; color: #f1f5f9; }
+        .qt-summary-card .qt-lbl { font-size: 12px; color: #64748b; margin-top: 2px; }
+
         /* Risk levels */
         .risk-low { color: #6ee7b7; }
         .risk-medium { color: #fbbf24; }
@@ -2917,12 +2939,11 @@ async function loadStep4() {
             <button class="phase-tab ${step4Phase==='generate'?'active':''}" onclick="step4Phase='generate';loadStep4()">2. Generate</button>
             <button class="phase-tab ${step4Phase==='review'?'active':''}" onclick="step4Phase='review';loadStep4()">3. Review</button>
             <button class="phase-tab ${step4Phase==='initiatives'?'active':''}" onclick="step4Phase='initiatives';loadStep4()">4. Initiatives</button>
-            <button class="phase-tab ${step4Phase==='roadmap'?'active':''}" onclick="step4Phase='roadmap';loadStep4()">5. Roadmap</button>
         </div>
         <div id="step4-content"></div>
         <div id="step4-gates" style="margin-top:20px;"></div>
     `;
-    const renderers = { inputs: renderStep4Inputs, generate: renderStep4Generate, review: renderStep4Review, initiatives: renderStep4Initiatives, roadmap: renderStep4Roadmap };
+    const renderers = { inputs: renderStep4Inputs, generate: renderStep4Generate, review: renderStep4Review, initiatives: renderStep4Initiatives };
     await renderers[step4Phase]();
     renderStepGates(4, 'step4-gates');
 }
@@ -3322,55 +3343,64 @@ async function runInitiativeGenerate() {
             Created <strong>${result.initiatives}</strong> initiatives, <strong>${result.products}</strong> products, <strong>${result.groups}</strong> product groups.
             ${result.ai_powered ? '<br><span style="font-size:12px;color:#c4b5fd;">Initiatives generated with context-aware RICE scoring, risks, and dependencies.</span>' : ''}
         </div>
-        <button class="btn btn-primary" style="margin-top:16px;" onclick="step4Phase='roadmap';loadStep4()">View Roadmap &rarr;</button>
+        <button class="btn btn-primary" style="margin-top:16px;" onclick="showStep(5);step5Phase='roadmap';loadStep5()">View Roadmap in Step 5 &rarr;</button>
     `;
     btn.innerHTML = 'Define Digital Initiatives & OKRs';
     btn.disabled = false;
     toast('Initiatives generated');
 }
 
-async function renderStep4Roadmap() {
-    await renderRoadmapView('step4-content');
+// ─── Quarterly Roadmap Helper ────────────────────────────────────────────────
+function phaseBadge(phase) {
+    const m = { quick_win: ['QW','qw'], strategic: ['ST','st'], long_term: ['LT','lt'] };
+    const [label, cls] = m[phase] || ['—',''];
+    return `<span class="qt-phase-badge ${cls}">${label}</span>`;
 }
 
-async function renderRoadmapView(containerId) {
+// ─── Step 5: Initiatives Quarterly Roadmap (2 years) ─────────────────────────
+async function renderStep5Roadmap() {
     const roadmap = await api('/step5/roadmap');
-    const phaseConfig = [
-        { key: 'quick_wins', label: 'Quick Wins', css: 'quick-wins', color: '#6ee7b7', desc: 'High RICE, low effort' },
-        { key: 'strategic', label: 'Strategic', css: 'strategic', color: '#7dd3fc', desc: 'Medium-high value' },
-        { key: 'long_term', label: 'Long-term', css: 'long-term', color: '#fbbf24', desc: 'High effort investments' },
-    ];
+    const q = roadmap.quarters || [];
+    const pc = roadmap.phase_counts || {};
 
     let html = `
-        <div class="metric-row" style="margin-bottom:20px;">
-            <div class="metric-card"><div class="metric-val">${roadmap.total}</div><div class="metric-label">Total Initiatives</div></div>
-            <div class="metric-card"><div class="metric-val" style="color:#6ee7b7">${roadmap.quick_wins.length}</div><div class="metric-label">Quick Wins</div></div>
-            <div class="metric-card"><div class="metric-val" style="color:#7dd3fc">${roadmap.strategic.length}</div><div class="metric-label">Strategic</div></div>
-            <div class="metric-card"><div class="metric-val" style="color:#fbbf24">${roadmap.long_term.length}</div><div class="metric-label">Long-term</div></div>
+        <div class="qt-summary">
+            <div class="qt-summary-card"><div class="qt-val">${roadmap.total}</div><div class="qt-lbl">Total Initiatives</div></div>
+            <div class="qt-summary-card"><div class="qt-val" style="color:#6ee7b7">${pc.quick_wins||0}</div><div class="qt-lbl">Quick Wins</div></div>
+            <div class="qt-summary-card"><div class="qt-val" style="color:#7dd3fc">${pc.strategic||0}</div><div class="qt-lbl">Strategic</div></div>
+            <div class="qt-summary-card"><div class="qt-val" style="color:#fbbf24">${pc.long_term||0}</div><div class="qt-lbl">Long-term</div></div>
         </div>
+        <div class="qt-roadmap">
     `;
 
-    for (const phase of phaseConfig) {
-        const items = roadmap[phase.key] || [];
-        html += `<div class="roadmap-phase ${phase.css}">
-            <h3 style="color:${phase.color};margin-bottom:4px;">${phase.label} (${items.length})</h3>
-            <p style="font-size:12px;color:#94a3b8;margin-bottom:12px;">${phase.desc}</p>
-            ${items.length ? items.map(i => {
-                const rice = i.rice_override || i.rice_score || 0;
-                return `<div class="roadmap-item">
-                    <div class="ri-name">${i.name}</div>
-                    <div class="ri-meta">
-                        ${i.strategy_layer ? layerBadge(i.strategy_layer) : ''}
-                        <span class="rice-badge ${riceClass(rice)}">${Number(rice).toFixed(1)}</span>
-                        <span>E:${i.effort}</span>
-                        ${statusHtml(i.status)}
-                    </div>
-                </div>`;
-            }).join('') : '<div class="empty" style="padding:16px;"><p>No initiatives in this phase</p></div>'}
-        </div>`;
+    for (const qtr of q) {
+        html += `<div class="qt-quarter">
+            <div class="qt-header">${qtr.label} <span class="qt-count">(${qtr.items.length})</span></div>
+            <div class="qt-items">`;
+        if (!qtr.items.length) {
+            html += '<div style="text-align:center;color:#475569;font-size:12px;padding:20px 0;">No initiatives</div>';
+        }
+        for (const i of qtr.items) {
+            const rice = i.rice_override || i.rice_score || 0;
+            html += `<div class="qt-card" style="border-left: 3px solid ${{quick_win:'#6ee7b7',strategic:'#7dd3fc',long_term:'#fbbf24'}[i.computed_phase]||'#475569'}">
+                <div class="qt-name">${i.name}</div>
+                <div class="qt-parent">
+                    <span>${i.product_name || ''}</span>
+                    ${i.strategy_name ? '<span>' + i.strategy_name + '</span>' : ''}
+                </div>
+                <div class="qt-meta">
+                    ${phaseBadge(i.computed_phase)}
+                    ${i.strategy_layer ? layerBadge(i.strategy_layer) : ''}
+                    <span class="rice-badge ${riceClass(rice)}">${Number(rice).toFixed(1)}</span>
+                    <span>E:${i.effort||'-'}</span>
+                    ${statusHtml(i.status)}
+                </div>
+            </div>`;
+        }
+        html += '</div></div>';
     }
-
-    document.getElementById(containerId).innerHTML = html;
+    html += '</div>';
+    document.getElementById('step5-content').innerHTML = html;
 }
 
 // ===================== STEP 5: Initiatives & RICE =====================
@@ -3391,7 +3421,7 @@ async function loadStep5() {
         <div id="step5-gates" style="margin-top:20px;"></div>
     `;
     if (step5Phase === 'roadmap') {
-        await renderRoadmapView('step5-content');
+        await renderStep5Roadmap();
     } else {
         await renderStep5Table();
     }
@@ -3789,53 +3819,60 @@ async function addManualEpic() {
     renderStep6Review();
 }
 
-// --- Tab 3: Roadmap ---
+// --- Tab 3: Epics/Capabilities Quarterly Roadmap (1 year) ---
 async function renderStep6Roadmap() {
     const roadmap = await api('/step6/roadmap');
-    const phaseConfig = [
-        { key: 'quick_wins', label: 'Quick Wins', css: 'quick-wins', color: '#6ee7b7', desc: 'High priority, low effort epics' },
-        { key: 'strategic', label: 'Strategic', css: 'strategic', color: '#7dd3fc', desc: 'Medium-high priority epics' },
-        { key: 'long_term', label: 'Long-term', css: 'long-term', color: '#fbbf24', desc: 'High effort investment epics' },
-    ];
+    const q = roadmap.quarters || [];
+    const pc = roadmap.phase_counts || {};
+    const deps = roadmap.dependency_edges || [];
 
     let html = `
-        <div class="metric-row" style="margin-bottom:20px;">
-            <div class="metric-card"><div class="metric-val">${roadmap.total}</div><div class="metric-label">Total Epics</div></div>
-            <div class="metric-card"><div class="metric-val" style="color:#6ee7b7">${roadmap.quick_wins.length}</div><div class="metric-label">Quick Wins</div></div>
-            <div class="metric-card"><div class="metric-val" style="color:#7dd3fc">${roadmap.strategic.length}</div><div class="metric-label">Strategic</div></div>
-            <div class="metric-card"><div class="metric-val" style="color:#fbbf24">${roadmap.long_term.length}</div><div class="metric-label">Long-term</div></div>
-            <div class="metric-card"><div class="metric-val">${roadmap.dependency_edges.length}</div><div class="metric-label">Dependencies</div></div>
+        <div class="qt-summary">
+            <div class="qt-summary-card"><div class="qt-val">${roadmap.total}</div><div class="qt-lbl">Total Epics</div></div>
+            <div class="qt-summary-card"><div class="qt-val" style="color:#6ee7b7">${pc.quick_wins||0}</div><div class="qt-lbl">Quick Wins</div></div>
+            <div class="qt-summary-card"><div class="qt-val" style="color:#7dd3fc">${pc.strategic||0}</div><div class="qt-lbl">Strategic</div></div>
+            <div class="qt-summary-card"><div class="qt-val" style="color:#fbbf24">${pc.long_term||0}</div><div class="qt-lbl">Long-term</div></div>
+            <div class="qt-summary-card"><div class="qt-val">${deps.length}</div><div class="qt-lbl">Dependencies</div></div>
         </div>
+        <div class="qt-roadmap">
     `;
 
-    for (const phase of phaseConfig) {
-        const items = roadmap[phase.key] || [];
-        html += `<div class="roadmap-phase ${phase.css}">
-            <h3 style="color:${phase.color};margin-bottom:4px;">${phase.label} (${items.length})</h3>
-            <p style="font-size:12px;color:#94a3b8;margin-bottom:12px;">${phase.desc}</p>
-            ${items.length ? items.map(e => {
-                const riskCls = 'risk-' + (e.risk_level || 'medium');
-                return `<div class="roadmap-item">
-                    <div class="ri-name">
-                        ${e.name}
-                        ${e.ai_generated ? ' <span class="ai-badge">AI</span>' : ''}
-                        ${e.estimated_effort_days ? ' <span class="effort-days-badge">~' + Math.round(e.estimated_effort_days) + 'd</span>' : ''}
-                        <span style="font-size:11px;color:#64748b;margin-left:8px;">${e.initiative_name || ''}</span>
-                    </div>
-                    <div class="ri-meta">
-                        ${e.strategy_layer ? layerBadge(e.strategy_layer) : ''}
-                        <span style="font-weight:600;color:#38bdf8;">P:${(e.priority_score||0).toFixed(1)}</span>
-                        <span>E:${e.effort_score||'-'}</span>
-                        <span>V:${e.value_score||'-'}</span>
-                        <span class="${riskCls}">${e.risk_level||'medium'}</span>
-                        ${e.dep_count ? `<span class="dep-badge">${e.dep_count} deps</span>` : ''}
-                        ${statusHtml(e.status)}
-                    </div>
-                </div>`;
-            }).join('') : '<div class="empty" style="padding:16px;"><p>No epics in this phase</p></div>'}
-        </div>`;
+    for (const qtr of q) {
+        html += `<div class="qt-quarter">
+            <div class="qt-header">${qtr.label} <span class="qt-count">(${qtr.items.length})</span></div>
+            <div class="qt-items">`;
+        if (!qtr.items.length) {
+            html += '<div style="text-align:center;color:#475569;font-size:12px;padding:20px 0;">No epics</div>';
+        }
+        for (const e of qtr.items) {
+            const riskCls = 'risk-' + (e.risk_level || 'medium');
+            const phaseColor = {quick_win:'#6ee7b7',strategic:'#7dd3fc',long_term:'#fbbf24'}[e.computed_phase] || '#475569';
+            html += `<div class="qt-card" style="border-left: 3px solid ${phaseColor}">
+                <div class="qt-name">
+                    ${e.name}
+                    ${e.ai_generated ? ' <span class="ai-badge">AI</span>' : ''}
+                    ${e.estimated_effort_days ? ' <span class="effort-days-badge">~' + Math.round(e.estimated_effort_days) + 'd</span>' : ''}
+                </div>
+                <div class="qt-parent">
+                    ${e.product_name ? '<span>Product: ' + e.product_name + '</span>' : ''}
+                    ${e.initiative_name ? '<span>Initiative: ' + e.initiative_name + '</span>' : ''}
+                </div>
+                <div class="qt-meta">
+                    ${phaseBadge(e.computed_phase)}
+                    ${e.strategy_layer ? layerBadge(e.strategy_layer) : ''}
+                    <span style="font-weight:600;color:#38bdf8;">P:${(e.priority_score||0).toFixed(1)}</span>
+                    <span>E:${e.effort_score||'-'}</span>
+                    <span>V:${e.value_score||'-'}</span>
+                    <span class="${riskCls}">${e.risk_level||'medium'}</span>
+                    ${e.dep_count ? '<span class="dep-badge">' + e.dep_count + ' deps</span>' : ''}
+                    ${e.team_name ? '<span>' + e.team_name + '</span>' : ''}
+                    ${statusHtml(e.status)}
+                </div>
+            </div>`;
+        }
+        html += '</div></div>';
     }
-
+    html += '</div>';
     document.getElementById('step6-content').innerHTML = html;
 }
 
@@ -4077,50 +4114,58 @@ async function addManualFeature() {
     renderStep7Review();
 }
 
-// --- Tab 3: Roadmap ---
+// --- Tab 3: Features Quarterly Roadmap (1 year) ---
 async function renderStep7Roadmap() {
     const roadmap = await api('/step7/roadmap');
-    const phaseConfig = [
-        { key: 'quick_wins', label: 'Quick Wins', css: 'quick-wins', color: '#6ee7b7', desc: 'High priority, low effort features' },
-        { key: 'strategic', label: 'Strategic', css: 'strategic', color: '#7dd3fc', desc: 'Medium-high priority features' },
-        { key: 'long_term', label: 'Long-term', css: 'long-term', color: '#fbbf24', desc: 'High effort investment features' },
-    ];
+    const q = roadmap.quarters || [];
+    const pc = roadmap.phase_counts || {};
 
-    let html = '<div class="metric-row" style="margin-bottom:20px;">' +
-        '<div class="metric-card"><div class="metric-val">' + roadmap.total + '</div><div class="metric-label">Total Features</div></div>' +
-        '<div class="metric-card"><div class="metric-val" style="color:#6ee7b7">' + roadmap.quick_wins.length + '</div><div class="metric-label">Quick Wins</div></div>' +
-        '<div class="metric-card"><div class="metric-val" style="color:#7dd3fc">' + roadmap.strategic.length + '</div><div class="metric-label">Strategic</div></div>' +
-        '<div class="metric-card"><div class="metric-val" style="color:#fbbf24">' + roadmap.long_term.length + '</div><div class="metric-label">Long-term</div></div>' +
-    '</div>';
+    let html = `
+        <div class="qt-summary">
+            <div class="qt-summary-card"><div class="qt-val">${roadmap.total}</div><div class="qt-lbl">Total Features</div></div>
+            <div class="qt-summary-card"><div class="qt-val" style="color:#6ee7b7">${pc.quick_wins||0}</div><div class="qt-lbl">Quick Wins</div></div>
+            <div class="qt-summary-card"><div class="qt-val" style="color:#7dd3fc">${pc.strategic||0}</div><div class="qt-lbl">Strategic</div></div>
+            <div class="qt-summary-card"><div class="qt-val" style="color:#fbbf24">${pc.long_term||0}</div><div class="qt-lbl">Long-term</div></div>
+        </div>
+        <div class="qt-roadmap">
+    `;
 
-    for (const phase of phaseConfig) {
-        const items = roadmap[phase.key] || [];
-        html += '<div class="roadmap-phase ' + phase.css + '">' +
-            '<h3 style="color:' + phase.color + ';margin-bottom:4px;">' + phase.label + ' (' + items.length + ')</h3>' +
-            '<p style="font-size:12px;color:#94a3b8;margin-bottom:12px;">' + phase.desc + '</p>' +
-            (items.length ? items.map(f => {
-                const riskCls = 'risk-' + (f.risk_level || 'medium');
-                return '<div class="roadmap-item">' +
-                    '<div class="ri-name">' +
-                        f.name +
-                        (f.ai_generated ? ' <span class="ai-badge">AI</span>' : '') +
-                        (f.estimated_effort ? ' <span class="sp-badge">' + f.estimated_effort + ' SP</span>' : '') +
-                        (f.initiative_name ? '<span style="font-size:11px;color:#94a3b8;margin-left:8px;">' + f.initiative_name + '</span>' : '') +
-                        '<span style="font-size:11px;color:#64748b;margin-left:8px;">' + (f.epic_name || '') + '</span>' +
-                    '</div>' +
-                    '<div class="ri-meta">' +
-                        (f.strategy_layer ? layerBadge(f.strategy_layer) : '') +
-                        ' <span style="font-weight:600;color:#38bdf8;">P:' + (f.priority_score||0).toFixed(1) + '</span>' +
-                        ' <span>E:' + (f.effort_score||'-') + '</span>' +
-                        ' <span>V:' + (f.value_score||'-') + '</span>' +
-                        ' <span class="' + riskCls + '">' + (f.risk_level||'medium') + '</span>' +
-                        ' ' + statusHtml(f.status) +
-                    '</div>' +
-                '</div>';
-            }).join('') : '<div class="empty" style="padding:16px;"><p>No features in this phase</p></div>') +
-        '</div>';
+    for (const qtr of q) {
+        html += `<div class="qt-quarter">
+            <div class="qt-header">${qtr.label} <span class="qt-count">(${qtr.items.length})</span></div>
+            <div class="qt-items">`;
+        if (!qtr.items.length) {
+            html += '<div style="text-align:center;color:#475569;font-size:12px;padding:20px 0;">No features</div>';
+        }
+        for (const f of qtr.items) {
+            const riskCls = 'risk-' + (f.risk_level || 'medium');
+            const phaseColor = {quick_win:'#6ee7b7',strategic:'#7dd3fc',long_term:'#fbbf24'}[f.computed_phase] || '#475569';
+            html += `<div class="qt-card" style="border-left: 3px solid ${phaseColor}">
+                <div class="qt-name">
+                    ${f.name}
+                    ${f.ai_generated ? ' <span class="ai-badge">AI</span>' : ''}
+                    ${f.estimated_effort ? ' <span class="sp-badge">' + f.estimated_effort + ' SP</span>' : ''}
+                </div>
+                <div class="qt-parent">
+                    ${f.epic_name ? '<span>Epic: ' + f.epic_name + '</span>' : ''}
+                    ${f.product_name ? '<span>Product: ' + f.product_name + '</span>' : ''}
+                    ${f.initiative_name ? '<span>Initiative: ' + f.initiative_name + '</span>' : ''}
+                </div>
+                <div class="qt-meta">
+                    ${phaseBadge(f.computed_phase)}
+                    ${f.strategy_layer ? layerBadge(f.strategy_layer) : ''}
+                    <span style="font-weight:600;color:#38bdf8;">P:${(f.priority_score||0).toFixed(1)}</span>
+                    <span>E:${f.effort_score||'-'}</span>
+                    <span>V:${f.value_score||'-'}</span>
+                    <span class="${riskCls}">${f.risk_level||'medium'}</span>
+                    ${f.team_name ? '<span>' + f.team_name + '</span>' : ''}
+                    ${statusHtml(f.status)}
+                </div>
+            </div>`;
+        }
+        html += '</div></div>';
     }
-
+    html += '</div>';
     document.getElementById('step7-content').innerHTML = html;
 }
 

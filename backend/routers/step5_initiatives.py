@@ -317,11 +317,13 @@ async def auto_generate_initiatives(db=Depends(get_db)):
     }
 
 
-# ===================== Roadmap =====================
+# ===================== Roadmap (Quarterly Timeline — 2 Years) =====================
 
 @router.get("/roadmap")
 async def get_roadmap(db=Depends(get_db)):
-    """Return initiatives grouped by phase (quick_win/strategic/long_term)."""
+    """Return initiatives grouped by quarterly timeline for next 2 years (8 quarters)."""
+    from datetime import datetime, timedelta
+
     rows = await db.execute_fetchall(
         "SELECT i.*, dp.name as product_name, s.name as strategy_name, s.layer as strategy_layer "
         "FROM initiatives i "
@@ -330,6 +332,20 @@ async def get_roadmap(db=Depends(get_db)):
         "ORDER BY COALESCE(i.rice_override, i.rice_score) DESC"
     )
 
+    now = datetime.now()
+    # Build 8 quarter labels starting from current quarter
+    quarters = []
+    q_month = ((now.month - 1) // 3) * 3 + 1  # first month of current quarter
+    q_year = now.year
+    for _ in range(8):
+        q_num = (q_month - 1) // 3 + 1
+        quarters.append({"label": f"Q{q_num} {q_year}", "year": q_year, "quarter": q_num, "items": []})
+        q_month += 3
+        if q_month > 12:
+            q_month -= 12
+            q_year += 1
+
+    # Categorise initiatives by phase, then distribute across quarters
     quick_wins = []
     strategic = []
     long_term = []
@@ -338,8 +354,6 @@ async def get_roadmap(db=Depends(get_db)):
         item = dict(r)
         rice = item.get("rice_override") or item.get("rice_score") or 0
         effort = item.get("effort") or 1
-
-        # Manual override takes precedence
         phase = item.get("roadmap_phase")
         if not phase:
             if rice >= 3 and effort <= 2:
@@ -348,9 +362,7 @@ async def get_roadmap(db=Depends(get_db)):
                 phase = "strategic"
             else:
                 phase = "long_term"
-
         item["computed_phase"] = phase
-
         if phase == "quick_win":
             quick_wins.append(item)
         elif phase == "strategic":
@@ -358,9 +370,19 @@ async def get_roadmap(db=Depends(get_db)):
         else:
             long_term.append(item)
 
+    # Distribute across all 8 quarters proportionally by priority
+    all_items = quick_wins + strategic + long_term
+    per_q = max(1, len(all_items) // 8) if len(all_items) >= 8 else 1
+    for idx, it in enumerate(all_items):
+        q_idx = min(idx // per_q, 7)
+        quarters[q_idx]["items"].append(it)
+
     return {
-        "quick_wins": quick_wins,
-        "strategic": strategic,
-        "long_term": long_term,
+        "quarters": quarters,
         "total": len(quick_wins) + len(strategic) + len(long_term),
+        "phase_counts": {
+            "quick_wins": len(quick_wins),
+            "strategic": len(strategic),
+            "long_term": len(long_term),
+        },
     }
