@@ -723,6 +723,10 @@ async function api(path, method = 'GET', body = null) {
     if (body) opts.body = JSON.stringify(body);
     const res = await fetch(API + path, opts);
     if (res.status === 401) { logout(); return null; }
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        return { error: err.detail || `Server error (${res.status})` };
+    }
     return res.json();
 }
 
@@ -3137,6 +3141,13 @@ async function runAutoGenerate() {
     document.getElementById('generate-result').innerHTML = '';
 
     const result = await api('/step4/auto-generate', 'POST');
+
+    if (result.error) {
+        document.getElementById('generate-result').innerHTML = `<div style="padding:16px;background:#7f1d1d;border-radius:8px;color:#fca5a5;">${result.error}</div>`;
+        btn.innerHTML = 'Generate Strategies & OKRs';
+        btn.disabled = false;
+        return;
+    }
 
     // Store AI metadata for the review page
     if (result.cross_layer_notes) sessionStorage.setItem('cross_layer_notes', result.cross_layer_notes);

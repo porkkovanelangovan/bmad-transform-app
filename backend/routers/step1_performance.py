@@ -663,7 +663,44 @@ async def get_organization(db=Depends(get_db)):
 @router.post("/organization")
 async def create_organization(data: dict, db=Depends(get_db)):
     # Upsert: delete existing, insert new
-    # Must clear FK-dependent tables first (org_documents, generation_runs -> organization)
+    # Full data reset across all steps to prevent stale cross-session data
+    # Step 7
+    await db.execute("DELETE FROM feature_dependencies")
+    await db.execute("DELETE FROM features")
+    await db.execute("DELETE FROM delivery_key_results")
+    await db.execute("DELETE FROM delivery_okrs")
+    # Step 6
+    await db.execute("DELETE FROM epic_dependencies")
+    await db.execute("DELETE FROM epics")
+    await db.execute("DELETE FROM product_key_results")
+    await db.execute("DELETE FROM product_okrs")
+    await db.execute("DELETE FROM teams")
+    # Step 5
+    await db.execute("DELETE FROM initiatives")
+    await db.execute("DELETE FROM digital_products")
+    await db.execute("DELETE FROM product_groups")
+    # Step 4
+    await db.execute("DELETE FROM strategic_key_results")
+    await db.execute("DELETE FROM strategic_okrs")
+    await db.execute("DELETE FROM strategies")
+    await db.execute("DELETE FROM strategy_inputs")
+    # Step 3
+    await db.execute("DELETE FROM tows_actions")
+    await db.execute("DELETE FROM swot_entries")
+    # Step 2
+    await db.execute("DELETE FROM value_stream_benchmarks")
+    await db.execute("DELETE FROM value_stream_metrics")
+    await db.execute("DELETE FROM value_stream_levers")
+    await db.execute("DELETE FROM value_stream_steps")
+    await db.execute("DELETE FROM value_streams")
+    # Step 1
+    await db.execute("DELETE FROM revenue_splits")
+    await db.execute("DELETE FROM ops_efficiency")
+    await db.execute("DELETE FROM competitors")
+    await db.execute("DELETE FROM business_units")
+    # Other
+    await db.execute("DELETE FROM step1_data_urls")
+    await db.execute("DELETE FROM review_gates")
     await db.execute("DELETE FROM document_chunks WHERE document_id IN (SELECT id FROM org_documents)")
     await db.execute("DELETE FROM org_documents")
     await db.execute("DELETE FROM generation_runs")
