@@ -51,7 +51,7 @@ async def search_ticker(company_name: str) -> str | None:
         queries.append("U.S. " + company_name[3:])
         queries.append("U.S. " + company_name[3:] + "corp")
 
-    async with httpx.AsyncClient(timeout=15) as client:
+    async with httpx.AsyncClient(timeout=30) as client:
         for query in queries:
             resp = await client.get(
                 f"{FINNHUB_BASE}/search",
@@ -80,7 +80,7 @@ async def fetch_company_profile(ticker: str) -> dict | None:
     """Fetch company profile from Finnhub /stock/profile2."""
     if not FINNHUB_API_KEY:
         return None
-    async with httpx.AsyncClient(timeout=15) as client:
+    async with httpx.AsyncClient(timeout=30) as client:
         resp = await client.get(
             f"{FINNHUB_BASE}/stock/profile2",
             params={"symbol": ticker, "token": FINNHUB_API_KEY},
@@ -106,15 +106,18 @@ async def fetch_peers(ticker: str) -> list[str]:
     """Fetch peer/competitor tickers from Finnhub /stock/peers."""
     if not FINNHUB_API_KEY:
         return []
-    async with httpx.AsyncClient(timeout=15) as client:
-        resp = await client.get(
-            f"{FINNHUB_BASE}/stock/peers",
-            params={"symbol": ticker, "token": FINNHUB_API_KEY},
-        )
-        peers = resp.json()
-        if isinstance(peers, list):
-            # Remove self from peers
-            return [p for p in peers if p != ticker][:8]
+    try:
+        async with httpx.AsyncClient(timeout=30) as client:
+            resp = await client.get(
+                f"{FINNHUB_BASE}/stock/peers",
+                params={"symbol": ticker, "token": FINNHUB_API_KEY},
+            )
+            peers = resp.json()
+            if isinstance(peers, list):
+                # Remove self from peers
+                return [p for p in peers if p != ticker][:8]
+            return []
+    except Exception:
         return []
 
 
@@ -124,7 +127,7 @@ async def fetch_finnhub_metrics(ticker: str) -> dict | None:
     if not FINNHUB_API_KEY:
         return None
     try:
-        async with httpx.AsyncClient(timeout=15) as client:
+        async with httpx.AsyncClient(timeout=30) as client:
             resp = await client.get(
                 f"{FINNHUB_BASE}/stock/metric",
                 params={"symbol": ticker, "metric": "all", "token": FINNHUB_API_KEY},
@@ -199,7 +202,7 @@ async def fetch_company_overview(ticker: str) -> dict | None:
     if not ALPHA_VANTAGE_API_KEY:
         return None
     try:
-        async with httpx.AsyncClient(timeout=15) as client:
+        async with httpx.AsyncClient(timeout=30) as client:
             resp = await client.get(
                 ALPHA_VANTAGE_BASE,
                 params={
@@ -244,7 +247,7 @@ async def fetch_financials(ticker: str) -> dict | None:
     if not ALPHA_VANTAGE_API_KEY:
         return None
     try:
-        async with httpx.AsyncClient(timeout=15) as client:
+        async with httpx.AsyncClient(timeout=30) as client:
             resp = await client.get(
                 ALPHA_VANTAGE_BASE,
                 params={
