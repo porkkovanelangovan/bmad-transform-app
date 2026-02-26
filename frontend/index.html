@@ -5161,7 +5161,7 @@ async function loadStep8() {
 function renderV2SubTabs(stepNum, tabs, activeTab) {
     if (platformVersion !== '2.0') return '';
     return `<div class="sub-tabs" id="v2-subtabs-${stepNum}">
-        ${tabs.map((t, i) => `<button class="sub-tab ${i === activeTab ? 'active' : ''}" onclick="${t.onclick}">${t.label}${t.v2 ? ' <span class=\\'v2-badge\\'>2.0</span>' : ''}</button>`).join('')}
+        ${tabs.map((t, i) => `<button class="sub-tab ${i === activeTab ? 'active' : ''}" onclick="${t.onclick}">${t.label}${t.v2 ? ' <span class="v2-badge">2.0</span>' : ''}</button>`).join('')}
     </div>`;
 }
 
