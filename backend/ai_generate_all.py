@@ -171,8 +171,25 @@ async def generate_all_steps(run_id: int, org_id: int, db):
         except Exception as e:
             logger.error("Review gates creation failed: %s", e)
 
+        # --- V2.0 Enhanced Generation ---
+        org_row = await db.execute_fetchone("SELECT platform_version FROM organization WHERE id = ?", [org_id])
+        is_v2 = org_row and (org_row.get("platform_version") or "1.0") == "2.0"
+
+        if is_v2:
+            await _run_v2_enhancements(db, org_id, _update_run, steps_completed, steps_failed)
+
         # Final status
-        if len(steps_completed) == 7:
+        total_steps = 7
+        if is_v2:
+            total_steps = 7  # v2 enhancements are bonus, don't affect completion count
+            if len(steps_completed) >= 7:
+                await _update_run("completed", 7, f"All steps generated successfully! (v2.0 enhancements included)")
+            elif steps_failed:
+                await _update_run("partial", max(steps_completed) if steps_completed else 0,
+                                  f"Completed {len(steps_completed)} steps. Failed: {[s for s in steps_failed if s <= 7]}")
+            else:
+                await _update_run("failed", 0, "No steps completed")
+        elif len(steps_completed) == 7:
             await _update_run("completed", 7, "All 7 steps generated successfully!")
         elif steps_failed:
             await _update_run("partial", max(steps_completed) if steps_completed else 0,
@@ -546,3 +563,89 @@ async def _create_review_gates(db):
                 [step_num, GATE_NAMES.get(step_num, f"Step {step_num} Review")],
             )
     await db.commit()
+
+
+async def _run_v2_enhancements(db, org_id, _update_run, steps_completed, steps_failed):
+    """Run v2.0 enhancement generation after core steps."""
+
+    v2_steps = [
+        ("Readiness Assessment", "step0_readiness_gen"),
+        ("Digital Maturity", "step0_maturity_gen"),
+        ("Regulatory Assessment", "step4b_regulatory_gen"),
+        ("Multi-Scenario Strategy", "scenarios_gen"),
+        ("Pilot Scoping", "pilot_scopes_gen"),
+        ("Business Cases", "business_cases_gen"),
+        ("Change Management", "change_mgmt_gen"),
+        ("Risk Registry", "risk_registry_gen"),
+        ("Customer Journeys", "journeys_gen"),
+        ("Operating Model", "tom_gen"),
+        ("Feasibility Scoring", "feasibility_gen"),
+        ("Tech Architecture", "tech_arch_gen"),
+        ("Seed Patterns & Benchmarks", "seed_data"),
+    ]
+
+    await _update_run("running", 7, "Running v2.0 enhancements...")
+
+    for step_name, step_id in v2_steps:
+        try:
+            await _update_run("running", 7, f"v2.0: {step_name}...")
+
+            if step_id == "step0_readiness_gen":
+                from routers.step0_readiness import ai_generate_readiness
+                await ai_generate_readiness(db)
+
+            elif step_id == "step0_maturity_gen":
+                from routers.step0_readiness import ai_generate_maturity
+                await ai_generate_maturity(db)
+
+            elif step_id == "step4b_regulatory_gen":
+                from routers.step4b_regulatory import ai_generate_regulatory
+                await ai_generate_regulatory(db)
+
+            elif step_id == "scenarios_gen":
+                from routers.v2_features import ai_generate_scenarios
+                await ai_generate_scenarios(db)
+
+            elif step_id == "pilot_scopes_gen":
+                from routers.v2_features import ai_generate_pilot_scopes
+                await ai_generate_pilot_scopes({}, db)
+
+            elif step_id == "business_cases_gen":
+                from routers.v2_features import ai_generate_business_case
+                await ai_generate_business_case({}, db)
+
+            elif step_id == "change_mgmt_gen":
+                from routers.step5b_change_mgmt import ai_generate_change_plans
+                await ai_generate_change_plans({}, db)
+
+            elif step_id == "risk_registry_gen":
+                from routers.v2_features import ai_generate_risks
+                await ai_generate_risks(db)
+
+            elif step_id == "journeys_gen":
+                from routers.step2b_journeys import ai_generate_journeys
+                await ai_generate_journeys(db)
+
+            elif step_id == "tom_gen":
+                from routers.step6b_tom import ai_generate_tom
+                await ai_generate_tom(db)
+
+            elif step_id == "feasibility_gen":
+                from routers.v2_features import ai_generate_feasibility
+                await ai_generate_feasibility({}, db)
+
+            elif step_id == "tech_arch_gen":
+                from routers.v2_features import ai_generate_tech
+                await ai_generate_tech({}, db)
+
+            elif step_id == "seed_data":
+                from routers.v2_features import seed_patterns, seed_industry_profiles, seed_benchmarks
+                await seed_patterns(db)
+                await seed_industry_profiles(db)
+                await seed_benchmarks(db)
+
+            logger.info("v2.0 %s completed", step_name)
+
+        except Exception as e:
+            logger.error("v2.0 %s failed: %s\n%s", step_name, e, traceback.format_exc())
+            # Don't add to steps_failed — v2 enhancements are best-effort

@@ -36,6 +36,7 @@ CREATE TABLE organization (
     competitor_1_name TEXT,
     competitor_2_name TEXT,
     data_mode TEXT DEFAULT 'demo' CHECK (data_mode IN ('demo', 'live')),
+    platform_version TEXT DEFAULT '1.0' CHECK (platform_version IN ('1.0', '2.0')),
     ai_executive_summary TEXT,
     ai_health_score REAL,
     ai_summary_updated_at TIMESTAMP,
@@ -168,6 +169,7 @@ CREATE TABLE swot_entries (
     data_source TEXT,
     severity TEXT DEFAULT 'medium',
     confidence TEXT DEFAULT 'medium',
+    ai_confidence INTEGER DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -180,6 +182,7 @@ CREATE TABLE tows_actions (
     priority TEXT CHECK (priority IN ('low', 'medium', 'high', 'critical')),
     impact_score INTEGER DEFAULT 5,
     rationale TEXT,
+    ai_confidence INTEGER DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -208,6 +211,8 @@ CREATE TABLE strategies (
     approved INTEGER DEFAULT 0,
     risk_level TEXT DEFAULT 'medium',
     risks TEXT,
+    ai_confidence INTEGER DEFAULT 0,
+    scenario TEXT DEFAULT 'balanced' CHECK (scenario IN ('conservative', 'balanced', 'aggressive')),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -217,6 +222,8 @@ CREATE TABLE strategic_okrs (
     objective TEXT NOT NULL,
     time_horizon TEXT,
     status TEXT DEFAULT 'draft' CHECK (status IN ('draft', 'active', 'achieved', 'at_risk')),
+    ai_confidence INTEGER DEFAULT 0,
+    scenario TEXT DEFAULT 'balanced' CHECK (scenario IN ('conservative', 'balanced', 'aggressive')),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -231,6 +238,9 @@ CREATE TABLE strategic_key_results (
     target_pessimistic REAL,
     unit TEXT,
     rationale TEXT,
+    scenario TEXT DEFAULT 'balanced' CHECK (scenario IN ('conservative', 'balanced', 'aggressive')),
+    actual_value REAL,
+    last_updated TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -278,6 +288,25 @@ CREATE TABLE initiatives (
     status TEXT DEFAULT 'proposed' CHECK (status IN ('proposed', 'approved', 'in_progress', 'completed', 'deferred')),
     ai_generated INTEGER DEFAULT 0,
     ai_rationale TEXT,
+    ai_confidence INTEGER DEFAULT 0,
+    -- Business case (Enhancement #14)
+    estimated_cost_k REAL,
+    annual_benefit_k REAL,
+    npv_k REAL,
+    payback_months INTEGER,
+    roi_pct REAL,
+    cost_assumptions TEXT,
+    benefit_assumptions TEXT,
+    -- Enhanced RICE feasibility (Enhancement #11)
+    technical_feasibility INTEGER DEFAULT 3 CHECK (technical_feasibility BETWEEN 1 AND 5),
+    org_feasibility INTEGER DEFAULT 3 CHECK (org_feasibility BETWEEN 1 AND 5),
+    regulatory_feasibility INTEGER DEFAULT 3 CHECK (regulatory_feasibility BETWEEN 1 AND 5),
+    financial_feasibility INTEGER DEFAULT 3 CHECK (financial_feasibility BETWEEN 1 AND 5),
+    talent_feasibility INTEGER DEFAULT 3 CHECK (talent_feasibility BETWEEN 1 AND 5),
+    -- Execution tracking (Enhancement #5)
+    actual_start_date TEXT,
+    actual_end_date TEXT,
+    completion_pct INTEGER DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -299,6 +328,7 @@ CREATE TABLE product_okrs (
     objective TEXT NOT NULL,
     status TEXT DEFAULT 'draft' CHECK (status IN ('draft', 'active', 'achieved', 'at_risk')),
     ai_generated INTEGER DEFAULT 0,
+    ai_confidence INTEGER DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -310,6 +340,8 @@ CREATE TABLE product_key_results (
     current_value REAL DEFAULT 0,
     target_value REAL NOT NULL,
     unit TEXT,
+    actual_value REAL,
+    last_updated TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -334,6 +366,10 @@ CREATE TABLE epics (
     ai_generated INTEGER DEFAULT 0,
     estimated_effort_days REAL,
     ai_rationale TEXT,
+    ai_confidence INTEGER DEFAULT 0,
+    actual_start_date TEXT,
+    actual_end_date TEXT,
+    completion_pct INTEGER DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -357,6 +393,7 @@ CREATE TABLE delivery_okrs (
     objective TEXT NOT NULL,
     status TEXT DEFAULT 'draft' CHECK (status IN ('draft', 'active', 'achieved', 'at_risk')),
     ai_generated INTEGER DEFAULT 0,
+    ai_confidence INTEGER DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -368,6 +405,8 @@ CREATE TABLE delivery_key_results (
     current_value REAL DEFAULT 0,
     target_value REAL NOT NULL,
     unit TEXT,
+    actual_value REAL,
+    last_updated TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -394,6 +433,10 @@ CREATE TABLE features (
     ai_generated INTEGER DEFAULT 0,
     ai_rationale TEXT,
     acceptance_criteria TEXT,
+    ai_confidence INTEGER DEFAULT 0,
+    actual_start_date TEXT,
+    actual_end_date TEXT,
+    completion_pct INTEGER DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -510,6 +553,252 @@ CREATE TABLE document_chunks (
     chunk_text TEXT NOT NULL,
     embedding_json TEXT,
     token_count INTEGER,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ============================================================
+-- V2.0 Enhancement Tables
+-- ============================================================
+
+-- Enhancement #1: Organizational Readiness Assessment
+CREATE TABLE org_readiness (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    org_id INTEGER NOT NULL REFERENCES organization(id),
+    dimension TEXT NOT NULL,
+    score INTEGER DEFAULT 3 CHECK (score BETWEEN 1 AND 5),
+    evidence TEXT,
+    ai_generated INTEGER DEFAULT 0,
+    ai_confidence INTEGER DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Enhancement #3: Digital Maturity Model
+CREATE TABLE digital_maturity (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    org_id INTEGER NOT NULL REFERENCES organization(id),
+    dimension TEXT NOT NULL,
+    current_level INTEGER DEFAULT 1 CHECK (current_level BETWEEN 1 AND 5),
+    target_level INTEGER DEFAULT 3 CHECK (target_level BETWEEN 1 AND 5),
+    evidence TEXT,
+    gap_description TEXT,
+    ai_generated INTEGER DEFAULT 0,
+    ai_confidence INTEGER DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Enhancement #4: Regulatory Impact Assessment
+CREATE TABLE regulatory_impacts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    strategy_id INTEGER REFERENCES strategies(id),
+    regulation TEXT NOT NULL,
+    impact_level TEXT DEFAULT 'medium' CHECK (impact_level IN ('high', 'medium', 'low')),
+    requirement TEXT,
+    mitigation TEXT,
+    ai_generated INTEGER DEFAULT 0,
+    ai_confidence INTEGER DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Enhancement #6: Pilot/MVP Scoping
+CREATE TABLE pilot_scopes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    initiative_id INTEGER NOT NULL REFERENCES initiatives(id),
+    mvp_description TEXT,
+    success_criteria TEXT,
+    duration_weeks INTEGER DEFAULT 8,
+    team_size INTEGER DEFAULT 5,
+    go_nogo_criteria TEXT,
+    scale_up_path TEXT,
+    ai_generated INTEGER DEFAULT 0,
+    ai_confidence INTEGER DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Enhancement #10: Change Management Plans
+CREATE TABLE change_plans (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    initiative_id INTEGER NOT NULL REFERENCES initiatives(id),
+    stakeholder_group TEXT NOT NULL,
+    impact_level TEXT DEFAULT 'medium' CHECK (impact_level IN ('high', 'medium', 'low')),
+    communication_plan TEXT,
+    training_needs TEXT,
+    resistance_risks TEXT,
+    adoption_metrics TEXT,
+    wiifm TEXT,
+    ai_generated INTEGER DEFAULT 0,
+    ai_confidence INTEGER DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Enhancement #13: Tech Architecture Recommendations
+CREATE TABLE tech_recommendations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    initiative_id INTEGER NOT NULL REFERENCES initiatives(id),
+    component TEXT NOT NULL,
+    recommendation TEXT DEFAULT 'build' CHECK (recommendation IN ('build', 'buy', 'partner')),
+    platform_options TEXT,
+    integration_pattern TEXT,
+    cloud_model TEXT,
+    tech_risks TEXT,
+    ai_generated INTEGER DEFAULT 0,
+    ai_confidence INTEGER DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Enhancement #8: Customer Personas & Journeys
+CREATE TABLE customer_personas (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    org_id INTEGER NOT NULL REFERENCES organization(id),
+    name TEXT NOT NULL,
+    demographics TEXT,
+    needs TEXT,
+    behaviors TEXT,
+    ai_generated INTEGER DEFAULT 0,
+    ai_confidence INTEGER DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE customer_journeys (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    persona_id INTEGER NOT NULL REFERENCES customer_personas(id),
+    stage TEXT NOT NULL,
+    touchpoint TEXT,
+    channel TEXT,
+    emotion_score INTEGER DEFAULT 0 CHECK (emotion_score BETWEEN -2 AND 2),
+    pain_point TEXT,
+    opportunity TEXT,
+    ai_generated INTEGER DEFAULT 0,
+    ai_confidence INTEGER DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Enhancement #9: Target Operating Model
+CREATE TABLE operating_model (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    org_id INTEGER NOT NULL REFERENCES organization(id),
+    dimension TEXT NOT NULL,
+    current_state TEXT,
+    target_state TEXT,
+    gap TEXT,
+    transformation_actions TEXT,
+    ai_generated INTEGER DEFAULT 0,
+    ai_confidence INTEGER DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE governance_model (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    org_id INTEGER NOT NULL REFERENCES organization(id),
+    decision_type TEXT NOT NULL,
+    authority TEXT,
+    escalation_path TEXT,
+    cadence TEXT,
+    ai_generated INTEGER DEFAULT 0,
+    ai_confidence INTEGER DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Enhancement #12: Transformation Patterns DB
+CREATE TABLE transformation_patterns (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    pattern_name TEXT NOT NULL,
+    industry TEXT,
+    trigger_condition TEXT,
+    strategy_type TEXT,
+    description TEXT,
+    typical_outcomes TEXT,
+    prerequisites TEXT,
+    risks TEXT,
+    source TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Enhancement #19: Industry Profiles
+CREATE TABLE industry_profiles (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    industry TEXT UNIQUE NOT NULL,
+    value_stream_templates TEXT,
+    swot_patterns TEXT,
+    regulatory_framework TEXT,
+    benchmarks TEXT,
+    strategy_archetypes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Enhancement #16: Risk Registry
+CREATE TABLE risk_registry (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    org_id INTEGER NOT NULL REFERENCES organization(id),
+    risk_name TEXT NOT NULL,
+    category TEXT,
+    probability INTEGER DEFAULT 3 CHECK (probability BETWEEN 1 AND 5),
+    impact_score INTEGER DEFAULT 3 CHECK (impact_score BETWEEN 1 AND 5),
+    risk_score INTEGER DEFAULT 9,
+    mitigation TEXT,
+    owner TEXT,
+    status TEXT DEFAULT 'open' CHECK (status IN ('open', 'mitigated', 'accepted', 'closed')),
+    ai_generated INTEGER DEFAULT 0,
+    ai_confidence INTEGER DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Enhancement #17: AI Feedback Loop
+CREATE TABLE ai_feedback (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    entity_type TEXT NOT NULL,
+    entity_id INTEGER NOT NULL,
+    original_text TEXT,
+    edited_text TEXT,
+    feedback_type TEXT DEFAULT 'edit' CHECK (feedback_type IN ('edit', 'accept', 'reject')),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Enhancement #20: Collaboration Comments
+CREATE TABLE comments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    entity_type TEXT NOT NULL,
+    entity_id INTEGER NOT NULL,
+    user_name TEXT,
+    comment_text TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Enhancement #21: Continuous Transformation Engine
+CREATE TABLE pipeline_runs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    org_id INTEGER NOT NULL REFERENCES organization(id),
+    run_type TEXT DEFAULT 'full' CHECK (run_type IN ('full', 'delta', 'refresh')),
+    status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'running', 'completed', 'failed')),
+    delta_report TEXT,
+    started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    completed_at TIMESTAMP
+);
+
+-- Enhancement #22: Competitive Intelligence Alerts
+CREATE TABLE competitive_alerts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    org_id INTEGER NOT NULL REFERENCES organization(id),
+    competitor_name TEXT NOT NULL,
+    alert_type TEXT,
+    headline TEXT,
+    summary TEXT,
+    source_url TEXT,
+    severity TEXT DEFAULT 'info' CHECK (severity IN ('critical', 'warning', 'info')),
+    is_read INTEGER DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Enhancement #23: Benchmarking Data
+CREATE TABLE benchmarks (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    industry TEXT NOT NULL,
+    metric_name TEXT NOT NULL,
+    metric_value REAL,
+    percentile_25 REAL,
+    percentile_50 REAL,
+    percentile_75 REAL,
+    source TEXT,
+    period TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 

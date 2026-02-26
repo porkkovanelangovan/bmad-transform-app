@@ -34,6 +34,7 @@ CREATE TABLE IF NOT EXISTS organization (
     competitor_1_name TEXT,
     competitor_2_name TEXT,
     data_mode TEXT DEFAULT 'demo' CHECK (data_mode IN ('demo', 'live')),
+    platform_version TEXT DEFAULT '1.0' CHECK (platform_version IN ('1.0', '2.0')),
     ai_executive_summary TEXT,
     ai_health_score DOUBLE PRECISION,
     ai_summary_updated_at TIMESTAMP,
@@ -166,6 +167,7 @@ CREATE TABLE IF NOT EXISTS swot_entries (
     data_source TEXT,
     severity TEXT DEFAULT 'medium',
     confidence TEXT DEFAULT 'medium',
+    ai_confidence INTEGER DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -178,6 +180,7 @@ CREATE TABLE IF NOT EXISTS tows_actions (
     priority TEXT CHECK (priority IN ('low', 'medium', 'high', 'critical')),
     impact_score INTEGER DEFAULT 5,
     rationale TEXT,
+    ai_confidence INTEGER DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -206,6 +209,8 @@ CREATE TABLE IF NOT EXISTS strategies (
     approved INTEGER DEFAULT 0,
     risk_level TEXT DEFAULT 'medium',
     risks TEXT,
+    ai_confidence INTEGER DEFAULT 0,
+    scenario TEXT DEFAULT 'balanced' CHECK (scenario IN ('conservative', 'balanced', 'aggressive')),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -215,6 +220,8 @@ CREATE TABLE IF NOT EXISTS strategic_okrs (
     objective TEXT NOT NULL,
     time_horizon TEXT,
     status TEXT DEFAULT 'draft' CHECK (status IN ('draft', 'active', 'achieved', 'at_risk')),
+    ai_confidence INTEGER DEFAULT 0,
+    scenario TEXT DEFAULT 'balanced' CHECK (scenario IN ('conservative', 'balanced', 'aggressive')),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -229,6 +236,9 @@ CREATE TABLE IF NOT EXISTS strategic_key_results (
     target_pessimistic DOUBLE PRECISION,
     unit TEXT,
     rationale TEXT,
+    scenario TEXT DEFAULT 'balanced' CHECK (scenario IN ('conservative', 'balanced', 'aggressive')),
+    actual_value DOUBLE PRECISION,
+    last_updated TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -276,6 +286,22 @@ CREATE TABLE IF NOT EXISTS initiatives (
     status TEXT DEFAULT 'proposed' CHECK (status IN ('proposed', 'approved', 'in_progress', 'completed', 'deferred')),
     ai_generated INTEGER DEFAULT 0,
     ai_rationale TEXT,
+    ai_confidence INTEGER DEFAULT 0,
+    estimated_cost_k DOUBLE PRECISION,
+    annual_benefit_k DOUBLE PRECISION,
+    npv_k DOUBLE PRECISION,
+    payback_months INTEGER,
+    roi_pct DOUBLE PRECISION,
+    cost_assumptions TEXT,
+    benefit_assumptions TEXT,
+    technical_feasibility INTEGER DEFAULT 3 CHECK (technical_feasibility BETWEEN 1 AND 5),
+    org_feasibility INTEGER DEFAULT 3 CHECK (org_feasibility BETWEEN 1 AND 5),
+    regulatory_feasibility INTEGER DEFAULT 3 CHECK (regulatory_feasibility BETWEEN 1 AND 5),
+    financial_feasibility INTEGER DEFAULT 3 CHECK (financial_feasibility BETWEEN 1 AND 5),
+    talent_feasibility INTEGER DEFAULT 3 CHECK (talent_feasibility BETWEEN 1 AND 5),
+    actual_start_date TEXT,
+    actual_end_date TEXT,
+    completion_pct INTEGER DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -297,6 +323,7 @@ CREATE TABLE IF NOT EXISTS product_okrs (
     objective TEXT NOT NULL,
     status TEXT DEFAULT 'draft' CHECK (status IN ('draft', 'active', 'achieved', 'at_risk')),
     ai_generated INTEGER DEFAULT 0,
+    ai_confidence INTEGER DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -308,6 +335,8 @@ CREATE TABLE IF NOT EXISTS product_key_results (
     current_value DOUBLE PRECISION DEFAULT 0,
     target_value DOUBLE PRECISION NOT NULL,
     unit TEXT,
+    actual_value DOUBLE PRECISION,
+    last_updated TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -332,6 +361,10 @@ CREATE TABLE IF NOT EXISTS epics (
     ai_generated INTEGER DEFAULT 0,
     estimated_effort_days DOUBLE PRECISION,
     ai_rationale TEXT,
+    ai_confidence INTEGER DEFAULT 0,
+    actual_start_date TEXT,
+    actual_end_date TEXT,
+    completion_pct INTEGER DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -355,6 +388,7 @@ CREATE TABLE IF NOT EXISTS delivery_okrs (
     objective TEXT NOT NULL,
     status TEXT DEFAULT 'draft' CHECK (status IN ('draft', 'active', 'achieved', 'at_risk')),
     ai_generated INTEGER DEFAULT 0,
+    ai_confidence INTEGER DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -366,6 +400,8 @@ CREATE TABLE IF NOT EXISTS delivery_key_results (
     current_value DOUBLE PRECISION DEFAULT 0,
     target_value DOUBLE PRECISION NOT NULL,
     unit TEXT,
+    actual_value DOUBLE PRECISION,
+    last_updated TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -392,6 +428,10 @@ CREATE TABLE IF NOT EXISTS features (
     ai_generated INTEGER DEFAULT 0,
     ai_rationale TEXT,
     acceptance_criteria TEXT,
+    ai_confidence INTEGER DEFAULT 0,
+    actual_start_date TEXT,
+    actual_end_date TEXT,
+    completion_pct INTEGER DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -508,6 +548,252 @@ CREATE TABLE IF NOT EXISTS document_chunks (
     chunk_text TEXT NOT NULL,
     embedding_json TEXT,
     token_count INTEGER,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ============================================================
+-- V2.0 Enhancement Tables
+-- ============================================================
+
+-- Enhancement #1: Organizational Readiness Assessment
+CREATE TABLE IF NOT EXISTS org_readiness (
+    id SERIAL PRIMARY KEY,
+    org_id INTEGER NOT NULL REFERENCES organization(id),
+    dimension TEXT NOT NULL,
+    score INTEGER DEFAULT 3 CHECK (score BETWEEN 1 AND 5),
+    evidence TEXT,
+    ai_generated INTEGER DEFAULT 0,
+    ai_confidence INTEGER DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Enhancement #3: Digital Maturity Model
+CREATE TABLE IF NOT EXISTS digital_maturity (
+    id SERIAL PRIMARY KEY,
+    org_id INTEGER NOT NULL REFERENCES organization(id),
+    dimension TEXT NOT NULL,
+    current_level INTEGER DEFAULT 1 CHECK (current_level BETWEEN 1 AND 5),
+    target_level INTEGER DEFAULT 3 CHECK (target_level BETWEEN 1 AND 5),
+    evidence TEXT,
+    gap_description TEXT,
+    ai_generated INTEGER DEFAULT 0,
+    ai_confidence INTEGER DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Enhancement #4: Regulatory Impact Assessment
+CREATE TABLE IF NOT EXISTS regulatory_impacts (
+    id SERIAL PRIMARY KEY,
+    strategy_id INTEGER REFERENCES strategies(id),
+    regulation TEXT NOT NULL,
+    impact_level TEXT DEFAULT 'medium' CHECK (impact_level IN ('high', 'medium', 'low')),
+    requirement TEXT,
+    mitigation TEXT,
+    ai_generated INTEGER DEFAULT 0,
+    ai_confidence INTEGER DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Enhancement #6: Pilot/MVP Scoping
+CREATE TABLE IF NOT EXISTS pilot_scopes (
+    id SERIAL PRIMARY KEY,
+    initiative_id INTEGER NOT NULL REFERENCES initiatives(id),
+    mvp_description TEXT,
+    success_criteria TEXT,
+    duration_weeks INTEGER DEFAULT 8,
+    team_size INTEGER DEFAULT 5,
+    go_nogo_criteria TEXT,
+    scale_up_path TEXT,
+    ai_generated INTEGER DEFAULT 0,
+    ai_confidence INTEGER DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Enhancement #10: Change Management Plans
+CREATE TABLE IF NOT EXISTS change_plans (
+    id SERIAL PRIMARY KEY,
+    initiative_id INTEGER NOT NULL REFERENCES initiatives(id),
+    stakeholder_group TEXT NOT NULL,
+    impact_level TEXT DEFAULT 'medium' CHECK (impact_level IN ('high', 'medium', 'low')),
+    communication_plan TEXT,
+    training_needs TEXT,
+    resistance_risks TEXT,
+    adoption_metrics TEXT,
+    wiifm TEXT,
+    ai_generated INTEGER DEFAULT 0,
+    ai_confidence INTEGER DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Enhancement #13: Tech Architecture Recommendations
+CREATE TABLE IF NOT EXISTS tech_recommendations (
+    id SERIAL PRIMARY KEY,
+    initiative_id INTEGER NOT NULL REFERENCES initiatives(id),
+    component TEXT NOT NULL,
+    recommendation TEXT DEFAULT 'build' CHECK (recommendation IN ('build', 'buy', 'partner')),
+    platform_options TEXT,
+    integration_pattern TEXT,
+    cloud_model TEXT,
+    tech_risks TEXT,
+    ai_generated INTEGER DEFAULT 0,
+    ai_confidence INTEGER DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Enhancement #8: Customer Personas & Journeys
+CREATE TABLE IF NOT EXISTS customer_personas (
+    id SERIAL PRIMARY KEY,
+    org_id INTEGER NOT NULL REFERENCES organization(id),
+    name TEXT NOT NULL,
+    demographics TEXT,
+    needs TEXT,
+    behaviors TEXT,
+    ai_generated INTEGER DEFAULT 0,
+    ai_confidence INTEGER DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS customer_journeys (
+    id SERIAL PRIMARY KEY,
+    persona_id INTEGER NOT NULL REFERENCES customer_personas(id),
+    stage TEXT NOT NULL,
+    touchpoint TEXT,
+    channel TEXT,
+    emotion_score INTEGER DEFAULT 0 CHECK (emotion_score BETWEEN -2 AND 2),
+    pain_point TEXT,
+    opportunity TEXT,
+    ai_generated INTEGER DEFAULT 0,
+    ai_confidence INTEGER DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Enhancement #9: Target Operating Model
+CREATE TABLE IF NOT EXISTS operating_model (
+    id SERIAL PRIMARY KEY,
+    org_id INTEGER NOT NULL REFERENCES organization(id),
+    dimension TEXT NOT NULL,
+    current_state TEXT,
+    target_state TEXT,
+    gap TEXT,
+    transformation_actions TEXT,
+    ai_generated INTEGER DEFAULT 0,
+    ai_confidence INTEGER DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS governance_model (
+    id SERIAL PRIMARY KEY,
+    org_id INTEGER NOT NULL REFERENCES organization(id),
+    decision_type TEXT NOT NULL,
+    authority TEXT,
+    escalation_path TEXT,
+    cadence TEXT,
+    ai_generated INTEGER DEFAULT 0,
+    ai_confidence INTEGER DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Enhancement #12: Transformation Patterns DB
+CREATE TABLE IF NOT EXISTS transformation_patterns (
+    id SERIAL PRIMARY KEY,
+    pattern_name TEXT NOT NULL,
+    industry TEXT,
+    trigger_condition TEXT,
+    strategy_type TEXT,
+    description TEXT,
+    typical_outcomes TEXT,
+    prerequisites TEXT,
+    risks TEXT,
+    source TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Enhancement #19: Industry Profiles
+CREATE TABLE IF NOT EXISTS industry_profiles (
+    id SERIAL PRIMARY KEY,
+    industry TEXT UNIQUE NOT NULL,
+    value_stream_templates TEXT,
+    swot_patterns TEXT,
+    regulatory_framework TEXT,
+    benchmarks TEXT,
+    strategy_archetypes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Enhancement #16: Risk Registry
+CREATE TABLE IF NOT EXISTS risk_registry (
+    id SERIAL PRIMARY KEY,
+    org_id INTEGER NOT NULL REFERENCES organization(id),
+    risk_name TEXT NOT NULL,
+    category TEXT,
+    probability INTEGER DEFAULT 3 CHECK (probability BETWEEN 1 AND 5),
+    impact_score INTEGER DEFAULT 3 CHECK (impact_score BETWEEN 1 AND 5),
+    risk_score INTEGER DEFAULT 9,
+    mitigation TEXT,
+    owner TEXT,
+    status TEXT DEFAULT 'open' CHECK (status IN ('open', 'mitigated', 'accepted', 'closed')),
+    ai_generated INTEGER DEFAULT 0,
+    ai_confidence INTEGER DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Enhancement #17: AI Feedback Loop
+CREATE TABLE IF NOT EXISTS ai_feedback (
+    id SERIAL PRIMARY KEY,
+    entity_type TEXT NOT NULL,
+    entity_id INTEGER NOT NULL,
+    original_text TEXT,
+    edited_text TEXT,
+    feedback_type TEXT DEFAULT 'edit' CHECK (feedback_type IN ('edit', 'accept', 'reject')),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Enhancement #20: Collaboration Comments
+CREATE TABLE IF NOT EXISTS comments (
+    id SERIAL PRIMARY KEY,
+    entity_type TEXT NOT NULL,
+    entity_id INTEGER NOT NULL,
+    user_name TEXT,
+    comment_text TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Enhancement #21: Continuous Transformation Engine
+CREATE TABLE IF NOT EXISTS pipeline_runs (
+    id SERIAL PRIMARY KEY,
+    org_id INTEGER NOT NULL REFERENCES organization(id),
+    run_type TEXT DEFAULT 'full' CHECK (run_type IN ('full', 'delta', 'refresh')),
+    status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'running', 'completed', 'failed')),
+    delta_report TEXT,
+    started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    completed_at TIMESTAMP
+);
+
+-- Enhancement #22: Competitive Intelligence Alerts
+CREATE TABLE IF NOT EXISTS competitive_alerts (
+    id SERIAL PRIMARY KEY,
+    org_id INTEGER NOT NULL REFERENCES organization(id),
+    competitor_name TEXT NOT NULL,
+    alert_type TEXT,
+    headline TEXT,
+    summary TEXT,
+    source_url TEXT,
+    severity TEXT DEFAULT 'info' CHECK (severity IN ('critical', 'warning', 'info')),
+    is_read INTEGER DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Enhancement #23: Benchmarking Data
+CREATE TABLE IF NOT EXISTS benchmarks (
+    id SERIAL PRIMARY KEY,
+    industry TEXT NOT NULL,
+    metric_name TEXT NOT NULL,
+    metric_value DOUBLE PRECISION,
+    percentile_25 DOUBLE PRECISION,
+    percentile_50 DOUBLE PRECISION,
+    percentile_75 DOUBLE PRECISION,
+    source TEXT,
+    period TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 

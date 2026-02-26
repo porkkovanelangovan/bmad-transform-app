@@ -452,6 +452,69 @@
         .data-mode-badge .mode-dot.demo { background: #f59e0b; }
         .data-mode-badge .mode-dot.live { background: #10b981; }
 
+        /* V2.0 Version Toggle */
+        .version-toggle { display: flex; align-items: center; gap: 8px; padding: 8px 20px; margin-bottom: 8px; }
+        .version-toggle .v-label { font-size: 11px; font-weight: 600; }
+        .version-toggle .v-label.active { color: #38bdf8; }
+        .version-toggle .v-label.inactive { color: #475569; }
+        .v-switch { position: relative; width: 40px; height: 22px; background: #334155; border-radius: 11px; cursor: pointer; transition: background 0.3s; }
+        .v-switch.v2 { background: #7c3aed; }
+        .v-switch .v-knob { position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; background: #f1f5f9; border-radius: 50%; transition: left 0.3s; }
+        .v-switch.v2 .v-knob { left: 20px; }
+        .v2-badge { display: inline-block; padding: 1px 6px; border-radius: 8px; font-size: 9px; font-weight: 700; background: #7c3aed; color: #e9d5ff; margin-left: 4px; vertical-align: middle; }
+        .nav-item.v2-only { display: none; }
+        .v2-active .nav-item.v2-only { display: flex; }
+
+        /* AI Confidence badges */
+        .confidence-score { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; }
+        .confidence-high { background: #065f46; color: #6ee7b7; }
+        .confidence-medium { background: #713f12; color: #fbbf24; }
+        .confidence-low { background: #7f1d1d; color: #fca5a5; }
+
+        /* Radar/Spider chart */
+        .radar-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+        .radar-item { background: #0f172a; border: 1px solid #334155; border-radius: 8px; padding: 14px; text-align: center; }
+        .radar-item .ri-score { font-size: 28px; font-weight: 700; }
+        .radar-item .ri-label { font-size: 11px; color: #94a3b8; margin-top: 4px; text-transform: uppercase; }
+        .radar-item .ri-bar { height: 6px; background: #334155; border-radius: 3px; margin-top: 8px; overflow: hidden; }
+        .radar-item .ri-fill { height: 100%; border-radius: 3px; }
+
+        /* Heatmap */
+        .heatmap-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+        .heatmap-cell { aspect-ratio: 1; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 700; color: white; }
+        .heatmap-1 { background: #7f1d1d; }
+        .heatmap-2 { background: #9a3412; }
+        .heatmap-3 { background: #a16207; }
+        .heatmap-4 { background: #15803d; }
+        .heatmap-5 { background: #065f46; }
+
+        /* Sub-tabs for v2.0 */
+        .sub-tabs { display: flex; gap: 4px; margin-bottom: 16px; border-bottom: 1px solid #334155; padding-bottom: 8px; }
+        .sub-tab { padding: 6px 14px; border-radius: 6px 6px 0 0; background: transparent; color: #94a3b8; cursor: pointer; font-size: 12px; font-weight: 500; border: none; transition: all 0.2s; }
+        .sub-tab.active { background: #334155; color: #f1f5f9; }
+        .sub-tab:hover:not(.active) { color: #e2e8f0; }
+
+        /* Scenario tabs */
+        .scenario-tabs { display: flex; gap: 6px; margin-bottom: 16px; }
+        .scenario-tab { padding: 8px 16px; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 500; border: 1px solid #334155; background: transparent; color: #94a3b8; transition: all 0.2s; }
+        .scenario-tab.active { border-color: #7c3aed; background: #7c3aed22; color: #c4b5fd; }
+        .scenario-tab:hover:not(.active) { border-color: #475569; color: #e2e8f0; }
+
+        /* Progress bars */
+        .progress-bar { height: 8px; background: #334155; border-radius: 4px; overflow: hidden; }
+        .progress-fill { height: 100%; border-radius: 4px; transition: width 0.5s ease; }
+        .progress-fill.green { background: linear-gradient(90deg, #059669, #34d399); }
+        .progress-fill.blue { background: linear-gradient(90deg, #0ea5e9, #38bdf8); }
+        .progress-fill.yellow { background: linear-gradient(90deg, #d97706, #fbbf24); }
+        .progress-fill.red { background: linear-gradient(90deg, #dc2626, #f87171); }
+
+        /* Expandable section */
+        .expand-section { border: 1px solid #334155; border-radius: 8px; margin-bottom: 8px; }
+        .expand-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; cursor: pointer; }
+        .expand-header:hover { background: #253347; }
+        .expand-body { padding: 16px; border-top: 1px solid #334155; display: none; }
+        .expand-section.open .expand-body { display: block; }
+
         /* Responsive */
         @media (max-width: 768px) {
             .app { flex-direction: column; }
@@ -482,6 +545,17 @@
             <h1>Business Transformation Architect</h1>
             <p>Strategic Planning & Execution</p>
         </div>
+        <div class="version-toggle" id="version-toggle-area">
+            <span class="v-label active" id="v1-label">v1.0</span>
+            <div class="v-switch" id="v-switch" onclick="togglePlatformVersion()">
+                <div class="v-knob"></div>
+            </div>
+            <span class="v-label inactive" id="v2-label">v2.0</span>
+        </div>
+        <div class="nav-item v2-only" onclick="showStep(0)">
+            <span class="step-num" style="background:#7c3aed;font-size:11px;">0</span>
+            <span class="step-label">Readiness<span class="v2-badge">2.0</span></span>
+        </div>
         <div class="nav-item active" onclick="showStep(1)">
             <span class="step-num">1</span>
             <span class="step-label">Performance Dashboard</span>
@@ -509,6 +583,10 @@
         <div class="nav-item" onclick="showStep(7)">
             <span class="step-num">7</span>
             <span class="step-label">Features & Roadmap</span>
+        </div>
+        <div class="nav-item v2-only" onclick="showStep(8)">
+            <span class="step-num" style="background:#7c3aed;font-size:11px;">8</span>
+            <span class="step-label">Execution<span class="v2-badge">2.0</span></span>
         </div>
         <div class="sidebar-divider"></div>
         <div class="nav-item nav-item-kb" onclick="showKnowledgeBase()">
@@ -666,6 +744,54 @@ function logout() {
     renderLoginScreen();
 }
 
+let platformVersion = '1.0';
+
+async function loadPlatformVersion() {
+    try {
+        const res = await api('/version');
+        if (res && res.platform_version) {
+            platformVersion = res.platform_version;
+            updateVersionToggleUI();
+        }
+    } catch (e) {}
+}
+
+function updateVersionToggleUI() {
+    const sw = document.getElementById('v-switch');
+    const v1 = document.getElementById('v1-label');
+    const v2 = document.getElementById('v2-label');
+    const sidebar = document.querySelector('.sidebar');
+    if (sw) sw.className = 'v-switch' + (platformVersion === '2.0' ? ' v2' : '');
+    if (v1) v1.className = 'v-label ' + (platformVersion === '1.0' ? 'active' : 'inactive');
+    if (v2) v2.className = 'v-label ' + (platformVersion === '2.0' ? 'active' : 'inactive');
+    if (sidebar) {
+        if (platformVersion === '2.0') sidebar.classList.add('v2-active');
+        else sidebar.classList.remove('v2-active');
+    }
+}
+
+async function togglePlatformVersion() {
+    const newVersion = platformVersion === '1.0' ? '2.0' : '1.0';
+    try {
+        const res = await api('/version', 'POST', { platform_version: newVersion });
+        if (res && res.platform_version) {
+            platformVersion = res.platform_version;
+            updateVersionToggleUI();
+            toast('Switched to v' + platformVersion);
+            // Reload current step to show/hide v2 content
+            if (currentStep >= 0) showStep(currentStep);
+        }
+    } catch (e) {
+        toast('Failed to switch version');
+    }
+}
+
+function confidenceBadge(score) {
+    if (!score && score !== 0) return '';
+    const cls = score >= 80 ? 'confidence-high' : score >= 50 ? 'confidence-medium' : 'confidence-low';
+    return `<span class="confidence-score ${cls}">${score}%</span>`;
+}
+
 function showApp() {
     document.getElementById('login-screen').style.display = 'none';
     document.getElementById('app-container').style.display = 'flex';
@@ -683,6 +809,7 @@ function showApp() {
     showStep(1);
     checkActiveGeneration();
     loadDataMode();
+    loadPlatformVersion();
 }
 
 async function initApp() {
@@ -751,11 +878,20 @@ function statusHtml(status) {
 // --- Navigation ---
 function showStep(n) {
     currentStep = n;
-    document.querySelectorAll('.nav-item').forEach((el, i) => {
-        el.classList.toggle('active', i === n - 1);
+    document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+    // Find the right nav item to highlight
+    const navItems = document.querySelectorAll('.nav-item');
+    navItems.forEach(el => {
+        const onclick = el.getAttribute('onclick') || '';
+        if (onclick.includes(`showStep(${n})`)) el.classList.add('active');
     });
-    const loaders = [null, loadStep1, loadStep2, loadStep3, loadStep4, loadStep5, loadStep6, loadStep7];
-    loaders[n]();
+    const loaders = {
+        0: loadStep0,
+        1: loadStep1, 2: loadStep2, 3: loadStep3, 4: loadStep4,
+        5: loadStep5, 6: loadStep6, 7: loadStep7,
+        8: loadStep8,
+    };
+    if (loaders[n]) loaders[n]();
 }
 
 // ===================== STEP 1: Performance Dashboard =====================
@@ -2235,9 +2371,11 @@ async function renderStep2Input() {
                 </tr>`).join('')}
             </table>
         </div>` : ''}
+        ${platformVersion === '2.0' ? '<div id="step2-v2-content" style="margin-top:20px;"></div>' : ''}
         <div id="step2-gates" style="margin-top:20px;"></div>
     `;
     renderStepGates(2, 'step2-gates');
+    if (platformVersion === '2.0') loadStep2Journeys();
 }
 
 async function generateValueStream() {
@@ -3009,11 +3147,13 @@ async function loadStep4() {
             <button class="phase-tab ${step4Phase==='initiatives'?'active':''}" onclick="step4Phase='initiatives';loadStep4()">4. Initiatives</button>
         </div>
         <div id="step4-content"></div>
+        ${platformVersion === '2.0' ? '<div id="step4-v2-content" style="margin-top:20px;"></div>' : ''}
         <div id="step4-gates" style="margin-top:20px;"></div>
     `;
     const renderers = { inputs: renderStep4Inputs, generate: renderStep4Generate, review: renderStep4Review, initiatives: renderStep4Initiatives };
     await renderers[step4Phase]();
     renderStepGates(4, 'step4-gates');
+    if (platformVersion === '2.0') loadStep4Regulatory();
 }
 
 async function renderStep4Inputs() {
@@ -3493,6 +3633,7 @@ async function loadStep5() {
             <button class="phase-tab ${step5Phase==='roadmap'?'active':''}" onclick="step5Phase='roadmap';loadStep5()">Roadmap View</button>
         </div>
         <div id="step5-content"></div>
+        ${platformVersion === '2.0' ? '<div id="step5-v2-content" style="margin-top:20px;"></div>' : ''}
         <div id="step5-gates" style="margin-top:20px;"></div>
     `;
     if (step5Phase === 'roadmap') {
@@ -3501,6 +3642,7 @@ async function loadStep5() {
         await renderStep5Table();
     }
     renderStepGates(5, 'step5-gates');
+    if (platformVersion === '2.0') loadStep5V2();
 }
 
 async function renderStep5Table() {
@@ -3678,12 +3820,14 @@ async function loadStep6() {
             <button class="phase-tab ${step6Phase==='roadmap'?'active':''}" onclick="step6Phase='roadmap';loadStep6()">Roadmap</button>
         </div>
         <div id="step6-content"></div>
+        ${platformVersion === '2.0' ? '<div id="step6-v2-content" style="margin-top:20px;"></div>' : ''}
         <div id="step6-gates" style="margin-top:20px;"></div>
     `;
     if (step6Phase === 'generate') await renderStep6Generate();
     else if (step6Phase === 'review') await renderStep6Review();
     else await renderStep6Roadmap();
     renderStepGates(6, 'step6-gates');
+    if (platformVersion === '2.0') loadStep6TOM();
 }
 
 // --- Tab 1: Generate ---
@@ -3976,12 +4120,14 @@ async function loadStep7() {
             <button class="phase-tab ${step7Phase==='roadmap'?'active':''}" onclick="step7Phase='roadmap';loadStep7()">Roadmap</button>
         </div>
         <div id="step7-content"></div>
+        ${platformVersion === '2.0' ? '<div id="step7-v2-content" style="margin-top:20px;"></div>' : ''}
         <div id="step7-gates" style="margin-top:20px;"></div>
     `;
     if (step7Phase === 'generate') await renderStep7Generate();
     else if (step7Phase === 'review') await renderStep7Review();
     else await renderStep7Roadmap();
     renderStepGates(7, 'step7-gates');
+    if (platformVersion === '2.0') loadStep7Risks();
 }
 
 // --- Tab 1: Generate ---
@@ -4838,6 +4984,441 @@ async function checkActiveGeneration() {
 }
 
 // --- Init ---
+// ===================== STEP 0: READINESS ASSESSMENT (V2.0) =====================
+
+async function loadStep0() {
+    document.getElementById('main-content').innerHTML = `
+        <div class="page-header">
+            <h2>Step 0: Organizational Readiness <span class="v2-badge">2.0</span></h2>
+            <p>Assess organizational readiness and digital maturity before transformation.</p>
+        </div>
+        <div class="sub-tabs">
+            <button class="sub-tab active" onclick="loadStep0Readiness()">Readiness Assessment</button>
+            <button class="sub-tab" onclick="loadStep0Maturity()">Digital Maturity</button>
+        </div>
+        <div id="step0-content"><div class="loading-overlay"><div class="spinner"></div><p>Loading...</p></div></div>
+    `;
+    loadStep0Readiness();
+}
+
+async function loadStep0Readiness() {
+    document.querySelectorAll('.sub-tab').forEach((t, i) => t.classList.toggle('active', i === 0));
+    const container = document.getElementById('step0-content');
+    const data = await api('/step0/readiness');
+    if (!data || !data.length) {
+        container.innerHTML = `
+            <div class="empty">
+                <p>No readiness assessment yet.</p>
+                <button class="btn btn-primary" style="margin-top:16px;" onclick="generateReadiness()">AI Generate Assessment</button>
+            </div>`;
+        return;
+    }
+    const dims = ['leadership_alignment','digital_maturity','change_capacity','talent_readiness','data_maturity','tech_foundation','culture_innovation','governance'];
+    const labels = {'leadership_alignment':'Leadership','digital_maturity':'Digital Maturity','change_capacity':'Change Capacity','talent_readiness':'Talent','data_maturity':'Data Maturity','tech_foundation':'Tech Foundation','culture_innovation':'Culture','governance':'Governance'};
+    const colors = ['#0ea5e9','#8b5cf6','#f59e0b','#10b981','#ec4899','#06b6d4','#f97316','#6366f1'];
+    const avgScore = data.length ? (data.reduce((s,d) => s + (d.score||0), 0) / data.length).toFixed(1) : 0;
+
+    container.innerHTML = `
+        <div class="metric-row">
+            <div class="metric-card"><div class="metric-val">${avgScore}/5</div><div class="metric-label">Avg Readiness</div></div>
+            <div class="metric-card"><div class="metric-val">${data.length}</div><div class="metric-label">Dimensions</div></div>
+            <div class="metric-card"><div class="metric-val">${data.filter(d=>d.score>=4).length}</div><div class="metric-label">Ready (4+)</div></div>
+            <div class="metric-card"><div class="metric-val">${data.filter(d=>d.score<=2).length}</div><div class="metric-label">Needs Work (1-2)</div></div>
+        </div>
+        <div class="card">
+            <h3>Readiness Radar <button class="btn btn-primary btn-sm" onclick="generateReadiness()">Re-generate</button></h3>
+            <div class="radar-grid">
+                ${data.map((d, i) => {
+                    const pct = (d.score / 5) * 100;
+                    const color = colors[i % colors.length];
+                    const scoreColor = d.score >= 4 ? '#6ee7b7' : d.score >= 3 ? '#fbbf24' : '#fca5a5';
+                    return `<div class="radar-item">
+                        <div class="ri-score" style="color:${scoreColor}">${d.score}</div>
+                        <div class="ri-label">${labels[d.dimension] || d.dimension}</div>
+                        <div class="ri-bar"><div class="ri-fill" style="width:${pct}%;background:${color}"></div></div>
+                        <div style="font-size:11px;color:#94a3b8;margin-top:6px;">${d.evidence || ''}</div>
+                        ${d.ai_confidence ? confidenceBadge(d.ai_confidence) : ''}
+                    </div>`;
+                }).join('')}
+            </div>
+        </div>
+    `;
+}
+
+async function loadStep0Maturity() {
+    document.querySelectorAll('.sub-tab').forEach((t, i) => t.classList.toggle('active', i === 1));
+    const container = document.getElementById('step0-content');
+    const data = await api('/step0/maturity');
+    if (!data || !data.length) {
+        container.innerHTML = `
+            <div class="empty">
+                <p>No maturity assessment yet.</p>
+                <button class="btn btn-primary" style="margin-top:16px;" onclick="generateMaturity()">AI Generate Assessment</button>
+            </div>`;
+        return;
+    }
+    const labels = {'strategy':'Strategy','customer':'Customer','technology':'Technology','operations':'Operations','organization':'Organization','culture':'Culture','data_analytics':'Data & Analytics'};
+
+    container.innerHTML = `
+        <div class="card">
+            <h3>Digital Maturity Heatmap <button class="btn btn-primary btn-sm" onclick="generateMaturity()">Re-generate</button></h3>
+            <table style="width:100%">
+                <tr><th>Dimension</th><th>Current</th><th>Target</th><th>Gap</th><th>Evidence</th><th style="width:60px;"></th></tr>
+                ${data.map(d => `<tr>
+                    <td><strong>${labels[d.dimension] || d.dimension}</strong></td>
+                    <td><span class="heatmap-cell heatmap-${d.current_level}" style="display:inline-flex;width:32px;height:32px;border-radius:6px;">${d.current_level}</span></td>
+                    <td><span class="heatmap-cell heatmap-${d.target_level}" style="display:inline-flex;width:32px;height:32px;border-radius:6px;">${d.target_level}</span></td>
+                    <td>${d.target_level - d.current_level > 0 ? `<span style="color:#fca5a5">+${d.target_level - d.current_level}</span>` : '<span style="color:#6ee7b7">0</span>'}</td>
+                    <td style="font-size:12px;color:#94a3b8;">${d.gap_description || d.evidence || ''}</td>
+                    <td>${d.ai_confidence ? confidenceBadge(d.ai_confidence) : ''}</td>
+                </tr>`).join('')}
+            </table>
+        </div>
+    `;
+}
+
+async function generateReadiness() {
+    toast('Generating readiness assessment...');
+    await api('/step0/readiness/ai-generate', 'POST');
+    loadStep0Readiness();
+}
+
+async function generateMaturity() {
+    toast('Generating maturity assessment...');
+    await api('/step0/maturity/ai-generate', 'POST');
+    loadStep0Maturity();
+}
+
+// ===================== STEP 8: EXECUTION DASHBOARD (V2.0) =====================
+
+async function loadStep8() {
+    document.getElementById('main-content').innerHTML = `
+        <div class="page-header">
+            <h2>Step 8: Execution Tracking <span class="v2-badge">2.0</span></h2>
+            <p>Track progress of initiatives, epics, and OKR key results.</p>
+        </div>
+        <div id="step8-content"><div class="loading-overlay"><div class="spinner"></div><p>Loading...</p></div></div>
+    `;
+
+    const data = await api('/step8/dashboard');
+    if (!data || data.error) {
+        document.getElementById('step8-content').innerHTML = `<div class="empty"><p>No execution data yet. Generate pipeline first.</p></div>`;
+        return;
+    }
+
+    const s = data.summary || {};
+    document.getElementById('step8-content').innerHTML = `
+        <div class="metric-row">
+            <div class="metric-card"><div class="metric-val">${s.total_initiatives || 0}</div><div class="metric-label">Initiatives</div></div>
+            <div class="metric-card"><div class="metric-val">${s.completed_initiatives || 0}</div><div class="metric-label">Completed</div></div>
+            <div class="metric-card"><div class="metric-val">${s.initiative_completion_rate || 0}%</div><div class="metric-label">Completion Rate</div></div>
+            <div class="metric-card"><div class="metric-val" style="color:${(data.off_track||[]).length > 0 ? '#fca5a5' : '#6ee7b7'}">${(data.off_track||[]).length}</div><div class="metric-label">Off Track</div></div>
+        </div>
+
+        ${(data.off_track||[]).length > 0 ? `<div class="card" style="border-color:#dc2626;">
+            <h3 style="color:#fca5a5;">Off-Track Items</h3>
+            ${data.off_track.map(o => `<div class="anomaly-card">
+                <div class="anomaly-title">${o.type}: ${o.name}</div>
+                <div class="anomaly-detail">Completion: ${o.completion_pct}%</div>
+            </div>`).join('')}
+        </div>` : ''}
+
+        <div class="card">
+            <h3>Initiative Progress</h3>
+            ${(data.initiatives||[]).map(i => `<div style="padding:10px 0;border-bottom:1px solid #334155;">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                    <span style="font-size:14px;font-weight:500;">${i.name}</span>
+                    <span>${statusHtml(i.status || 'proposed')} <span style="font-size:13px;color:#38bdf8;margin-left:8px;">${i.completion_pct || 0}%</span></span>
+                </div>
+                <div class="progress-bar"><div class="progress-fill ${(i.completion_pct||0) >= 75 ? 'green' : (i.completion_pct||0) >= 25 ? 'blue' : 'yellow'}" style="width:${i.completion_pct || 0}%"></div></div>
+                <div style="font-size:11px;color:#64748b;margin-top:4px;">${i.product_name || ''} | ${i.strategy_name || ''}</div>
+            </div>`).join('')}
+        </div>
+
+        <div class="card">
+            <h3>Strategic Key Results</h3>
+            <table>
+                <tr><th>Key Result</th><th>Current</th><th>Target</th><th>Actual</th><th>Progress</th></tr>
+                ${(data.strategic_key_results||[]).map(kr => {
+                    const target = kr.target_value || 1;
+                    const actual = kr.actual_value || kr.current_value || 0;
+                    const pct = Math.min(100, Math.round((actual / target) * 100));
+                    return `<tr>
+                        <td>${kr.key_result}</td>
+                        <td>${kr.current_value || 0}</td>
+                        <td>${kr.target_value}</td>
+                        <td>${kr.actual_value != null ? kr.actual_value : '-'}</td>
+                        <td style="width:120px;"><div class="progress-bar"><div class="progress-fill blue" style="width:${pct}%"></div></div><span style="font-size:11px;color:#94a3b8;">${pct}%</span></td>
+                    </tr>`;
+                }).join('')}
+            </table>
+        </div>
+    `;
+}
+
+// ===================== V2.0 SUB-TAB RENDERERS =====================
+
+function renderV2SubTabs(stepNum, tabs, activeTab) {
+    if (platformVersion !== '2.0') return '';
+    return `<div class="sub-tabs" id="v2-subtabs-${stepNum}">
+        ${tabs.map((t, i) => `<button class="sub-tab ${i === activeTab ? 'active' : ''}" onclick="${t.onclick}">${t.label}${t.v2 ? ' <span class=\\'v2-badge\\'>2.0</span>' : ''}</button>`).join('')}
+    </div>`;
+}
+
+// V2.0 content for Step 2 - Customer Journeys
+async function loadStep2Journeys() {
+    const container = document.getElementById('step2-v2-content');
+    if (!container) return;
+    const personas = await api('/step2/personas');
+    if (!personas || !personas.length) {
+        container.innerHTML = `<div class="card"><h3>Customer Journeys <span class="v2-badge">2.0</span></h3>
+            <div class="empty"><p>No customer personas yet.</p>
+            <button class="btn btn-primary btn-sm" style="margin-top:12px;" onclick="generateJourneys()">AI Generate</button></div></div>`;
+        return;
+    }
+
+    let html = `<div class="card"><h3>Customer Personas & Journeys <span class="v2-badge">2.0</span>
+        <button class="btn btn-primary btn-sm" onclick="generateJourneys()">Re-generate</button></h3>`;
+    for (const p of personas) {
+        const journeys = await api('/step2/journeys?persona_id=' + p.id);
+        const emotions = {'2':'😊','-2':'😡','1':'🙂','-1':'😟','0':'😐'};
+        html += `<div class="expand-section open">
+            <div class="expand-header" onclick="this.parentElement.classList.toggle('open')">
+                <div><strong>${p.name}</strong> ${p.ai_confidence ? confidenceBadge(p.ai_confidence) : ''}
+                <div style="font-size:12px;color:#94a3b8;margin-top:2px;">${p.demographics || ''}</div></div>
+                <span style="color:#64748b;">▶</span>
+            </div>
+            <div class="expand-body">
+                <div style="font-size:12px;color:#94a3b8;margin-bottom:12px;"><strong>Needs:</strong> ${p.needs || ''} | <strong>Behaviors:</strong> ${p.behaviors || ''}</div>
+                <table><tr><th>Stage</th><th>Touchpoint</th><th>Channel</th><th>Emotion</th><th>Pain Point</th><th>Opportunity</th></tr>
+                ${(journeys||[]).map(j => `<tr>
+                    <td>${j.stage}</td><td>${j.touchpoint || ''}</td><td>${j.channel || ''}</td>
+                    <td>${emotions[String(j.emotion_score)] || '😐'} ${j.emotion_score}</td>
+                    <td style="font-size:12px;color:#fca5a5;">${j.pain_point || ''}</td>
+                    <td style="font-size:12px;color:#6ee7b7;">${j.opportunity || ''}</td>
+                </tr>`).join('')}
+                </table>
+            </div>
+        </div>`;
+    }
+    html += '</div>';
+    container.innerHTML = html;
+}
+
+async function generateJourneys() {
+    toast('Generating customer journeys...');
+    await api('/step2/journeys/ai-generate', 'POST');
+    loadStep2Journeys();
+}
+
+// V2.0 content for Step 4 - Regulatory & Scenarios
+async function loadStep4Regulatory() {
+    const container = document.getElementById('step4-v2-content');
+    if (!container) return;
+    const data = await api('/step4/regulatory');
+    if (!data || !data.length) {
+        container.innerHTML = `<div class="card"><h3>Regulatory Impact <span class="v2-badge">2.0</span></h3>
+            <div class="empty"><p>No regulatory assessment yet.</p>
+            <button class="btn btn-primary btn-sm" style="margin-top:12px;" onclick="generateRegulatory()">AI Generate</button></div></div>`;
+        return;
+    }
+    const impactColors = {high:'#fca5a5', medium:'#fbbf24', low:'#6ee7b7'};
+    container.innerHTML = `<div class="card"><h3>Regulatory Impact Assessment <span class="v2-badge">2.0</span>
+        <button class="btn btn-primary btn-sm" onclick="generateRegulatory()">Re-generate</button></h3>
+        <table><tr><th>Regulation</th><th>Impact</th><th>Requirement</th><th>Mitigation</th><th></th></tr>
+        ${data.map(d => `<tr>
+            <td><strong>${(d.regulation||'').replace(/_/g,' ').toUpperCase()}</strong></td>
+            <td><span style="color:${impactColors[d.impact_level]||'#94a3b8'};font-weight:600;">${d.impact_level||'medium'}</span></td>
+            <td style="font-size:12px;">${d.requirement||''}</td>
+            <td style="font-size:12px;">${d.mitigation||''}</td>
+            <td>${d.ai_confidence ? confidenceBadge(d.ai_confidence) : ''}</td>
+        </tr>`).join('')}
+        </table></div>`;
+}
+
+async function generateRegulatory() {
+    toast('Generating regulatory assessment...');
+    await api('/step4/regulatory/ai-generate', 'POST');
+    loadStep4Regulatory();
+}
+
+// V2.0 content for Step 5 - Pilot, Business Case, Change Mgmt, Feasibility, Tech
+async function loadStep5V2(initId) {
+    const container = document.getElementById('step5-v2-content');
+    if (!container) return;
+    const [pilots, changePlans, techRecs] = await Promise.all([
+        api('/v2/pilot-scopes' + (initId ? '?initiative_id=' + initId : '')),
+        api('/step5/change-plans' + (initId ? '?initiative_id=' + initId : '')),
+        api('/v2/tech-recommendations' + (initId ? '?initiative_id=' + initId : '')),
+    ]);
+
+    let html = '';
+
+    // Pilot Scopes
+    html += `<div class="card"><h3>Pilot/MVP Scoping <span class="v2-badge">2.0</span>
+        <button class="btn btn-primary btn-sm" onclick="generatePilots()">AI Generate</button></h3>`;
+    if (pilots && pilots.length) {
+        html += pilots.map(p => `<div class="expand-section">
+            <div class="expand-header" onclick="this.parentElement.classList.toggle('open')">
+                <span>Initiative #${p.initiative_id} — ${p.duration_weeks}wk pilot, ${p.team_size} people ${p.ai_confidence ? confidenceBadge(p.ai_confidence) : ''}</span>
+                <span style="color:#64748b;">▶</span></div>
+            <div class="expand-body">
+                <p><strong>MVP:</strong> ${p.mvp_description||''}</p>
+                <p><strong>Success Criteria:</strong> ${p.success_criteria||''}</p>
+                <p><strong>Go/No-Go:</strong> ${p.go_nogo_criteria||''}</p>
+                <p><strong>Scale-up:</strong> ${p.scale_up_path||''}</p>
+            </div>
+        </div>`).join('');
+    } else {
+        html += '<p style="color:#64748b;font-size:13px;">No pilot scopes generated yet.</p>';
+    }
+    html += '</div>';
+
+    // Change Plans
+    html += `<div class="card"><h3>Change Management <span class="v2-badge">2.0</span>
+        <button class="btn btn-primary btn-sm" onclick="generateChangePlans()">AI Generate</button></h3>`;
+    if (changePlans && changePlans.length) {
+        html += `<table><tr><th>Stakeholder</th><th>Impact</th><th>Communication</th><th>Training</th><th>WIIFM</th></tr>
+        ${changePlans.map(c => `<tr>
+            <td>${(c.stakeholder_group||'').replace(/_/g,' ')}</td>
+            <td><span style="color:${c.impact_level === 'high' ? '#fca5a5' : c.impact_level === 'low' ? '#6ee7b7' : '#fbbf24'}">${c.impact_level||''}</span></td>
+            <td style="font-size:12px;">${c.communication_plan||''}</td>
+            <td style="font-size:12px;">${c.training_needs||''}</td>
+            <td style="font-size:12px;color:#6ee7b7;">${c.wiifm||''}</td>
+        </tr>`).join('')}</table>`;
+    } else {
+        html += '<p style="color:#64748b;font-size:13px;">No change plans generated yet.</p>';
+    }
+    html += '</div>';
+
+    // Tech Recommendations
+    html += `<div class="card"><h3>Tech Architecture <span class="v2-badge">2.0</span>
+        <button class="btn btn-primary btn-sm" onclick="generateTechRecs()">AI Generate</button></h3>`;
+    if (techRecs && techRecs.length) {
+        html += `<table><tr><th>Component</th><th>Recommendation</th><th>Platform</th><th>Integration</th><th>Cloud</th></tr>
+        ${techRecs.map(t => `<tr>
+            <td>${t.component||''}</td>
+            <td><span class="layer-badge layer-${t.recommendation === 'build' ? 'digital' : t.recommendation === 'buy' ? 'business' : 'gen_ai'}">${t.recommendation||''}</span></td>
+            <td style="font-size:12px;">${t.platform_options||''}</td>
+            <td style="font-size:12px;">${t.integration_pattern||''}</td>
+            <td style="font-size:12px;">${t.cloud_model||''}</td>
+        </tr>`).join('')}</table>`;
+    } else {
+        html += '<p style="color:#64748b;font-size:13px;">No tech recommendations yet.</p>';
+    }
+    html += '</div>';
+
+    container.innerHTML = html;
+}
+
+async function generatePilots() { toast('Generating pilot scopes...'); await api('/v2/pilot-scopes/ai-generate', 'POST', {}); loadStep5V2(); }
+async function generateChangePlans() { toast('Generating change plans...'); await api('/step5/change-plans/ai-generate', 'POST', {}); loadStep5V2(); }
+async function generateTechRecs() { toast('Generating tech architecture...'); await api('/v2/tech-recommendations/ai-generate', 'POST', {}); loadStep5V2(); }
+async function generateBusinessCases() { toast('Generating business cases...'); await api('/v2/business-case/ai-generate', 'POST', {}); showStep(5); }
+async function generateFeasibility() { toast('Generating feasibility scores...'); await api('/v2/feasibility/ai-generate', 'POST', {}); showStep(5); }
+
+// V2.0 content for Step 6 - Operating Model
+async function loadStep6TOM() {
+    const container = document.getElementById('step6-v2-content');
+    if (!container) return;
+    const [om, gov] = await Promise.all([
+        api('/step6/operating-model'),
+        api('/step6/governance'),
+    ]);
+
+    let html = `<div class="card"><h3>Target Operating Model <span class="v2-badge">2.0</span>
+        <button class="btn btn-primary btn-sm" onclick="generateTOM()">AI Generate</button></h3>`;
+    if (om && om.length) {
+        html += `<table><tr><th>Dimension</th><th>Current State</th><th>Target State</th><th>Gap</th><th>Actions</th></tr>
+        ${om.map(o => `<tr>
+            <td><strong>${o.dimension||''}</strong></td>
+            <td style="font-size:12px;">${o.current_state||''}</td>
+            <td style="font-size:12px;color:#6ee7b7;">${o.target_state||''}</td>
+            <td style="font-size:12px;color:#fbbf24;">${o.gap||''}</td>
+            <td style="font-size:12px;">${o.transformation_actions||''}</td>
+        </tr>`).join('')}</table>`;
+    } else {
+        html += '<p style="color:#64748b;">No operating model defined yet.</p>';
+    }
+    html += '</div>';
+
+    html += `<div class="card"><h3>Governance Model <span class="v2-badge">2.0</span></h3>`;
+    if (gov && gov.length) {
+        html += `<table><tr><th>Decision Type</th><th>Authority</th><th>Escalation</th><th>Cadence</th></tr>
+        ${gov.map(g => `<tr>
+            <td>${(g.decision_type||'').replace(/_/g,' ')}</td>
+            <td>${g.authority||''}</td>
+            <td>${g.escalation_path||''}</td>
+            <td>${g.cadence||''}</td>
+        </tr>`).join('')}</table>`;
+    } else {
+        html += '<p style="color:#64748b;">No governance model defined yet.</p>';
+    }
+    html += '</div>';
+    container.innerHTML = html;
+}
+
+async function generateTOM() { toast('Generating operating model...'); await api('/step6/operating-model/ai-generate', 'POST'); loadStep6TOM(); }
+
+// V2.0 Risk Registry for Step 7
+async function loadStep7Risks() {
+    const container = document.getElementById('step7-v2-content');
+    if (!container) return;
+    const risks = await api('/v2/risks');
+    if (!risks || !risks.length) {
+        container.innerHTML = `<div class="card"><h3>Risk Registry <span class="v2-badge">2.0</span></h3>
+            <div class="empty"><p>No risks identified yet.</p>
+            <button class="btn btn-primary btn-sm" style="margin-top:12px;" onclick="generateRisks()">AI Generate</button></div></div>`;
+        return;
+    }
+    const riskColor = s => s >= 15 ? '#fca5a5' : s >= 9 ? '#fbbf24' : '#6ee7b7';
+    container.innerHTML = `<div class="card"><h3>Risk Registry <span class="v2-badge">2.0</span>
+        <button class="btn btn-primary btn-sm" onclick="generateRisks()">Re-generate</button></h3>
+        <table><tr><th>Risk</th><th>Category</th><th>P</th><th>I</th><th>Score</th><th>Status</th><th>Mitigation</th></tr>
+        ${risks.map(r => `<tr>
+            <td>${r.risk_name}</td>
+            <td style="font-size:12px;">${r.category||''}</td>
+            <td>${r.probability}</td>
+            <td>${r.impact_score}</td>
+            <td><span style="color:${riskColor(r.risk_score)};font-weight:700;">${r.risk_score}</span></td>
+            <td>${statusHtml(r.status||'open')}</td>
+            <td style="font-size:12px;">${r.mitigation||''}</td>
+        </tr>`).join('')}
+        </table></div>`;
+}
+
+async function generateRisks() { toast('Generating risk registry...'); await api('/v2/risks/ai-generate', 'POST'); loadStep7Risks(); }
+
+// V2.0 ROI Portfolio
+async function loadROIPortfolio() {
+    const container = document.getElementById('step5-v2-content');
+    if (!container) return;
+    const data = await api('/v2/roi-portfolio');
+    if (!data || !data.portfolio_summary) {
+        container.innerHTML = `<div class="card"><h3>ROI Portfolio <span class="v2-badge">2.0</span></h3>
+            <div class="empty"><p>No business cases generated. <button class="btn btn-primary btn-sm" onclick="generateBusinessCases()">Generate</button></p></div></div>`;
+        return;
+    }
+    const ps = data.portfolio_summary;
+    let html = `<div class="metric-row">
+        <div class="metric-card"><div class="metric-val">$${(ps.total_investment_k||0).toLocaleString()}K</div><div class="metric-label">Total Investment</div></div>
+        <div class="metric-card"><div class="metric-val">$${(ps.total_annual_benefit_k||0).toLocaleString()}K</div><div class="metric-label">Annual Benefit</div></div>
+        <div class="metric-card"><div class="metric-val">$${(ps.total_npv_k||0).toLocaleString()}K</div><div class="metric-label">Portfolio NPV</div></div>
+        <div class="metric-card"><div class="metric-val">${ps.average_roi_pct||0}%</div><div class="metric-label">Avg ROI</div></div>
+    </div>`;
+    html += `<div class="card"><h3>Initiative Business Cases</h3>
+        <table><tr><th>Initiative</th><th>Cost ($K)</th><th>Benefit ($K/yr)</th><th>NPV ($K)</th><th>Payback</th><th>ROI</th></tr>
+        ${(data.initiatives||[]).map(i => `<tr>
+            <td>${i.name}</td>
+            <td>$${(i.estimated_cost_k||0).toLocaleString()}</td>
+            <td>$${(i.annual_benefit_k||0).toLocaleString()}</td>
+            <td>$${(i.npv_k||0).toLocaleString()}</td>
+            <td>${i.payback_months||'-'} mo</td>
+            <td style="color:${(i.roi_pct||0)>100?'#6ee7b7':'#fbbf24'};font-weight:600;">${i.roi_pct||0}%</td>
+        </tr>`).join('')}</table></div>`;
+    container.innerHTML = html;
+}
+
 initApp();
 </script>
 

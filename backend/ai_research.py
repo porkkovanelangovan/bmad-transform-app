@@ -18,6 +18,37 @@ def is_openai_available() -> bool:
         return False
 
 
+async def call_openai_json(prompt: str, system: str = "You are an expert business transformation consultant. Return valid JSON only."):
+    """Generic helper to call OpenAI and parse JSON response."""
+    if not is_openai_available():
+        return None
+    try:
+        from openai import AsyncOpenAI
+        client = AsyncOpenAI()
+        response = await client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": system},
+                {"role": "user", "content": prompt},
+            ],
+            response_format={"type": "json_object"},
+            temperature=0.7,
+            max_tokens=4000,
+        )
+        content = response.choices[0].message.content
+        result = json.loads(content)
+        # If the result is a dict with a single key containing a list, unwrap it
+        if isinstance(result, dict) and len(result) == 1:
+            only_val = list(result.values())[0]
+            if isinstance(only_val, list):
+                return only_val
+        return result
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error("call_openai_json failed: %s", e)
+        return None
+
+
 async def research_value_stream(
     segment_name: str,
     industry: str,

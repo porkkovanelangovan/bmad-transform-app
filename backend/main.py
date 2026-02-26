@@ -19,6 +19,14 @@ from routers import (
     auth_router,
     generate_all,
     documents,
+    version_toggle,
+    step0_readiness,
+    step4b_regulatory,
+    step5b_change_mgmt,
+    step8_execution,
+    step2b_journeys,
+    step6b_tom,
+    v2_features,
 )
 
 app = FastAPI(title="Business Transformation Architect", version="1.0.0")
@@ -44,6 +52,15 @@ app.include_router(step7_features.router, prefix="/api/step7", tags=["Step 7: Fe
 app.include_router(review_gates.router, prefix="/api/gates", tags=["Review Gates"])
 app.include_router(generate_all.router, prefix="/api/generate-all", tags=["Generate All"])
 app.include_router(documents.router, prefix="/api/kb", tags=["Knowledge Base & RAG"])
+# V2.0 Enhancement Routers
+app.include_router(version_toggle.router, prefix="/api/version", tags=["Version Toggle"])
+app.include_router(step0_readiness.router, prefix="/api/step0", tags=["Step 0: Readiness"])
+app.include_router(step4b_regulatory.router, prefix="/api/step4", tags=["Step 4b: Regulatory"])
+app.include_router(step5b_change_mgmt.router, prefix="/api/step5", tags=["Step 5b: Change Mgmt"])
+app.include_router(step8_execution.router, prefix="/api/step8", tags=["Step 8: Execution"])
+app.include_router(step2b_journeys.router, prefix="/api/step2", tags=["Step 2b: Journeys"])
+app.include_router(step6b_tom.router, prefix="/api/step6", tags=["Step 6b: TOM"])
+app.include_router(v2_features.router, prefix="/api/v2", tags=["V2 Features"])
 
 
 @app.on_event("startup")
@@ -133,6 +150,48 @@ async def _migrate_postgres(db):
         "ALTER TABLE product_okrs ADD COLUMN ai_generated INTEGER DEFAULT 0",
         # organization: data_mode for demo/live toggle
         "ALTER TABLE organization ADD COLUMN data_mode TEXT DEFAULT 'demo'",
+        # V2.0 Enhancement columns
+        "ALTER TABLE organization ADD COLUMN platform_version TEXT DEFAULT '1.0'",
+        # AI Confidence columns
+        "ALTER TABLE swot_entries ADD COLUMN ai_confidence INTEGER DEFAULT 0",
+        "ALTER TABLE tows_actions ADD COLUMN ai_confidence INTEGER DEFAULT 0",
+        "ALTER TABLE strategies ADD COLUMN ai_confidence INTEGER DEFAULT 0",
+        "ALTER TABLE strategies ADD COLUMN scenario TEXT DEFAULT 'balanced'",
+        "ALTER TABLE strategic_okrs ADD COLUMN ai_confidence INTEGER DEFAULT 0",
+        "ALTER TABLE strategic_okrs ADD COLUMN scenario TEXT DEFAULT 'balanced'",
+        "ALTER TABLE strategic_key_results ADD COLUMN scenario TEXT DEFAULT 'balanced'",
+        "ALTER TABLE strategic_key_results ADD COLUMN actual_value DOUBLE PRECISION",
+        "ALTER TABLE strategic_key_results ADD COLUMN last_updated TEXT",
+        "ALTER TABLE initiatives ADD COLUMN ai_confidence INTEGER DEFAULT 0",
+        "ALTER TABLE initiatives ADD COLUMN estimated_cost_k DOUBLE PRECISION",
+        "ALTER TABLE initiatives ADD COLUMN annual_benefit_k DOUBLE PRECISION",
+        "ALTER TABLE initiatives ADD COLUMN npv_k DOUBLE PRECISION",
+        "ALTER TABLE initiatives ADD COLUMN payback_months INTEGER",
+        "ALTER TABLE initiatives ADD COLUMN roi_pct DOUBLE PRECISION",
+        "ALTER TABLE initiatives ADD COLUMN cost_assumptions TEXT",
+        "ALTER TABLE initiatives ADD COLUMN benefit_assumptions TEXT",
+        "ALTER TABLE initiatives ADD COLUMN technical_feasibility INTEGER DEFAULT 3",
+        "ALTER TABLE initiatives ADD COLUMN org_feasibility INTEGER DEFAULT 3",
+        "ALTER TABLE initiatives ADD COLUMN regulatory_feasibility INTEGER DEFAULT 3",
+        "ALTER TABLE initiatives ADD COLUMN financial_feasibility INTEGER DEFAULT 3",
+        "ALTER TABLE initiatives ADD COLUMN talent_feasibility INTEGER DEFAULT 3",
+        "ALTER TABLE initiatives ADD COLUMN actual_start_date TEXT",
+        "ALTER TABLE initiatives ADD COLUMN actual_end_date TEXT",
+        "ALTER TABLE initiatives ADD COLUMN completion_pct INTEGER DEFAULT 0",
+        "ALTER TABLE epics ADD COLUMN ai_confidence INTEGER DEFAULT 0",
+        "ALTER TABLE epics ADD COLUMN actual_start_date TEXT",
+        "ALTER TABLE epics ADD COLUMN actual_end_date TEXT",
+        "ALTER TABLE epics ADD COLUMN completion_pct INTEGER DEFAULT 0",
+        "ALTER TABLE features ADD COLUMN ai_confidence INTEGER DEFAULT 0",
+        "ALTER TABLE features ADD COLUMN actual_start_date TEXT",
+        "ALTER TABLE features ADD COLUMN actual_end_date TEXT",
+        "ALTER TABLE features ADD COLUMN completion_pct INTEGER DEFAULT 0",
+        "ALTER TABLE product_okrs ADD COLUMN ai_confidence INTEGER DEFAULT 0",
+        "ALTER TABLE delivery_okrs ADD COLUMN ai_confidence INTEGER DEFAULT 0",
+        "ALTER TABLE product_key_results ADD COLUMN actual_value DOUBLE PRECISION",
+        "ALTER TABLE product_key_results ADD COLUMN last_updated TEXT",
+        "ALTER TABLE delivery_key_results ADD COLUMN actual_value DOUBLE PRECISION",
+        "ALTER TABLE delivery_key_results ADD COLUMN last_updated TEXT",
     ]
     for stmt in alter_statements:
         try:
@@ -725,6 +784,161 @@ async def _migrate_sqlite(db):
                 token_count INTEGER,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )""")
+
+            # ─── V2.0 Enhancement Migrations ───────────────────────────────
+            # Platform version column
+            try:
+                await raw_db.execute("ALTER TABLE organization ADD COLUMN platform_version TEXT DEFAULT '1.0'")
+            except Exception:
+                pass
+
+            # AI confidence + scenario columns on existing tables
+            v2_alter_cols = [
+                ("swot_entries", "ai_confidence INTEGER DEFAULT 0"),
+                ("tows_actions", "ai_confidence INTEGER DEFAULT 0"),
+                ("strategies", "ai_confidence INTEGER DEFAULT 0"),
+                ("strategies", "scenario TEXT DEFAULT 'balanced'"),
+                ("strategic_okrs", "ai_confidence INTEGER DEFAULT 0"),
+                ("strategic_okrs", "scenario TEXT DEFAULT 'balanced'"),
+                ("strategic_key_results", "scenario TEXT DEFAULT 'balanced'"),
+                ("strategic_key_results", "actual_value REAL"),
+                ("strategic_key_results", "last_updated TEXT"),
+                ("initiatives", "ai_confidence INTEGER DEFAULT 0"),
+                ("initiatives", "estimated_cost_k REAL"),
+                ("initiatives", "annual_benefit_k REAL"),
+                ("initiatives", "npv_k REAL"),
+                ("initiatives", "payback_months INTEGER"),
+                ("initiatives", "roi_pct REAL"),
+                ("initiatives", "cost_assumptions TEXT"),
+                ("initiatives", "benefit_assumptions TEXT"),
+                ("initiatives", "technical_feasibility INTEGER DEFAULT 3"),
+                ("initiatives", "org_feasibility INTEGER DEFAULT 3"),
+                ("initiatives", "regulatory_feasibility INTEGER DEFAULT 3"),
+                ("initiatives", "financial_feasibility INTEGER DEFAULT 3"),
+                ("initiatives", "talent_feasibility INTEGER DEFAULT 3"),
+                ("initiatives", "actual_start_date TEXT"),
+                ("initiatives", "actual_end_date TEXT"),
+                ("initiatives", "completion_pct INTEGER DEFAULT 0"),
+                ("epics", "ai_confidence INTEGER DEFAULT 0"),
+                ("epics", "actual_start_date TEXT"),
+                ("epics", "actual_end_date TEXT"),
+                ("epics", "completion_pct INTEGER DEFAULT 0"),
+                ("features", "ai_confidence INTEGER DEFAULT 0"),
+                ("features", "actual_start_date TEXT"),
+                ("features", "actual_end_date TEXT"),
+                ("features", "completion_pct INTEGER DEFAULT 0"),
+                ("product_okrs", "ai_confidence INTEGER DEFAULT 0"),
+                ("delivery_okrs", "ai_confidence INTEGER DEFAULT 0"),
+                ("product_key_results", "actual_value REAL"),
+                ("product_key_results", "last_updated TEXT"),
+                ("delivery_key_results", "actual_value REAL"),
+                ("delivery_key_results", "last_updated TEXT"),
+            ]
+            for tbl, col in v2_alter_cols:
+                try:
+                    await raw_db.execute(f"ALTER TABLE {tbl} ADD COLUMN {col}")
+                except Exception:
+                    pass
+
+            # V2.0 new tables
+            v2_tables = [
+                """CREATE TABLE IF NOT EXISTS org_readiness (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT, org_id INTEGER NOT NULL REFERENCES organization(id),
+                    dimension TEXT NOT NULL, score INTEGER DEFAULT 3, evidence TEXT,
+                    ai_generated INTEGER DEFAULT 0, ai_confidence INTEGER DEFAULT 0,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)""",
+                """CREATE TABLE IF NOT EXISTS digital_maturity (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT, org_id INTEGER NOT NULL REFERENCES organization(id),
+                    dimension TEXT NOT NULL, current_level INTEGER DEFAULT 1, target_level INTEGER DEFAULT 3,
+                    evidence TEXT, gap_description TEXT, ai_generated INTEGER DEFAULT 0, ai_confidence INTEGER DEFAULT 0,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)""",
+                """CREATE TABLE IF NOT EXISTS regulatory_impacts (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT, strategy_id INTEGER REFERENCES strategies(id),
+                    regulation TEXT NOT NULL, impact_level TEXT DEFAULT 'medium', requirement TEXT, mitigation TEXT,
+                    ai_generated INTEGER DEFAULT 0, ai_confidence INTEGER DEFAULT 0,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)""",
+                """CREATE TABLE IF NOT EXISTS pilot_scopes (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT, initiative_id INTEGER NOT NULL REFERENCES initiatives(id),
+                    mvp_description TEXT, success_criteria TEXT, duration_weeks INTEGER DEFAULT 8,
+                    team_size INTEGER DEFAULT 5, go_nogo_criteria TEXT, scale_up_path TEXT,
+                    ai_generated INTEGER DEFAULT 0, ai_confidence INTEGER DEFAULT 0,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)""",
+                """CREATE TABLE IF NOT EXISTS change_plans (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT, initiative_id INTEGER NOT NULL REFERENCES initiatives(id),
+                    stakeholder_group TEXT NOT NULL, impact_level TEXT DEFAULT 'medium',
+                    communication_plan TEXT, training_needs TEXT, resistance_risks TEXT,
+                    adoption_metrics TEXT, wiifm TEXT, ai_generated INTEGER DEFAULT 0, ai_confidence INTEGER DEFAULT 0,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)""",
+                """CREATE TABLE IF NOT EXISTS tech_recommendations (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT, initiative_id INTEGER NOT NULL REFERENCES initiatives(id),
+                    component TEXT NOT NULL, recommendation TEXT DEFAULT 'build', platform_options TEXT,
+                    integration_pattern TEXT, cloud_model TEXT, tech_risks TEXT,
+                    ai_generated INTEGER DEFAULT 0, ai_confidence INTEGER DEFAULT 0,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)""",
+                """CREATE TABLE IF NOT EXISTS customer_personas (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT, org_id INTEGER NOT NULL REFERENCES organization(id),
+                    name TEXT NOT NULL, demographics TEXT, needs TEXT, behaviors TEXT,
+                    ai_generated INTEGER DEFAULT 0, ai_confidence INTEGER DEFAULT 0,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)""",
+                """CREATE TABLE IF NOT EXISTS customer_journeys (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT, persona_id INTEGER NOT NULL REFERENCES customer_personas(id),
+                    stage TEXT NOT NULL, touchpoint TEXT, channel TEXT, emotion_score INTEGER DEFAULT 0,
+                    pain_point TEXT, opportunity TEXT, ai_generated INTEGER DEFAULT 0, ai_confidence INTEGER DEFAULT 0,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)""",
+                """CREATE TABLE IF NOT EXISTS operating_model (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT, org_id INTEGER NOT NULL REFERENCES organization(id),
+                    dimension TEXT NOT NULL, current_state TEXT, target_state TEXT, gap TEXT,
+                    transformation_actions TEXT, ai_generated INTEGER DEFAULT 0, ai_confidence INTEGER DEFAULT 0,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)""",
+                """CREATE TABLE IF NOT EXISTS governance_model (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT, org_id INTEGER NOT NULL REFERENCES organization(id),
+                    decision_type TEXT NOT NULL, authority TEXT, escalation_path TEXT, cadence TEXT,
+                    ai_generated INTEGER DEFAULT 0, ai_confidence INTEGER DEFAULT 0,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)""",
+                """CREATE TABLE IF NOT EXISTS transformation_patterns (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT, pattern_name TEXT NOT NULL, industry TEXT,
+                    trigger_condition TEXT, strategy_type TEXT, description TEXT, typical_outcomes TEXT,
+                    prerequisites TEXT, risks TEXT, source TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)""",
+                """CREATE TABLE IF NOT EXISTS industry_profiles (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT, industry TEXT UNIQUE NOT NULL,
+                    value_stream_templates TEXT, swot_patterns TEXT, regulatory_framework TEXT,
+                    benchmarks TEXT, strategy_archetypes TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)""",
+                """CREATE TABLE IF NOT EXISTS risk_registry (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT, org_id INTEGER NOT NULL REFERENCES organization(id),
+                    risk_name TEXT NOT NULL, category TEXT, probability INTEGER DEFAULT 3,
+                    impact_score INTEGER DEFAULT 3, risk_score INTEGER DEFAULT 9, mitigation TEXT,
+                    owner TEXT, status TEXT DEFAULT 'open', ai_generated INTEGER DEFAULT 0, ai_confidence INTEGER DEFAULT 0,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)""",
+                """CREATE TABLE IF NOT EXISTS ai_feedback (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT, entity_type TEXT NOT NULL, entity_id INTEGER NOT NULL,
+                    original_text TEXT, edited_text TEXT, feedback_type TEXT DEFAULT 'edit',
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)""",
+                """CREATE TABLE IF NOT EXISTS comments (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT, entity_type TEXT NOT NULL, entity_id INTEGER NOT NULL,
+                    user_name TEXT, comment_text TEXT NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)""",
+                """CREATE TABLE IF NOT EXISTS pipeline_runs (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT, org_id INTEGER NOT NULL REFERENCES organization(id),
+                    run_type TEXT DEFAULT 'full', status TEXT DEFAULT 'pending', delta_report TEXT,
+                    started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, completed_at TIMESTAMP)""",
+                """CREATE TABLE IF NOT EXISTS competitive_alerts (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT, org_id INTEGER NOT NULL REFERENCES organization(id),
+                    competitor_name TEXT NOT NULL, alert_type TEXT, headline TEXT, summary TEXT,
+                    source_url TEXT, severity TEXT DEFAULT 'info', is_read INTEGER DEFAULT 0,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)""",
+                """CREATE TABLE IF NOT EXISTS benchmarks (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT, industry TEXT NOT NULL, metric_name TEXT NOT NULL,
+                    metric_value REAL, percentile_25 REAL, percentile_50 REAL, percentile_75 REAL,
+                    source TEXT, period TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)""",
+            ]
+            for tbl_sql in v2_tables:
+                try:
+                    await raw_db.execute(tbl_sql)
+                except Exception:
+                    pass
 
         await raw_db.commit()
 
