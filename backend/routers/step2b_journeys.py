@@ -81,6 +81,15 @@ async def delete_journey(item_id: int, db=Depends(get_db)):
 @router.post("/journeys/ai-generate")
 async def ai_generate_journeys(db=Depends(get_db)):
     """AI-generate customer personas and journey maps."""
+    import traceback
+    try:
+        return await _ai_generate_journeys_impl(db)
+    except Exception as e:
+        logger.error("ai_generate_journeys failed: %s\n%s", e, traceback.format_exc())
+        return {"error": str(e), "traceback": traceback.format_exc()}
+
+
+async def _ai_generate_journeys_impl(db):
     org = await db.execute_fetchone("SELECT * FROM organization LIMIT 1")
     if not org:
         return {"error": "No organization found"}
