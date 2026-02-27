@@ -10,7 +10,7 @@ import logging
 
 from fastapi import APIRouter, Depends
 from database import get_db
-from ai_research import is_openai_available
+from ai_research import is_openai_available, extract_list
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -232,18 +232,17 @@ Return JSON array."""
 
     result = await call_openai_json(prompt)
     count = 0
-    if isinstance(result, list):
-        for item in result:
-            prob = item.get("probability", 3)
-            impact = item.get("impact_score", 3)
-            await db.execute(
-                "INSERT INTO risk_registry (org_id, risk_name, category, probability, impact_score, risk_score, "
-                "mitigation, ai_generated, ai_confidence) VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?)",
-                [org_id, item.get("risk_name", ""), item.get("category", ""), prob, impact,
-                 prob * impact, item.get("mitigation", ""), item.get("confidence", 70)],
-            )
-            count += 1
-        await db.commit()
+    for item in extract_list(result):
+        prob = item.get("probability", 3)
+        impact = item.get("impact_score", 3)
+        await db.execute(
+            "INSERT INTO risk_registry (org_id, risk_name, category, probability, impact_score, risk_score, "
+            "mitigation, ai_generated, ai_confidence) VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?)",
+            [org_id, item.get("risk_name", ""), item.get("category", ""), prob, impact,
+             prob * impact, item.get("mitigation", ""), item.get("confidence", 70)],
+        )
+        count += 1
+    await db.commit()
     return {"generated": count, "ai": True}
 
 
@@ -618,8 +617,7 @@ For each technology component (frontend, backend, data_layer, integration, secur
 Return JSON array."""
 
         result = await call_openai_json(prompt)
-        if isinstance(result, list):
-            for item in result:
+        for item in extract_list(result):
                 comp = item.get("component", "")
                 existing = await db.execute_fetchone(
                     "SELECT id FROM tech_recommendations WHERE initiative_id = ? AND component = ?",

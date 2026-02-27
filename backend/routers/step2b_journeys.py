@@ -7,7 +7,7 @@ import logging
 
 from fastapi import APIRouter, Depends
 from database import get_db
-from ai_research import is_openai_available
+from ai_research import is_openai_available, extract_list
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -131,25 +131,26 @@ Return JSON: {{
     result = await call_openai_json(prompt)
     personas_count = 0
     journeys_count = 0
-    if isinstance(result, dict) and "personas" in result:
-        for p in result["personas"]:
-            cursor = await db.execute(
-                "INSERT INTO customer_personas (org_id, name, demographics, needs, behaviors, ai_generated, ai_confidence) "
-                "VALUES (?, ?, ?, ?, ?, 1, ?)",
-                [org_id, p.get("name", ""), p.get("demographics", ""), p.get("needs", ""),
-                 p.get("behaviors", ""), p.get("confidence", 70)],
+    personas_list = extract_list(result, "personas")
+    for p in personas_list:
+        cursor = await db.execute(
+            "INSERT INTO customer_personas (org_id, name, demographics, needs, behaviors, ai_generated, ai_confidence) "
+            "VALUES (?, ?, ?, ?, ?, 1, ?)",
+            [org_id, p.get("name", ""), p.get("demographics", ""), p.get("needs", ""),
+             p.get("behaviors", ""), p.get("confidence", 70)],
+        )
+        pid = cursor.lastrowid
+        personas_count += 1
+        for j in p.get("journey", []):
+            await db.execute(
+                "INSERT INTO customer_journeys (persona_id, stage, touchpoint, channel, emotion_score, pain_point, opportunity, ai_generated, ai_confidence) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?)",
+                [pid, j.get("stage", ""), j.get("touchpoint", ""), j.get("channel", ""),
+                 j.get("emotion_score", 0), j.get("pain_point", ""), j.get("opportunity", ""),
+                 j.get("confidence", 70)],
             )
-            pid = cursor.lastrowid
-            personas_count += 1
-            for j in p.get("journey", []):
-                await db.execute(
-                    "INSERT INTO customer_journeys (persona_id, stage, touchpoint, channel, emotion_score, pain_point, opportunity, ai_generated, ai_confidence) "
-                    "VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?)",
-                    [pid, j.get("stage", ""), j.get("touchpoint", ""), j.get("channel", ""),
-                     j.get("emotion_score", 0), j.get("pain_point", ""), j.get("opportunity", ""),
-                     j.get("confidence", 70)],
-                )
-                journeys_count += 1
+            journeys_count += 1
+    if personas_count:
         await db.commit()
 
     return {"personas_generated": personas_count, "journeys_generated": journeys_count, "ai": True}

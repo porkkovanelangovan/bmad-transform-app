@@ -18,6 +18,20 @@ def is_openai_available() -> bool:
         return False
 
 
+def extract_list(result, key=None):
+    """Extract a list from an OpenAI JSON result (handles wrapped or unwrapped)."""
+    if isinstance(result, list):
+        return result
+    if isinstance(result, dict):
+        if key and key in result:
+            v = result[key]
+            return v if isinstance(v, list) else []
+        for v in result.values():
+            if isinstance(v, list):
+                return v
+    return []
+
+
 async def call_openai_json(prompt: str, system: str = "You are an expert business transformation consultant. Return valid JSON only."):
     """Generic helper to call OpenAI and parse JSON response."""
     if not is_openai_available():
@@ -36,13 +50,7 @@ async def call_openai_json(prompt: str, system: str = "You are an expert busines
             max_tokens=4000,
         )
         content = response.choices[0].message.content
-        result = json.loads(content)
-        # If the result is a dict with a single key containing a list, unwrap it
-        if isinstance(result, dict) and len(result) == 1:
-            only_val = list(result.values())[0]
-            if isinstance(only_val, list):
-                return only_val
-        return result
+        return json.loads(content)
     except Exception as e:
         import logging
         logging.getLogger(__name__).error("call_openai_json failed: %s", e)

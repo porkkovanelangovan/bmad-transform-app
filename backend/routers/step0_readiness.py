@@ -7,7 +7,7 @@ import logging
 
 from fastapi import APIRouter, Depends
 from database import get_db
-from ai_research import is_openai_available
+from ai_research import is_openai_available, extract_list
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -105,30 +105,29 @@ For each dimension, provide:
 Return JSON array: [{{"dimension": "...", "score": N, "evidence": "...", "confidence": N}}]"""
 
     result = await call_openai_json(prompt)
-    if isinstance(result, list):
-        for item in result:
-            dim = item.get("dimension", "")
-            if dim not in READINESS_DIMENSIONS:
-                continue
-            existing = await db.execute_fetchone(
-                "SELECT id FROM org_readiness WHERE org_id = ? AND dimension = ?",
-                [org_id, dim],
+    items = extract_list(result)
+    for item in items:
+        dim = item.get("dimension", "")
+        if dim not in READINESS_DIMENSIONS:
+            continue
+        existing = await db.execute_fetchone(
+            "SELECT id FROM org_readiness WHERE org_id = ? AND dimension = ?",
+            [org_id, dim],
+        )
+        if existing:
+            await db.execute(
+                "UPDATE org_readiness SET score=?, evidence=?, ai_generated=1, ai_confidence=? WHERE id=?",
+                [item.get("score", 3), item.get("evidence", ""), item.get("confidence", 70), existing["id"]],
             )
-            if existing:
-                await db.execute(
-                    "UPDATE org_readiness SET score=?, evidence=?, ai_generated=1, ai_confidence=? WHERE id=?",
-                    [item.get("score", 3), item.get("evidence", ""), item.get("confidence", 70), existing["id"]],
-                )
-            else:
-                await db.execute(
-                    "INSERT INTO org_readiness (org_id, dimension, score, evidence, ai_generated, ai_confidence) "
-                    "VALUES (?, ?, ?, ?, 1, ?)",
-                    [org_id, dim, item.get("score", 3), item.get("evidence", ""), item.get("confidence", 70)],
-                )
+        else:
+            await db.execute(
+                "INSERT INTO org_readiness (org_id, dimension, score, evidence, ai_generated, ai_confidence) "
+                "VALUES (?, ?, ?, ?, 1, ?)",
+                [org_id, dim, item.get("score", 3), item.get("evidence", ""), item.get("confidence", 70)],
+            )
+    if items:
         await db.commit()
-        return {"generated": len(result), "ai": True}
-
-    return {"error": "AI generation failed", "details": str(result)}
+    return {"generated": len(items), "ai": True}
 
 
 # ─── Digital Maturity CRUD ───────────────────────────────────────────────────
@@ -215,29 +214,28 @@ For each, provide:
 Return JSON array: [{{"dimension": "...", "current_level": N, "target_level": N, "evidence": "...", "gap_description": "...", "confidence": N}}]"""
 
     result = await call_openai_json(prompt)
-    if isinstance(result, list):
-        for item in result:
-            dim = item.get("dimension", "")
-            if dim not in MATURITY_DIMENSIONS:
-                continue
-            existing = await db.execute_fetchone(
-                "SELECT id FROM digital_maturity WHERE org_id = ? AND dimension = ?",
-                [org_id, dim],
+    items = extract_list(result)
+    for item in items:
+        dim = item.get("dimension", "")
+        if dim not in MATURITY_DIMENSIONS:
+            continue
+        existing = await db.execute_fetchone(
+            "SELECT id FROM digital_maturity WHERE org_id = ? AND dimension = ?",
+            [org_id, dim],
+        )
+        if existing:
+            await db.execute(
+                "UPDATE digital_maturity SET current_level=?, target_level=?, evidence=?, gap_description=?, ai_generated=1, ai_confidence=? WHERE id=?",
+                [item.get("current_level", 2), item.get("target_level", 4), item.get("evidence", ""),
+                 item.get("gap_description", ""), item.get("confidence", 70), existing["id"]],
             )
-            if existing:
-                await db.execute(
-                    "UPDATE digital_maturity SET current_level=?, target_level=?, evidence=?, gap_description=?, ai_generated=1, ai_confidence=? WHERE id=?",
-                    [item.get("current_level", 2), item.get("target_level", 4), item.get("evidence", ""),
-                     item.get("gap_description", ""), item.get("confidence", 70), existing["id"]],
-                )
-            else:
-                await db.execute(
-                    "INSERT INTO digital_maturity (org_id, dimension, current_level, target_level, evidence, gap_description, ai_generated, ai_confidence) "
-                    "VALUES (?, ?, ?, ?, ?, ?, 1, ?)",
-                    [org_id, dim, item.get("current_level", 2), item.get("target_level", 4),
-                     item.get("evidence", ""), item.get("gap_description", ""), item.get("confidence", 70)],
-                )
+        else:
+            await db.execute(
+                "INSERT INTO digital_maturity (org_id, dimension, current_level, target_level, evidence, gap_description, ai_generated, ai_confidence) "
+                "VALUES (?, ?, ?, ?, ?, ?, 1, ?)",
+                [org_id, dim, item.get("current_level", 2), item.get("target_level", 4),
+                 item.get("evidence", ""), item.get("gap_description", ""), item.get("confidence", 70)],
+            )
+    if items:
         await db.commit()
-        return {"generated": len(result), "ai": True}
-
-    return {"error": "AI generation failed"}
+    return {"generated": len(items), "ai": True}

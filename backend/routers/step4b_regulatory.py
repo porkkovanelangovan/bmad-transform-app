@@ -7,7 +7,7 @@ import logging
 
 from fastapi import APIRouter, Depends
 from database import get_db
-from ai_research import is_openai_available
+from ai_research import is_openai_available, extract_list
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -106,30 +106,29 @@ Strategy IDs: {json.dumps({s['name']: s['id'] for s in strategy_list})}"""
 
     result = await call_openai_json(prompt)
     count = 0
-    if isinstance(result, list):
-        for item in result:
-            sid = item.get("strategy_id")
-            reg = item.get("regulation", "")
-            if not sid or reg not in REGULATIONS:
-                continue
-            existing = await db.execute_fetchone(
-                "SELECT id FROM regulatory_impacts WHERE strategy_id = ? AND regulation = ?",
-                [sid, reg],
+    for item in extract_list(result):
+        sid = item.get("strategy_id")
+        reg = item.get("regulation", "")
+        if not sid or reg not in REGULATIONS:
+            continue
+        existing = await db.execute_fetchone(
+            "SELECT id FROM regulatory_impacts WHERE strategy_id = ? AND regulation = ?",
+            [sid, reg],
+        )
+        if existing:
+            await db.execute(
+                "UPDATE regulatory_impacts SET impact_level=?, requirement=?, mitigation=?, ai_generated=1, ai_confidence=? WHERE id=?",
+                [item.get("impact_level", "medium"), item.get("requirement", ""),
+                 item.get("mitigation", ""), item.get("confidence", 70), existing["id"]],
             )
-            if existing:
-                await db.execute(
-                    "UPDATE regulatory_impacts SET impact_level=?, requirement=?, mitigation=?, ai_generated=1, ai_confidence=? WHERE id=?",
-                    [item.get("impact_level", "medium"), item.get("requirement", ""),
-                     item.get("mitigation", ""), item.get("confidence", 70), existing["id"]],
-                )
-            else:
-                await db.execute(
-                    "INSERT INTO regulatory_impacts (strategy_id, regulation, impact_level, requirement, mitigation, ai_generated, ai_confidence) "
-                    "VALUES (?, ?, ?, ?, ?, 1, ?)",
-                    [sid, reg, item.get("impact_level", "medium"), item.get("requirement", ""),
-                     item.get("mitigation", ""), item.get("confidence", 70)],
-                )
-            count += 1
-        await db.commit()
+        else:
+            await db.execute(
+                "INSERT INTO regulatory_impacts (strategy_id, regulation, impact_level, requirement, mitigation, ai_generated, ai_confidence) "
+                "VALUES (?, ?, ?, ?, ?, 1, ?)",
+                [sid, reg, item.get("impact_level", "medium"), item.get("requirement", ""),
+                 item.get("mitigation", ""), item.get("confidence", 70)],
+            )
+        count += 1
+    await db.commit()
 
     return {"generated": count, "ai": True}

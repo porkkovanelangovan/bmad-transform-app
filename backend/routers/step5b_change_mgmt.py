@@ -7,7 +7,7 @@ import logging
 
 from fastapi import APIRouter, Depends
 from database import get_db
-from ai_research import is_openai_available
+from ai_research import is_openai_available, extract_list
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -110,8 +110,7 @@ For each stakeholder group ({', '.join(stakeholder_groups)}), provide:
 Return JSON array."""
 
         result = await call_openai_json(prompt)
-        if isinstance(result, list):
-            for item in result:
+        for item in extract_list(result):
                 sg = item.get("stakeholder_group", "")
                 if sg not in stakeholder_groups:
                     continue
