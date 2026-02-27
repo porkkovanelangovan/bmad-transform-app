@@ -10,7 +10,7 @@ import logging
 
 from fastapi import APIRouter, Depends
 from database import get_db
-from ai_research import is_openai_available, extract_list
+from ai_research import is_openai_available, extract_list, ensure_str
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -238,8 +238,8 @@ Return JSON array."""
         await db.execute(
             "INSERT INTO risk_registry (org_id, risk_name, category, probability, impact_score, risk_score, "
             "mitigation, ai_generated, ai_confidence) VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?)",
-            [org_id, item.get("risk_name", ""), item.get("category", ""), prob, impact,
-             prob * impact, item.get("mitigation", ""), item.get("confidence", 70)],
+            [org_id, ensure_str(item.get("risk_name", "")), ensure_str(item.get("category", "")), prob, impact,
+             prob * impact, ensure_str(item.get("mitigation", "")), item.get("confidence", 70)],
         )
         count += 1
     await db.commit()
@@ -545,9 +545,9 @@ Return JSON object."""
                 "INSERT INTO pilot_scopes (initiative_id, mvp_description, success_criteria, duration_weeks, "
                 "team_size, go_nogo_criteria, scale_up_path, ai_generated, ai_confidence) "
                 "VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?)",
-                [init["id"], result.get("mvp_description", ""), result.get("success_criteria", ""),
+                [init["id"], ensure_str(result.get("mvp_description", "")), ensure_str(result.get("success_criteria", "")),
                  result.get("duration_weeks", 8), result.get("team_size", 5),
-                 result.get("go_nogo_criteria", ""), result.get("scale_up_path", ""),
+                 ensure_str(result.get("go_nogo_criteria", "")), ensure_str(result.get("scale_up_path", "")),
                  result.get("confidence", 70)],
             )
             count += 1
@@ -627,18 +627,18 @@ Return JSON array."""
                     await db.execute(
                         "UPDATE tech_recommendations SET recommendation=?, platform_options=?, integration_pattern=?, "
                         "cloud_model=?, tech_risks=?, ai_generated=1, ai_confidence=? WHERE id=?",
-                        [item.get("recommendation", "build"), item.get("platform_options", ""),
-                         item.get("integration_pattern", ""), item.get("cloud_model", ""),
-                         item.get("tech_risks", ""), item.get("confidence", 70), existing["id"]],
+                        [ensure_str(item.get("recommendation", "build")), ensure_str(item.get("platform_options", "")),
+                         ensure_str(item.get("integration_pattern", "")), ensure_str(item.get("cloud_model", "")),
+                         ensure_str(item.get("tech_risks", "")), item.get("confidence", 70), existing["id"]],
                     )
                 else:
                     await db.execute(
                         "INSERT INTO tech_recommendations (initiative_id, component, recommendation, platform_options, "
                         "integration_pattern, cloud_model, tech_risks, ai_generated, ai_confidence) "
                         "VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?)",
-                        [init["id"], comp, item.get("recommendation", "build"),
-                         item.get("platform_options", ""), item.get("integration_pattern", ""),
-                         item.get("cloud_model", ""), item.get("tech_risks", ""), item.get("confidence", 70)],
+                        [init["id"], comp, ensure_str(item.get("recommendation", "build")),
+                         ensure_str(item.get("platform_options", "")), ensure_str(item.get("integration_pattern", "")),
+                         ensure_str(item.get("cloud_model", "")), ensure_str(item.get("tech_risks", "")), item.get("confidence", 70)],
                     )
                 count += 1
         await db.commit()
@@ -704,8 +704,8 @@ Return JSON object."""
                 "payback_months=?, roi_pct=?, cost_assumptions=?, benefit_assumptions=? WHERE id=?",
                 [result.get("estimated_cost_k", 0), result.get("annual_benefit_k", 0),
                  result.get("npv_k", 0), result.get("payback_months", 12),
-                 result.get("roi_pct", 0), result.get("cost_assumptions", ""),
-                 result.get("benefit_assumptions", ""), init["id"]],
+                 result.get("roi_pct", 0), ensure_str(result.get("cost_assumptions", "")),
+                 ensure_str(result.get("benefit_assumptions", "")), init["id"]],
             )
             count += 1
     await db.commit()
@@ -821,22 +821,22 @@ Return JSON: {{
                 cursor = await db.execute(
                     "INSERT INTO strategies (layer, name, description, risk_level, ai_confidence, scenario) "
                     "VALUES (?, ?, ?, ?, ?, ?)",
-                    [s.get("layer", "digital"), s.get("name", ""), s.get("description", ""),
-                     s.get("risk_level", "medium"), s.get("confidence", 70), scenario],
+                    [ensure_str(s.get("layer", "digital")), ensure_str(s.get("name", "")), ensure_str(s.get("description", "")),
+                     ensure_str(s.get("risk_level", "medium")), s.get("confidence", 70), scenario],
                 )
                 strategy_id = cursor.lastrowid
                 for okr in s.get("okrs", []):
                     okr_cursor = await db.execute(
                         "INSERT INTO strategic_okrs (strategy_id, objective, scenario) VALUES (?, ?, ?)",
-                        [strategy_id, okr.get("objective", ""), scenario],
+                        [strategy_id, ensure_str(okr.get("objective", "")), scenario],
                     )
                     okr_id = okr_cursor.lastrowid
                     for kr in okr.get("key_results", []):
                         await db.execute(
                             "INSERT INTO strategic_key_results (okr_id, key_result, metric, target_value, unit, scenario) "
                             "VALUES (?, ?, ?, ?, ?, ?)",
-                            [okr_id, kr.get("key_result", ""), kr.get("metric", ""),
-                             kr.get("target_value", 0), kr.get("unit", ""), scenario],
+                            [okr_id, ensure_str(kr.get("key_result", "")), ensure_str(kr.get("metric", "")),
+                             kr.get("target_value", 0), ensure_str(kr.get("unit", "")), scenario],
                         )
                 scenarios_generated += 1
         await db.commit()

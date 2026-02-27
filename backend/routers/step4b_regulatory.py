@@ -7,7 +7,7 @@ import logging
 
 from fastapi import APIRouter, Depends
 from database import get_db
-from ai_research import is_openai_available, extract_list
+from ai_research import is_openai_available, extract_list, ensure_str
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -118,15 +118,15 @@ Strategy IDs: {json.dumps({s['name']: s['id'] for s in strategy_list})}"""
         if existing:
             await db.execute(
                 "UPDATE regulatory_impacts SET impact_level=?, requirement=?, mitigation=?, ai_generated=1, ai_confidence=? WHERE id=?",
-                [item.get("impact_level", "medium"), item.get("requirement", ""),
-                 item.get("mitigation", ""), item.get("confidence", 70), existing["id"]],
+                [ensure_str(item.get("impact_level", "medium")), ensure_str(item.get("requirement", "")),
+                 ensure_str(item.get("mitigation", "")), item.get("confidence", 70), existing["id"]],
             )
         else:
             await db.execute(
                 "INSERT INTO regulatory_impacts (strategy_id, regulation, impact_level, requirement, mitigation, ai_generated, ai_confidence) "
                 "VALUES (?, ?, ?, ?, ?, 1, ?)",
-                [sid, reg, item.get("impact_level", "medium"), item.get("requirement", ""),
-                 item.get("mitigation", ""), item.get("confidence", 70)],
+                [sid, reg, ensure_str(item.get("impact_level", "medium")), ensure_str(item.get("requirement", "")),
+                 ensure_str(item.get("mitigation", "")), item.get("confidence", 70)],
             )
         count += 1
     await db.commit()

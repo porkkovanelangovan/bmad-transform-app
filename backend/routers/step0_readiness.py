@@ -7,7 +7,7 @@ import logging
 
 from fastapi import APIRouter, Depends
 from database import get_db
-from ai_research import is_openai_available, extract_list
+from ai_research import is_openai_available, extract_list, ensure_str
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -117,13 +117,13 @@ Return JSON array: [{{"dimension": "...", "score": N, "evidence": "...", "confid
         if existing:
             await db.execute(
                 "UPDATE org_readiness SET score=?, evidence=?, ai_generated=1, ai_confidence=? WHERE id=?",
-                [item.get("score", 3), item.get("evidence", ""), item.get("confidence", 70), existing["id"]],
+                [item.get("score", 3), ensure_str(item.get("evidence", "")), item.get("confidence", 70), existing["id"]],
             )
         else:
             await db.execute(
                 "INSERT INTO org_readiness (org_id, dimension, score, evidence, ai_generated, ai_confidence) "
                 "VALUES (?, ?, ?, ?, 1, ?)",
-                [org_id, dim, item.get("score", 3), item.get("evidence", ""), item.get("confidence", 70)],
+                [org_id, dim, item.get("score", 3), ensure_str(item.get("evidence", "")), item.get("confidence", 70)],
             )
     if items:
         await db.commit()
@@ -226,15 +226,15 @@ Return JSON array: [{{"dimension": "...", "current_level": N, "target_level": N,
         if existing:
             await db.execute(
                 "UPDATE digital_maturity SET current_level=?, target_level=?, evidence=?, gap_description=?, ai_generated=1, ai_confidence=? WHERE id=?",
-                [item.get("current_level", 2), item.get("target_level", 4), item.get("evidence", ""),
-                 item.get("gap_description", ""), item.get("confidence", 70), existing["id"]],
+                [item.get("current_level", 2), item.get("target_level", 4), ensure_str(item.get("evidence", "")),
+                 ensure_str(item.get("gap_description", "")), item.get("confidence", 70), existing["id"]],
             )
         else:
             await db.execute(
                 "INSERT INTO digital_maturity (org_id, dimension, current_level, target_level, evidence, gap_description, ai_generated, ai_confidence) "
                 "VALUES (?, ?, ?, ?, ?, ?, 1, ?)",
                 [org_id, dim, item.get("current_level", 2), item.get("target_level", 4),
-                 item.get("evidence", ""), item.get("gap_description", ""), item.get("confidence", 70)],
+                 ensure_str(item.get("evidence", "")), ensure_str(item.get("gap_description", "")), item.get("confidence", 70)],
             )
     if items:
         await db.commit()

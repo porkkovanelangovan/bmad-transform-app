@@ -18,6 +18,13 @@ def is_openai_available() -> bool:
         return False
 
 
+def ensure_str(val):
+    """Ensure value is a string (serialize dicts/lists to JSON for DB TEXT columns)."""
+    if isinstance(val, (dict, list)):
+        return json.dumps(val)
+    return str(val) if val is not None else ""
+
+
 def extract_list(result, key=None):
     """Extract a list from an OpenAI JSON result (handles wrapped or unwrapped)."""
     if isinstance(result, list):

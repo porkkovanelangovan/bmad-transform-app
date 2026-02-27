@@ -7,7 +7,7 @@ import logging
 
 from fastapi import APIRouter, Depends
 from database import get_db
-from ai_research import is_openai_available
+from ai_research import is_openai_available, ensure_str
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -159,15 +159,15 @@ Return JSON: {{
             if existing:
                 await db.execute(
                     "UPDATE operating_model SET current_state=?, target_state=?, gap=?, transformation_actions=?, ai_generated=1, ai_confidence=? WHERE id=?",
-                    [item.get("current_state", ""), item.get("target_state", ""), item.get("gap", ""),
-                     item.get("transformation_actions", ""), item.get("confidence", 70), existing["id"]],
+                    [ensure_str(item.get("current_state", "")), ensure_str(item.get("target_state", "")), ensure_str(item.get("gap", "")),
+                     ensure_str(item.get("transformation_actions", "")), item.get("confidence", 70), existing["id"]],
                 )
             else:
                 await db.execute(
                     "INSERT INTO operating_model (org_id, dimension, current_state, target_state, gap, transformation_actions, ai_generated, ai_confidence) "
                     "VALUES (?, ?, ?, ?, ?, ?, 1, ?)",
-                    [org_id, dim, item.get("current_state", ""), item.get("target_state", ""),
-                     item.get("gap", ""), item.get("transformation_actions", ""), item.get("confidence", 70)],
+                    [org_id, dim, ensure_str(item.get("current_state", "")), ensure_str(item.get("target_state", "")),
+                     ensure_str(item.get("gap", "")), ensure_str(item.get("transformation_actions", "")), item.get("confidence", 70)],
                 )
             count += 1
 
@@ -181,15 +181,15 @@ Return JSON: {{
             if existing:
                 await db.execute(
                     "UPDATE governance_model SET authority=?, escalation_path=?, cadence=?, ai_generated=1, ai_confidence=? WHERE id=?",
-                    [item.get("authority", ""), item.get("escalation_path", ""),
-                     item.get("cadence", ""), item.get("confidence", 70), existing["id"]],
+                    [ensure_str(item.get("authority", "")), ensure_str(item.get("escalation_path", "")),
+                     ensure_str(item.get("cadence", "")), item.get("confidence", 70), existing["id"]],
                 )
             else:
                 await db.execute(
                     "INSERT INTO governance_model (org_id, decision_type, authority, escalation_path, cadence, ai_generated, ai_confidence) "
                     "VALUES (?, ?, ?, ?, ?, 1, ?)",
-                    [org_id, dt, item.get("authority", ""), item.get("escalation_path", ""),
-                     item.get("cadence", ""), item.get("confidence", 70)],
+                    [org_id, dt, ensure_str(item.get("authority", "")), ensure_str(item.get("escalation_path", "")),
+                     ensure_str(item.get("cadence", "")), item.get("confidence", 70)],
                 )
             count += 1
         await db.commit()

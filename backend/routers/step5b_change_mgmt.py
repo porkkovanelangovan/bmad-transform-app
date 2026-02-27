@@ -7,7 +7,7 @@ import logging
 
 from fastapi import APIRouter, Depends
 from database import get_db
-from ai_research import is_openai_available, extract_list
+from ai_research import is_openai_available, extract_list, ensure_str
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -122,9 +122,9 @@ Return JSON array."""
                     await db.execute(
                         "UPDATE change_plans SET impact_level=?, communication_plan=?, training_needs=?, "
                         "resistance_risks=?, adoption_metrics=?, wiifm=?, ai_generated=1, ai_confidence=? WHERE id=?",
-                        [item.get("impact_level", "medium"), item.get("communication_plan", ""),
-                         item.get("training_needs", ""), item.get("resistance_risks", ""),
-                         item.get("adoption_metrics", ""), item.get("wiifm", ""),
+                        [ensure_str(item.get("impact_level", "medium")), ensure_str(item.get("communication_plan", "")),
+                         ensure_str(item.get("training_needs", "")), ensure_str(item.get("resistance_risks", "")),
+                         ensure_str(item.get("adoption_metrics", "")), ensure_str(item.get("wiifm", "")),
                          item.get("confidence", 70), existing["id"]],
                     )
                 else:
@@ -132,9 +132,9 @@ Return JSON array."""
                         "INSERT INTO change_plans (initiative_id, stakeholder_group, impact_level, communication_plan, "
                         "training_needs, resistance_risks, adoption_metrics, wiifm, ai_generated, ai_confidence) "
                         "VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?)",
-                        [init["id"], sg, item.get("impact_level", "medium"), item.get("communication_plan", ""),
-                         item.get("training_needs", ""), item.get("resistance_risks", ""),
-                         item.get("adoption_metrics", ""), item.get("wiifm", ""), item.get("confidence", 70)],
+                        [init["id"], sg, ensure_str(item.get("impact_level", "medium")), ensure_str(item.get("communication_plan", "")),
+                         ensure_str(item.get("training_needs", "")), ensure_str(item.get("resistance_risks", "")),
+                         ensure_str(item.get("adoption_metrics", "")), ensure_str(item.get("wiifm", "")), item.get("confidence", 70)],
                     )
                 count += 1
     await db.commit()

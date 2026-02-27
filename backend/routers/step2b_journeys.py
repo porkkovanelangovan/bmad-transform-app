@@ -7,7 +7,7 @@ import logging
 
 from fastapi import APIRouter, Depends
 from database import get_db
-from ai_research import is_openai_available, extract_list
+from ai_research import is_openai_available, extract_list, ensure_str
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -145,8 +145,8 @@ Return JSON: {{
         cursor = await db.execute(
             "INSERT INTO customer_personas (org_id, name, demographics, needs, behaviors, ai_generated, ai_confidence) "
             "VALUES (?, ?, ?, ?, ?, 1, ?)",
-            [org_id, p.get("name", ""), p.get("demographics", ""), p.get("needs", ""),
-             p.get("behaviors", ""), p.get("confidence", 70)],
+            [org_id, ensure_str(p.get("name", "")), ensure_str(p.get("demographics", "")), ensure_str(p.get("needs", "")),
+             ensure_str(p.get("behaviors", "")), p.get("confidence", 70)],
         )
         pid = cursor.lastrowid
         personas_count += 1
@@ -154,8 +154,8 @@ Return JSON: {{
             await db.execute(
                 "INSERT INTO customer_journeys (persona_id, stage, touchpoint, channel, emotion_score, pain_point, opportunity, ai_generated, ai_confidence) "
                 "VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?)",
-                [pid, j.get("stage", ""), j.get("touchpoint", ""), j.get("channel", ""),
-                 j.get("emotion_score", 0), j.get("pain_point", ""), j.get("opportunity", ""),
+                [pid, ensure_str(j.get("stage", "")), ensure_str(j.get("touchpoint", "")), ensure_str(j.get("channel", "")),
+                 j.get("emotion_score", 0), ensure_str(j.get("pain_point", "")), ensure_str(j.get("opportunity", "")),
                  j.get("confidence", 70)],
             )
             journeys_count += 1
