@@ -10,6 +10,16 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
+def _safe_float(val, default=None):
+    """Convert value to float safely, returning default if conversion fails."""
+    if val is None:
+        return default
+    try:
+        return float(val)
+    except (ValueError, TypeError):
+        return default
+
+
 # ===================== Strategy Inputs CRUD =====================
 
 @router.get("/inputs")
@@ -774,9 +784,9 @@ async def _do_auto_generate(db):
                                     "target_optimistic, target_pessimistic, rationale) "
                                     "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
                                     (okr_id, ensure_str(kr.get("key_result", "Key result")),
-                                     ensure_str(kr.get("metric", "")), kr.get("current_value", 0),
-                                     kr.get("target_value", 0), ensure_str(kr.get("unit", "")),
-                                     ensure_str(kr.get("target_optimistic", "")), ensure_str(kr.get("target_pessimistic", "")),
+                                     ensure_str(kr.get("metric", "")), _safe_float(kr.get("current_value"), 0),
+                                     _safe_float(kr.get("target_value"), 0), ensure_str(kr.get("unit", "")),
+                                     _safe_float(kr.get("target_optimistic")), _safe_float(kr.get("target_pessimistic")),
                                      ensure_str(kr.get("rationale", ""))),
                                 )
                                 kr_count += 1
@@ -827,9 +837,9 @@ async def _do_auto_generate(db):
                         "INSERT INTO strategic_key_results (okr_id, key_result, metric, current_value, target_value, unit, "
                         "target_optimistic, target_pessimistic, rationale) "
                         "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                        (okr_id, ensure_str(kr.get("key_result", "Key result")), ensure_str(kr.get("metric", "")), kr.get("current_value", 0),
-                         kr.get("target_value", 0), ensure_str(kr.get("unit", "")),
-                         ensure_str(kr.get("target_optimistic", "")), ensure_str(kr.get("target_pessimistic", "")),
+                        (okr_id, ensure_str(kr.get("key_result", "Key result")), ensure_str(kr.get("metric", "")), _safe_float(kr.get("current_value"), 0),
+                         _safe_float(kr.get("target_value"), 0), ensure_str(kr.get("unit", "")),
+                         _safe_float(kr.get("target_optimistic")), _safe_float(kr.get("target_pessimistic")),
                          ensure_str(kr.get("rationale", ""))),
                     )
                     kr_count += 1
