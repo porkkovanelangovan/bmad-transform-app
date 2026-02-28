@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends
+from fastapi.responses import JSONResponse
 from database import get_db
 from datetime import datetime
 from ai_research import is_openai_available, ensure_str
@@ -693,8 +694,9 @@ async def auto_generate_strategies(db=Depends(get_db)):
     try:
         return await _do_auto_generate(db)
     except Exception as e:
-        logger.error(f"Step 4 auto-generate failed: {e}\n{traceback.format_exc()}")
-        raise
+        tb = traceback.format_exc()
+        logger.error(f"Step 4 auto-generate failed: {e}\n{tb}")
+        return JSONResponse(status_code=500, content={"error": str(e), "traceback": tb})
 
 
 async def _do_auto_generate(db):
