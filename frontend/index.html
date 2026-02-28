@@ -2224,18 +2224,24 @@ async function renderStep2Input() {
             <button class="phase-tab" onclick="step2Phase='visual'; step2SelectedVs=null; renderStep2VisualList()">Visual Map</button>
         </div>
 
+        <div class="card" style="background:#1a2332;border:1px solid #334155;">
+            <div class="form-row" style="align-items:center;">
+                <div class="form-group" style="flex:1;">
+                    <label style="font-weight:600;">Business Unit</label>
+                    <select id="vs-bu">
+                        ${units.length ? units.map(u => `<option value="${u.id}">${u.name}</option>`).join('') : '<option value="">No business units — add one in Step 1</option>'}
+                    </select>
+                </div>
+                <p style="flex:2;font-size:13px;color:#94a3b8;margin:0;">Select a business unit. All input methods below will use this selection.</p>
+            </div>
+        </div>
+
         <div class="card">
             <h3>Generate Value Stream with AI</h3>
             <div class="form-row">
                 <div class="form-group">
                     <label>Business Segment Name</label>
                     <input type="text" id="vs-segment" placeholder="e.g. Loan Processing, Claims Management, Order Fulfillment" />
-                </div>
-                <div class="form-group">
-                    <label>Business Unit</label>
-                    <select id="vs-bu">
-                        ${units.length ? units.map(u => `<option value="${u.id}">${u.name}</option>`).join('') : '<option value="">No business units — add one in Step 1</option>'}
-                    </select>
                 </div>
             </div>
             <button class="btn btn-primary" onclick="generateValueStream()" ${!units.length ? 'disabled' : ''}>Generate Value Stream</button>
@@ -2245,12 +2251,6 @@ async function renderStep2Input() {
         <div class="card">
             <h3>Upload Value Stream Data</h3>
             <div class="form-row">
-                <div class="form-group">
-                    <label>Business Unit</label>
-                    <select id="vs-upload-bu">
-                        ${units.length ? units.map(u => `<option value="${u.id}">${u.name}</option>`).join('') : '<option value="">No business units</option>'}
-                    </select>
-                </div>
                 <div class="form-group">
                     <label>CSV or JSON File</label>
                     <input type="file" id="vs-file" accept=".csv,.json" style="padding:8px;" />
@@ -2265,12 +2265,6 @@ async function renderStep2Input() {
             <p style="font-size:13px;color:#94a3b8;margin-bottom:12px;">Upload a visual process map (image, PDF) for AI extraction, or a BPMN XML file for direct parsing.</p>
             <div class="form-row">
                 <div class="form-group">
-                    <label>Business Unit</label>
-                    <select id="vs-visual-bu">
-                        ${units.length ? units.map(u => `<option value="${u.id}">${u.name}</option>`).join('') : '<option value="">No business units</option>'}
-                    </select>
-                </div>
-                <div class="form-group">
                     <label>Process Map File</label>
                     <input type="file" id="vs-visual-file" accept=".png,.jpg,.jpeg,.pdf,.bpmn,.xml" style="padding:8px;" />
                 </div>
@@ -2284,17 +2278,9 @@ async function renderStep2Input() {
             <p style="font-size:13px;color:#94a3b8;margin-bottom:12px;">Provide a URL to a web page describing a process or workflow. AI will extract steps automatically.</p>
             <div class="form-row">
                 <div class="form-group">
-                    <label>Business Unit</label>
-                    <select id="vs-url-bu">
-                        ${units.length ? units.map(u => `<option value="${u.id}">${u.name}</option>`).join('') : '<option value="">No business units</option>'}
-                    </select>
-                </div>
-                <div class="form-group">
                     <label>Web URL</label>
                     <input type="text" id="vs-url-input" placeholder="https://example.com/process-description" />
                 </div>
-            </div>
-            <div class="form-row">
                 <div class="form-group">
                     <label>Segment Name (optional)</label>
                     <input type="text" id="vs-url-segment" placeholder="e.g. Order Fulfillment" />
@@ -2311,12 +2297,6 @@ async function renderStep2Input() {
                 <div class="form-group">
                     <label>Business Segment Name</label>
                     <input type="text" id="vs-pull-segment" placeholder="e.g. Loan Processing, Claims Management" />
-                </div>
-                <div class="form-group">
-                    <label>Business Unit</label>
-                    <select id="vs-pull-bu">
-                        ${units.length ? units.map(u => `<option value="${u.id}">${u.name}</option>`).join('') : '<option value="">No business units</option>'}
-                    </select>
                 </div>
             </div>
             <div class="form-row" style="gap:24px;">
@@ -2414,7 +2394,7 @@ async function generateValueStream() {
 }
 
 async function uploadValueStream() {
-    const buId = document.getElementById('vs-upload-bu').value;
+    const buId = document.getElementById('vs-bu').value;
     const fileInput = document.getElementById('vs-file');
     if (!buId) { alert('Select a business unit.'); return; }
     if (!fileInput.files.length) { alert('Select a file to upload.'); return; }
@@ -2433,7 +2413,7 @@ async function uploadValueStream() {
 
 async function pullFromSources() {
     const segment = document.getElementById('vs-pull-segment').value.trim();
-    const buId = document.getElementById('vs-pull-bu').value;
+    const buId = document.getElementById('vs-bu').value;
     if (!segment) { alert('Enter a business segment name.'); return; }
     if (!buId) { alert('Select a business unit.'); return; }
 
@@ -2484,7 +2464,7 @@ async function pullFromSources() {
 }
 
 async function uploadVisualProcessMap() {
-    const buId = document.getElementById('vs-visual-bu').value;
+    const buId = document.getElementById('vs-bu').value;
     const fileInput = document.getElementById('vs-visual-file');
     if (!buId) { alert('Select a business unit.'); return; }
     if (!fileInput.files.length) { alert('Select a process map file to upload.'); return; }
@@ -2520,7 +2500,7 @@ async function uploadVisualProcessMap() {
 }
 
 async function extractFromUrl() {
-    const buId = document.getElementById('vs-url-bu').value;
+    const buId = document.getElementById('vs-bu').value;
     const url = document.getElementById('vs-url-input').value.trim();
     const segment = document.getElementById('vs-url-segment').value.trim();
 
