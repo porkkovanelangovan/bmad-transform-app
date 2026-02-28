@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends
 from database import get_db
 from datetime import datetime
-from ai_research import is_openai_available
+from ai_research import is_openai_available, ensure_str
 
 router = APIRouter()
 
@@ -737,11 +737,11 @@ async def auto_generate_strategies(db=Depends(get_db)):
                             "INSERT INTO strategies (layer, name, description, tows_action_id, risk_level, risks) "
                             "VALUES (?, ?, ?, ?, ?, ?)",
                             (layer_name,
-                             strat.get("name", f"{layer_name.title()} Strategy"),
-                             f"Auto-generated (AI): {strat.get('description', '')}",
+                             ensure_str(strat.get("name", f"{layer_name.title()} Strategy")),
+                             ensure_str(f"Auto-generated (AI): {strat.get('description', '')}"),
                              None,  # AI doesn't map to specific TOWS action IDs
-                             strat.get("risk_level", "medium"),
-                             strat.get("risks", "")),
+                             ensure_str(strat.get("risk_level", "medium")),
+                             ensure_str(strat.get("risks", ""))),
                         )
                         strategy_id = cursor.lastrowid
                         strategy_count += 1
@@ -749,7 +749,7 @@ async def auto_generate_strategies(db=Depends(get_db)):
                         for okr in strat.get("okrs", []):
                             okr_cursor = await db.execute(
                                 "INSERT INTO strategic_okrs (strategy_id, objective, time_horizon, status) VALUES (?, ?, ?, 'draft')",
-                                (strategy_id, okr.get("objective", "Strategic objective"), okr.get("time_horizon", "12 months")),
+                                (strategy_id, ensure_str(okr.get("objective", "Strategic objective")), ensure_str(okr.get("time_horizon", "12 months"))),
                             )
                             okr_id = okr_cursor.lastrowid
                             okr_count += 1
@@ -759,11 +759,11 @@ async def auto_generate_strategies(db=Depends(get_db)):
                                     "INSERT INTO strategic_key_results (okr_id, key_result, metric, current_value, target_value, unit, "
                                     "target_optimistic, target_pessimistic, rationale) "
                                     "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                                    (okr_id, kr.get("key_result", "Key result"),
-                                     kr.get("metric"), kr.get("current_value", 0),
-                                     kr.get("target_value", 0), kr.get("unit"),
-                                     kr.get("target_optimistic"), kr.get("target_pessimistic"),
-                                     kr.get("rationale", "")),
+                                    (okr_id, ensure_str(kr.get("key_result", "Key result")),
+                                     ensure_str(kr.get("metric", "")), kr.get("current_value", 0),
+                                     kr.get("target_value", 0), ensure_str(kr.get("unit", "")),
+                                     ensure_str(kr.get("target_optimistic", "")), ensure_str(kr.get("target_pessimistic", "")),
+                                     ensure_str(kr.get("rationale", ""))),
                                 )
                                 kr_count += 1
 
@@ -793,8 +793,8 @@ async def auto_generate_strategies(db=Depends(get_db)):
         for strat in layer_strategies:
             cursor = await db.execute(
                 "INSERT INTO strategies (layer, name, description, tows_action_id, risk_level, risks) VALUES (?, ?, ?, ?, ?, ?)",
-                (layer, strat["name"], strat["description"], strat.get("tows_action_id"),
-                 strat.get("risk_level", "medium"), strat.get("risks", "")),
+                (layer, ensure_str(strat.get("name", "")), ensure_str(strat.get("description", "")), strat.get("tows_action_id"),
+                 ensure_str(strat.get("risk_level", "medium")), ensure_str(strat.get("risks", ""))),
             )
             strategy_id = cursor.lastrowid
             strategy_count += 1
@@ -802,7 +802,7 @@ async def auto_generate_strategies(db=Depends(get_db)):
             for okr in strat.get("okrs", []):
                 okr_cursor = await db.execute(
                     "INSERT INTO strategic_okrs (strategy_id, objective, time_horizon, status) VALUES (?, ?, ?, 'draft')",
-                    (strategy_id, okr["objective"], okr.get("time_horizon")),
+                    (strategy_id, ensure_str(okr.get("objective", "Strategic objective")), ensure_str(okr.get("time_horizon", "12 months"))),
                 )
                 okr_id = okr_cursor.lastrowid
                 okr_count += 1
@@ -812,10 +812,10 @@ async def auto_generate_strategies(db=Depends(get_db)):
                         "INSERT INTO strategic_key_results (okr_id, key_result, metric, current_value, target_value, unit, "
                         "target_optimistic, target_pessimistic, rationale) "
                         "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                        (okr_id, kr["key_result"], kr.get("metric"), kr.get("current_value", 0),
-                         kr["target_value"], kr.get("unit"),
-                         kr.get("target_optimistic"), kr.get("target_pessimistic"),
-                         kr.get("rationale", "")),
+                        (okr_id, ensure_str(kr.get("key_result", "Key result")), ensure_str(kr.get("metric", "")), kr.get("current_value", 0),
+                         kr.get("target_value", 0), ensure_str(kr.get("unit", "")),
+                         ensure_str(kr.get("target_optimistic", "")), ensure_str(kr.get("target_pessimistic", "")),
+                         ensure_str(kr.get("rationale", ""))),
                     )
                     kr_count += 1
 
