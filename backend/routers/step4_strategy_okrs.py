@@ -708,6 +708,8 @@ async def _do_auto_generate(db):
         sid = dict(s)["id"]
         # Nullify initiative references to this strategy
         await db.execute("UPDATE initiatives SET strategy_id = NULL WHERE strategy_id = ?", (sid,))
+        # Nullify regulatory impact references to this strategy
+        await db.execute("UPDATE regulatory_impacts SET strategy_id = NULL WHERE strategy_id = ?", (sid,))
         okrs = await db.execute_fetchall("SELECT id FROM strategic_okrs WHERE strategy_id = ?", (sid,))
         for okr in okrs:
             await db.execute("DELETE FROM strategic_key_results WHERE okr_id = ?", (dict(okr)["id"],))
