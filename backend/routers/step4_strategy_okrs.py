@@ -2,6 +2,9 @@ from fastapi import APIRouter, Depends
 from database import get_db
 from datetime import datetime
 from ai_research import is_openai_available, ensure_str
+import logging, traceback
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -687,7 +690,14 @@ def _generate_gen_ai_strategy(ctx):
 async def auto_generate_strategies(db=Depends(get_db)):
     """Generate strategies + OKRs + KRs from Steps 1-3 + user inputs.
     Uses AI when OpenAI is available, falls back to rule-based generation."""
+    try:
+        return await _do_auto_generate(db)
+    except Exception as e:
+        logger.error(f"Step 4 auto-generate failed: {e}\n{traceback.format_exc()}")
+        raise
 
+
+async def _do_auto_generate(db):
     # Step 1: Cleanup auto-generated strategies (cascade delete)
     auto_strategies = await db.execute_fetchall(
         "SELECT id FROM strategies WHERE description LIKE 'Auto-generated%'"
@@ -774,7 +784,8 @@ async def auto_generate_strategies(db=Depends(get_db)):
                     "cross_layer_notes": cross_layer_notes,
                     "initiative_suggestions": initiative_suggestions,
                 }
-        except Exception:
+        except Exception as e:
+            logger.warning(f"AI strategy generation failed, falling back to rule-based: {e}")
             pass  # Fall through to rule-based
 
     # Step 3b: Rule-based fallback
